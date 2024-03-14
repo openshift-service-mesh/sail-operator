@@ -15,6 +15,7 @@ You’ll need a Kubernetes cluster to run against. You can use [KIND](https://si
 
 ```sh
 make deploy
+
 ```
 
 Alternatively, you can deploy the operator using OLM:
