@@ -100,12 +100,7 @@ func NewReconciler(client client.Client, scheme *runtime.Scheme, resourceDir str
 func (r *Reconciler) Reconcile(ctx context.Context, rev *v1alpha1.IstioRevision) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	if err := validateIstioRevision(rev); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	log.Info("Installing components")
-	reconcileErr := r.installHelmCharts(ctx, rev)
+	reconcileErr := r.doReconcile(ctx, rev)
 
 	log.Info("Reconciliation done. Updating status.")
 	statusErr := r.updateStatus(ctx, rev, reconcileErr)
@@ -113,17 +108,34 @@ func (r *Reconciler) Reconcile(ctx context.Context, rev *v1alpha1.IstioRevision)
 	return ctrl.Result{}, errors.Join(reconcileErr, statusErr)
 }
 
+func (r *Reconciler) doReconcile(ctx context.Context, rev *v1alpha1.IstioRevision) error {
+	log := logf.FromContext(ctx)
+	if err := r.validateIstioRevision(ctx, rev); err != nil {
+		return err
+	}
+
+	log.Info("Installing Helm chart")
+	return r.installHelmCharts(ctx, rev)
+}
+
 func (r *Reconciler) Finalize(ctx context.Context, rev *v1alpha1.IstioRevision) error {
 	return r.uninstallHelmCharts(ctx, rev)
 }
 
-func validateIstioRevision(rev *v1alpha1.IstioRevision) error {
+func (r *Reconciler) validateIstioRevision(ctx context.Context, rev *v1alpha1.IstioRevision) error {
 	if rev.Spec.Version == "" {
 		return reconciler.NewValidationError("spec.version not set")
 	}
 	if rev.Spec.Namespace == "" {
 		return reconciler.NewValidationError("spec.namespace not set")
 	}
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: rev.Spec.Namespace}, &corev1.Namespace{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			return reconciler.NewValidationError(fmt.Sprintf("namespace %q doesn't exist", rev.Spec.Namespace))
+		}
+		return err
+	}
+
 	if rev.Spec.Values == nil {
 		return reconciler.NewValidationError("spec.values not set")
 	}
@@ -175,8 +187,12 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// ownedResourceHandler handles resources that are owned by the IstioRevision CR
 	ownedResourceHandler := handler.EnqueueRequestForOwner(r.Scheme, r.RESTMapper(), &v1alpha1.IstioRevision{}, handler.OnlyControllerOwner())
 
-	// nsHandler handles namespaces that reference the IstioRevision CR via the istio.io/rev or istio-injection labels.
-	// The handler triggers the reconciliation of the referenced IstioRevision CR so that its InUse condition is updated.
+	// nsHandler triggers reconciliation in two cases:
+	// - when a namespace that is referenced in IstioRevision.spec.namespace is
+	//   created, so that the control plane is installed immediately.
+	// - when a namespace that references the IstioRevision CR via the istio.io/rev
+	//   or istio-injection labels is updated, so that the InUse condition of
+	//   the IstioRevision CR is updated.
 	nsHandler := handler.EnqueueRequestsFromMapFunc(r.mapNamespaceToReconcileRequest)
 
 	// podHandler handles pods that reference the IstioRevision CR via the istio.io/rev or sidecar.istio.io/inject labels.
@@ -421,11 +437,27 @@ func istiodDeploymentKey(rev *v1alpha1.IstioRevision) client.ObjectKey {
 }
 
 func (r *Reconciler) mapNamespaceToReconcileRequest(ctx context.Context, ns client.Object) []reconcile.Request {
+	log := logf.FromContext(ctx)
+	var requests []reconcile.Request
+
+	// Check if any IstioRevision references this namespace in .spec.namespace
+	revList := v1alpha1.IstioRevisionList{}
+	if err := r.Client.List(ctx, &revList); err != nil {
+		log.Error(err, "failed to list IstioRevisions")
+		return nil
+	}
+	for _, rev := range revList.Items {
+		if rev.Spec.Namespace == ns.GetName() {
+			requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: rev.Name}})
+		}
+	}
+
+	// Check if the namespace references an IstioRevision in its labels
 	revision := getReferencedRevisionFromNamespace(ns.GetLabels())
 	if revision != "" {
-		return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: revision}}}
+		requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: revision}})
 	}
-	return nil
+	return requests
 }
 
 func (r *Reconciler) mapPodToReconcileRequest(ctx context.Context, pod client.Object) []reconcile.Request {
