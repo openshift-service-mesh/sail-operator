@@ -12,23 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reconciler
+package kube
 
-import "errors"
+import "sigs.k8s.io/controller-runtime/pkg/client"
 
-type ValidationError struct {
-	message string
-}
-
-func (v ValidationError) Error() string {
-	return "validation error: " + v.message
-}
-
-func NewValidationError(message string) error {
-	return &ValidationError{message: message}
-}
-
-func IsValidationError(err error) bool {
-	e := &ValidationError{}
-	return errors.As(err, &e)
+// key returns the client.ObjectKey for the given name and namespace. If no namespace is provided, it returns a key cluster scoped
+func Key(name string, namespace ...string) client.ObjectKey {
+	if len(namespace) > 1 {
+		panic("you can only provide one namespace")
+	} else if len(namespace) == 1 {
+		return client.ObjectKey{Name: name, Namespace: namespace[0]}
+	}
+	return client.ObjectKey{Name: name}
 }
