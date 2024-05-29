@@ -10,6 +10,5 @@ VERSIONS_YAML_FILE = versions.yaml
 vendor: ## Vendor dependencies.
 	go mod vendor
 
-# we want to run the vendor target as last one
 .PHONY: gen ## Generate everything
-gen: operator-name controller-gen gen-api gen-charts gen-manifests gen-code bundle vendor
+gen: vendor
