@@ -66,14 +66,12 @@ main () {
     echo "Conflicts detected, attempting to run 'make gen' to resolve."
     rm -rf bundle/**/*.yaml resources bundle.Dockerfile
     updateVersionsInOssmValuesYaml
-    go mod vendor
     make gen
     git add bundle resources chart bundle.Dockerfile vendor "$HELM_VALUES_FILE"
     git -c "user.name=$GIT_USERNAME" -c "user.email=$GIT_EMAIL" commit --no-edit
   else
-    # this is no-op when there are no changes in go.mod
     echo "Syncing the vendor directory"
-    go mod vendor
+    make vendor
     git add vendor
     if ! git diff --cached --quiet; then
       git -c "user.name=$GIT_USERNAME" -c "user.email=$GIT_EMAIL" commit -m "Syncing the vendor directory"

@@ -4,3 +4,12 @@ HUB = quay.io/maistra-dev
 CHANNELS = candidates
 HELM_VALUES_FILE = ossm/values.yaml
 VERSIONS_YAML_FILE = versions.yaml
+
+
+.PHONY: vendor
+vendor: ## Vendor dependencies.
+	go mod vendor
+
+# we want to run the vendor target as last one
+.PHONY: gen ## Generate everything
+gen: operator-name controller-gen gen-api gen-charts gen-manifests gen-code bundle vendor
