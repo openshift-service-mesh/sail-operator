@@ -4,6 +4,7 @@ FROM registry.ci.openshift.org/openshift/release:rhel-8-release-golang-1.21-open
 COPY . .
 
 ENV GOFLAGS="-mod=vendor"
+ENV BUILD_WITH_CONTAINER=0
 
 RUN make build
 
