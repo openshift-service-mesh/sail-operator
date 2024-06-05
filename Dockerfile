@@ -1,9 +1,10 @@
 
-FROM registry.ci.openshift.org/openshift/release:rhel-8-release-golang-1.21-openshift-4.16 AS gobuilder
+FROM registry.ci.openshift.org/openshift/release:rhel-8-release-golang-1.22-openshift-4.17 AS gobuilder
 
 COPY . .
 
-ENV GOFLAGS="-mod=vendor"
+# TODO: is this needed?
+# ENV GOFLAGS="-mod=vendor"
 ENV BUILD_WITH_CONTAINER=0
 
 RUN make build
