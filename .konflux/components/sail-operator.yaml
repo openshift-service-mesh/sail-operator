@@ -1,0 +1,18 @@
+
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: Component
+metadata:
+  annotations:
+    image.redhat.com/generate: "true" # TODO ??
+    appstudio.openshift.io/pac-provision: request # TODO ??
+  name: sail-operator
+spec:
+  componentName: sail-operator
+  application: sail-operator
+  build-nudges-ref:
+    - ossm-3-bundle # TODO ??
+  source:
+    git:
+      url: https://github.com/openshift-service-mesh/sail-operator.git
+      dockerfileUrl: Dockerfile
+      revision: konflux-wip
