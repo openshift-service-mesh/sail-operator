@@ -36,8 +36,10 @@ spec:
       openAPIV3Schema:
         properties:
           spec:
-            description: 'Describes a collection of workload instances. See more details
-              at: https://istio.io/docs/reference/config/networking/workload-group.html'
+            description: '`WorkloadGroup` enables specifying the properties of a single
+              workload for bootstrap and provides a template for `WorkloadEntry`,
+              similar to how `Deployment` specifies properties of workloads via `Pod`
+              templates.'
             properties:
               metadata:
                 description: Metadata that will be used for all corresponding `WorkloadEntries`.
@@ -382,8 +384,10 @@ spec:
       openAPIV3Schema:
         properties:
           spec:
-            description: 'Describes a collection of workload instances. See more details
-              at: https://istio.io/docs/reference/config/networking/workload-group.html'
+            description: '`WorkloadGroup` enables specifying the properties of a single
+              workload for bootstrap and provides a template for `WorkloadEntry`,
+              similar to how `Deployment` specifies properties of workloads via `Pod`
+              templates.'
             properties:
               metadata:
                 description: Metadata that will be used for all corresponding `WorkloadEntries`.
