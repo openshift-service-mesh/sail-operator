@@ -24,6 +24,7 @@ check_arguments() {
   fi
 }
 
+
 parse_flags() {
   SKIP_BUILD=${SKIP_BUILD:-false}
   SKIP_DEPLOY=${SKIP_DEPLOY:-false}
