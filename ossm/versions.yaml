@@ -4,19 +4,19 @@
 # versions specified below can be the source of the CRDs. Because CRDs are
 # typically backwards-compatible, the following field should point to the
 # most recent version.
-crdSourceVersion: v1.22.1
+crdSourceVersion: v1.22.3
 # The list of versions to support. Each item specifies the name of the version,
 # the Git repository and commit hash for retrieving the profiles, and
 # a list of URLs for retrieving the charts.
 # The first item in the list is the default version.
 versions:
-  - name: v1.22.1
-    version: 1.22.1
+  - name: v1.22.3
+    version: 1.22.3
     repo: https://github.com/istio/istio
-    commit: 1.22.1
+    commit: 1.22.3
     charts:
-      - https://istio-release.storage.googleapis.com/charts/base-1.22.1.tgz
-      - https://istio-release.storage.googleapis.com/charts/istiod-1.22.1.tgz
-      - https://istio-release.storage.googleapis.com/charts/gateway-1.22.1.tgz
-      - https://istio-release.storage.googleapis.com/charts/cni-1.22.1.tgz
-      - https://istio-release.storage.googleapis.com/charts/ztunnel-1.22.1.tgz
+      - https://istio-release.storage.googleapis.com/charts/base-1.22.3.tgz
+      - https://istio-release.storage.googleapis.com/charts/istiod-1.22.3.tgz
+      - https://istio-release.storage.googleapis.com/charts/gateway-1.22.3.tgz
+      - https://istio-release.storage.googleapis.com/charts/cni-1.22.3.tgz
+      - https://istio-release.storage.googleapis.com/charts/ztunnel-1.22.3.tgz

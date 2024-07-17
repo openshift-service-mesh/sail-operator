@@ -8056,9 +8056,9 @@ spec:
               version:
                 description: |-
                   Defines the version of Istio to install.
-                  Must be one of: v1.22.1.
+                  Must be one of: v1.22.3.
                 enum:
-                - v1.22.1
+                - v1.22.3
                 type: string
             required:
             - namespace
