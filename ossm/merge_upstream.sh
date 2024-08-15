@@ -45,7 +45,7 @@ merge() {
 
   set +e # git returns a non-zero exit code on merge failure, which fails the script
   if [ "${MERGE_STRATEGY}" == "merge" ]; then
-    git -c "user.name=$GIT_USERNAME" -c "user.email=$GIT_EMAIL" merge --no-ff -m "$GIT_COMMIT_MESSAGE" --log upstream/"$MERGE_BRANCH"
+    git -c "user.name=$GIT_USERNAME" -c "user.email=$GIT_EMAIL" merge --no-ff -m "$GIT_COMMIT_MESSAGE" --log upstream/"$MERGE_BRANCH" --strategy-option theirs
   else
     git -c "user.name=$GIT_USERNAME" -c "user.email=$GIT_EMAIL" rebase upstream/"$MERGE_BRANCH"
   fi
@@ -68,7 +68,7 @@ main () {
     updateVersionsInOssmValuesYaml
     make gen
     git add bundle resources chart bundle.Dockerfile "$HELM_VALUES_FILE"
-    git -c "user.name=$GIT_USERNAME" -c "user.email=$GIT_EMAIL" commit --no-edit
+    git -c "user.name=$GIT_USERNAME" -c "user.email=$GIT_EMAIL" commit --no-edit -a
   fi
 }
 
