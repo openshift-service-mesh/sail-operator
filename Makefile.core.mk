@@ -19,8 +19,10 @@ OLD_VARS := $(.VARIABLES)
 # Use `make print-variables` to inspect the values of the variables
 -include Makefile.vendor.mk
 
+UPDATE_BRANCH = release-1.23
+
 VERSION ?= 0.1.0
-MINOR_VERSION := $(shell v='$(VERSION)'; echo "$${v%.*}")
+MINOR_VERSION := $(shell echo "${VERSION}" | cut -f1,2 -d'.')
 
 OPERATOR_NAME ?= sailoperator
 VERSIONS_YAML_FILE ?= versions.yaml
@@ -79,7 +81,7 @@ GINKGO_FLAGS := $(if $(VERBOSE),-v) $(if $(CI),--no-color)
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
 # - use the CHANNELS as arg of the bundle target (e.g make bundle CHANNELS=candidate,fast,stable)
 # - use environment variables to overwrite this value (e.g export CHANNELS="candidate,fast,stable")
-CHANNELS ?= "0.1"
+CHANNELS ?= ${MINOR_VERSION}
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS = --channels=\"$(CHANNELS)\"
 endif
@@ -265,16 +267,31 @@ uninstall: verify-kubeconfig ## Uninstall CRDs from an existing cluster.
 	kubectl delete --ignore-not-found -f chart/crds
 
 .PHONY: helm-package
-helm-package: helm ## Package the helm chart.
+helm-package: helm operator-chart ## Package the helm chart.
 	$(HELM) package chart --destination $(REPO_ROOT)/out
 
-.PHONY: helm-publish
-helm-publish: helm-package ## Create a GitHub release and upload the helm charts package to it.
+# optional flags for 'gh release create' cmd
+GH_RELEASE_ADDITIONAL_FLAGS =
+# set to true to label the GH release as non-production ready
+GH_PRE_RELEASE ?= false
+ifeq ($(GH_PRE_RELEASE),true)
+GH_RELEASE_ADDITIONAL_FLAGS += --prerelease
+endif
+
+# create a draft by default to avoid creating real GH release by accident
+GH_RELEASE_DRAFT ?= true
+ifeq ($(GH_RELEASE_DRAFT),true)
+GH_RELEASE_ADDITIONAL_FLAGS += --draft
+endif
+
+.PHONY: create-gh-release
+create-gh-release: helm-package ## Create a GitHub release and upload the helm charts package to it.
 	export GITHUB_TOKEN=$(GITHUB_TOKEN)
 	gh release create $(VERSION) $(REPO_ROOT)/out/sail-operator-$(VERSION).tgz \
 		--target release-$(MINOR_VERSION) \
-		--title "sail-operator $(VERSION)" \
-		--generate-notes
+		--title "Sail Operator $(VERSION)" \
+		--generate-notes \
+		$(GH_RELEASE_ADDITIONAL_FLAGS)
 
 .PHONY: deploy
 deploy: verify-kubeconfig helm ## Deploy controller to an existing cluster.
@@ -299,7 +316,7 @@ deploy-yaml-openshift: verify-kubeconfig helm ## Output YAML manifests used by `
 .PHONY: deploy-olm
 deploy-olm: verify-kubeconfig bundle bundle-build bundle-push ## Build and push the operator OLM bundle and deploy the operator using OLM.
 	kubectl create ns ${NAMESPACE} || echo "namespace ${NAMESPACE} already exists"
-	$(OPERATOR_SDK) run bundle $(BUNDLE_IMG) -n ${NAMESPACE}
+	$(OPERATOR_SDK) run bundle $(BUNDLE_IMG) -n ${NAMESPACE} --skip-tls
 
 .PHONY: undeploy
 undeploy: verify-kubeconfig ## Undeploy controller from an existing cluster.
@@ -359,14 +376,14 @@ gen-charts: ## Pull charts from istio repository.
 	@# update the urn:alm:descriptor:com.tectonic.ui:select entries in istio_types.go to match the supported versions of the Helm charts
 	@hack/update-version-list.sh
 
-	@# calls copy-crds.sh with the version specified in the .crdSourceVersion field in versions.yaml
-	@hack/copy-crds.sh "resources/$$(yq eval '.crdSourceVersion' $(VERSIONS_YAML_FILE))/charts"
+	@# extract the Istio CRD YAMLs from the istio.io/istio dependency in go.mod into ./chart/crds
+	@hack/extract-istio-crds.sh
 
 .PHONY: gen
 gen: gen-all-except-bundle bundle ## Generate everything.
 
 .PHONY: gen-all-except-bundle
-gen: operator-name controller-gen gen-api gen-charts gen-manifests gen-code gen-api-docs
+gen-all-except-bundle: operator-name operator-chart controller-gen gen-api gen-charts gen-manifests gen-code gen-api-docs
 
 .PHONY: gen-check
 gen-check: gen restore-manifest-dates check-clean-repo ## Verify that changes in generated resources have been checked in.
@@ -402,6 +419,13 @@ endif
 .PHONY: operator-name
 operator-name:
 	sed -i "s/\(projectName:\).*/\1 ${OPERATOR_NAME}/g" PROJECT
+
+.PHONY: operator-chart
+operator-chart:
+	sed -i -e "s/^\(version: \).*$$/\1${VERSION}/g" \
+	       -e "s/^\(appVersion: \).*$$/\1\"${VERSION}\"/g" chart/Chart.yaml
+	sed -i -e "s|^\(image: \).*$$|\1${IMAGE}|g" \
+	       -e "s/^\(  version: \).*$$/\1${VERSION}/g" chart/values.yaml
 
 .PHONY: update-istio
 update-istio: ## Update the Istio commit hash in the 'latest' entry in versions.yaml to the latest commit in the branch.
@@ -476,9 +500,17 @@ gitleaks: $(GITLEAKS) ## Download gitleaks to bin directory.
 $(GITLEAKS): $(LOCALBIN)
 	@test -s $(LOCALBIN)/gitleaks || GOBIN=$(LOCALBIN) go install github.com/zricethezav/gitleaks/v8@${GITLEAKS_VERSION}
 
+# Openshift Platform flag
+# If is set to true will add `--set platform=openshift` to the helm template command
+OPENSHIFT_PLATFORM ?= true
+
 .PHONY: bundle
 bundle: gen-all-except-bundle helm operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
-	$(HELM) template chart chart $(HELM_TEMPL_DEF_FLAGS) --set image='$(IMAGE)' --set platform=openshift --set bundleGeneration=true | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
+	@TEMPL_FLAGS="$(HELM_TEMPL_DEF_FLAGS)"; \
+	if [ "$(OPENSHIFT_PLATFORM)" = "true" ]; then \
+		TEMPL_FLAGS="$$TEMPL_FLAGS --set platform=openshift"; \
+	fi; \
+	$(HELM) template chart chart $$TEMPL_FLAGS --set image='$(IMAGE)' --set bundleGeneration=true | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
 
 ifeq ($(GENERATE_RELATED_IMAGES), true)
 	@hack/patch-csv.sh bundle/manifests/$(OPERATOR_NAME).clusterserviceversion.yaml
@@ -598,7 +630,7 @@ git-hook: gitleaks ## Installs gitleaks as a git pre-commit hook.
 		chmod +x .git/hooks/pre-commit; \
 	fi
 
-.SILENT: helm $(HELM) $(LOCALBIN) deploy-yaml gen-api operator-name
+.SILENT: helm $(HELM) $(LOCALBIN) deploy-yaml gen-api operator-name operator-chart
 
 COMMON_IMPORTS ?= lint-all lint-scripts lint-copyright-banner lint-go lint-yaml lint-helm format-go tidy-go check-clean-repo update-common
 .PHONY: $(COMMON_IMPORTS)
