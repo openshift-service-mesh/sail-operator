@@ -1,14 +1,15 @@
 # This file defines all the Istio versions supported by this operator.
 
-# Since you can't install multiple versions of the same CRD, only one of the
-# versions specified below can be the source of the CRDs. Because CRDs are
-# typically backwards-compatible, the following field should point to the
-# most recent version.
-crdSourceVersion: latest
 # The list of versions to support. Each item specifies the name of the version,
 # the Git repository and commit hash for retrieving the profiles, and
 # a list of URLs for retrieving the charts.
 # The first item in the list is the default version.
+#
+# IMPORTANT: in addition to the versions specified here, the versions of the
+# istio.io/istio and istio.io/api dependencies defined in go.mod must also be
+# updated to match the most recent version specified here. The versions in
+# go.mod affect the generated API schema for the Sail CRDs (e.g. IstioRevision),
+# as well as all the Istio CRDs (e.g. VirtualService).
 versions:
   - name: v1.23.0
     version: 1.23.0
@@ -21,35 +22,13 @@ versions:
       - https://istio-release.storage.googleapis.com/charts/gateway-1.23.0.tgz
       - https://istio-release.storage.googleapis.com/charts/cni-1.23.0.tgz
       - https://istio-release.storage.googleapis.com/charts/ztunnel-1.23.0.tgz
-  - name: v1.22.3
-    version: 1.22.3
+  - name: v1.22.4
+    version: 1.22.4
     repo: https://github.com/istio/istio
-    commit: 1.22.3
+    commit: 1.22.4
     charts:
-      - https://istio-release.storage.googleapis.com/charts/base-1.22.3.tgz
-      - https://istio-release.storage.googleapis.com/charts/istiod-1.22.3.tgz
-      - https://istio-release.storage.googleapis.com/charts/gateway-1.22.3.tgz
-      - https://istio-release.storage.googleapis.com/charts/cni-1.22.3.tgz
-      - https://istio-release.storage.googleapis.com/charts/ztunnel-1.22.3.tgz
-  - name: v1.21.5
-    version: 1.21.5
-    repo: https://github.com/istio/istio
-    commit: 1.21.5
-    charts:
-      - https://istio-release.storage.googleapis.com/charts/base-1.21.5.tgz
-      - https://istio-release.storage.googleapis.com/charts/istiod-1.21.5.tgz
-      - https://istio-release.storage.googleapis.com/charts/gateway-1.21.5.tgz
-      - https://istio-release.storage.googleapis.com/charts/cni-1.21.5.tgz
-      - https://istio-release.storage.googleapis.com/charts/ztunnel-1.21.5.tgz
-  - name: latest
-    version: 1.24-alpha
-    repo: https://github.com/istio/istio
-    branch: master
-    commit: b28bdd77da4c7f0f4f3631db514f1c4f79a90289
-    charts:
-      - https://storage.googleapis.com/istio-build/dev/1.24-alpha.b28bdd77da4c7f0f4f3631db514f1c4f79a90289/helm/base-1.24-alpha.b28bdd77da4c7f0f4f3631db514f1c4f79a90289.tgz
-      - https://storage.googleapis.com/istio-build/dev/1.24-alpha.b28bdd77da4c7f0f4f3631db514f1c4f79a90289/helm/cni-1.24-alpha.b28bdd77da4c7f0f4f3631db514f1c4f79a90289.tgz
-      - https://storage.googleapis.com/istio-build/dev/1.24-alpha.b28bdd77da4c7f0f4f3631db514f1c4f79a90289/helm/gateway-1.24-alpha.b28bdd77da4c7f0f4f3631db514f1c4f79a90289.tgz
-      - https://storage.googleapis.com/istio-build/dev/1.24-alpha.b28bdd77da4c7f0f4f3631db514f1c4f79a90289/helm/istiod-1.24-alpha.b28bdd77da4c7f0f4f3631db514f1c4f79a90289.tgz
-      - https://storage.googleapis.com/istio-build/dev/1.24-alpha.b28bdd77da4c7f0f4f3631db514f1c4f79a90289/helm/istiod-remote-1.24-alpha.b28bdd77da4c7f0f4f3631db514f1c4f79a90289.tgz
-      - https://storage.googleapis.com/istio-build/dev/1.24-alpha.b28bdd77da4c7f0f4f3631db514f1c4f79a90289/helm/ztunnel-1.24-alpha.b28bdd77da4c7f0f4f3631db514f1c4f79a90289.tgz
+      - https://istio-release.storage.googleapis.com/charts/base-1.22.4.tgz
+      - https://istio-release.storage.googleapis.com/charts/istiod-1.22.4.tgz
+      - https://istio-release.storage.googleapis.com/charts/gateway-1.22.4.tgz
+      - https://istio-release.storage.googleapis.com/charts/cni-1.22.4.tgz
+      - https://istio-release.storage.googleapis.com/charts/ztunnel-1.22.4.tgz
