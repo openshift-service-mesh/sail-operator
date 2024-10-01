@@ -33,11 +33,9 @@ metadata:
       ]
     capabilities: Seamless Upgrades
     categories: OpenShift Optional, Integration & Delivery, Networking, Security
-    containerImage: quay.io/maistra-dev/sail-operator:3.0-latest
-    createdAt: "2024-08-29T15:46:07Z"
-    description: The OpenShift Service Mesh Operator enables you to install, configure,
-      and manage an instance of Red Hat OpenShift Service Mesh. OpenShift Service
-      Mesh is based on the open source Istio project.
+    containerImage: quay.io/maistra-dev/sail-operator:0.2-latest
+    createdAt: "2024-09-22T10:00:56Z"
+    description: Experimental operator for installing Istio service mesh
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "true"
     features.operators.openshift.io/csi: "false"
@@ -375,10 +373,10 @@ spec:
 
     ### Overview
 
-    Red Hat OpenShift Service Mesh, based on the open source [Istio](https://istio.io/) project, adds a transparent layer on existing
-    distributed applications without requiring any changes to the service code. You add Red Hat OpenShift Service Mesh
-    support to services by deploying a special sidecar proxy throughout your environment that intercepts all network
-    communication between microservices. You configure and manage the service mesh using the control plane features.
+    - v1.23.0
+    - v1.22.3
+    - v1.21.5
+    - latest (fe2a0468)
 
     Red Hat OpenShift Service Mesh provides an easy way to create a network of deployed services that provides discovery,
     load balancing, service-to-service authentication, failure recovery, metrics, and monitoring. A service mesh also
@@ -627,11 +625,22 @@ spec:
           template:
             metadata:
               annotations:
-                images.v1_23_0.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9:1.23.0.tp.1
-                images.v1_23_0.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9:1.23.0.tp.1
-                images.v1_23_0.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9:3.0.0.tp.1
-                images.v1_23_0.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9:3.0.0.tp.1
-                images.v1_23_0.ztunnel: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9:1.23.0.tp.1
+                images.latest.cni: gcr.io/istio-testing/install-cni:1.24-alpha.fe2a04689d3b7abf7630dc5646bf825e0c0592fe
+                images.latest.istiod: gcr.io/istio-testing/pilot:1.24-alpha.fe2a04689d3b7abf7630dc5646bf825e0c0592fe
+                images.latest.proxy: gcr.io/istio-testing/proxyv2:1.24-alpha.fe2a04689d3b7abf7630dc5646bf825e0c0592fe
+                images.latest.ztunnel: gcr.io/istio-testing/ztunnel:1.24-alpha.fe2a04689d3b7abf7630dc5646bf825e0c0592fe
+                images.v1_21_5.cni: docker.io/istio/install-cni:1.21.5
+                images.v1_21_5.istiod: docker.io/istio/pilot:1.21.5
+                images.v1_21_5.proxy: docker.io/istio/proxyv2:1.21.5
+                images.v1_21_5.ztunnel: docker.io/istio/ztunnel:1.21.5
+                images.v1_22_3.cni: docker.io/istio/install-cni:1.22.3
+                images.v1_22_3.istiod: docker.io/istio/pilot:1.22.3
+                images.v1_22_3.proxy: docker.io/istio/proxyv2:1.22.3
+                images.v1_22_3.ztunnel: docker.io/istio/ztunnel:1.22.3
+                images.v1_23_0.cni: docker.io/istio/install-cni:1.23.0
+                images.v1_23_0.istiod: docker.io/istio/pilot:1.23.0
+                images.v1_23_0.proxy: docker.io/istio/proxyv2:1.23.0
+                images.v1_23_0.ztunnel: docker.io/istio/ztunnel:1.23.0
                 kubectl.kubernetes.io/default-container: manager
               labels:
                 app.kubernetes.io/created-by: servicemeshoperator3
@@ -684,8 +693,7 @@ spec:
                 - --default-profile=openshift
                 command:
                 - /manager
-                image: quay.io/maistra-dev/sail-operator:3.0-latest
-                imagePullPolicy: Always
+                image: quay.io/maistra-dev/sail-operator:0.2-latest
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -784,4 +792,37 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat, Inc.
-  version: 3.0.0-tp.1
+  relatedImages:
+  - image: gcr.io/istio-testing/install-cni:1.24-alpha.fe2a04689d3b7abf7630dc5646bf825e0c0592fe
+    name: latest.cni
+  - image: gcr.io/istio-testing/pilot:1.24-alpha.fe2a04689d3b7abf7630dc5646bf825e0c0592fe
+    name: latest.istiod
+  - image: gcr.io/istio-testing/proxyv2:1.24-alpha.fe2a04689d3b7abf7630dc5646bf825e0c0592fe
+    name: latest.proxy
+  - image: gcr.io/istio-testing/ztunnel:1.24-alpha.fe2a04689d3b7abf7630dc5646bf825e0c0592fe
+    name: latest.ztunnel
+  - image: docker.io/istio/install-cni:1.21.5
+    name: v1_21_5.cni
+  - image: docker.io/istio/pilot:1.21.5
+    name: v1_21_5.istiod
+  - image: docker.io/istio/proxyv2:1.21.5
+    name: v1_21_5.proxy
+  - image: docker.io/istio/ztunnel:1.21.5
+    name: v1_21_5.ztunnel
+  - image: docker.io/istio/install-cni:1.22.3
+    name: v1_22_3.cni
+  - image: docker.io/istio/pilot:1.22.3
+    name: v1_22_3.istiod
+  - image: docker.io/istio/proxyv2:1.22.3
+    name: v1_22_3.proxy
+  - image: docker.io/istio/ztunnel:1.22.3
+    name: v1_22_3.ztunnel
+  - image: docker.io/istio/install-cni:1.23.0
+    name: v1_23_0.cni
+  - image: docker.io/istio/pilot:1.23.0
+    name: v1_23_0.istiod
+  - image: docker.io/istio/proxyv2:1.23.0
+    name: v1_23_0.proxy
+  - image: docker.io/istio/ztunnel:1.23.0
+    name: v1_23_0.ztunnel
+  version: 0.2.0

@@ -21,6 +21,7 @@ import (
 
 	k8sclient "github.com/istio-ecosystem/sail-operator/tests/e2e/util/client"
 	env "github.com/istio-ecosystem/sail-operator/tests/e2e/util/env"
+	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/kubectl"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,9 +41,15 @@ var (
 	skipDeploy            = env.GetBool("SKIP_DEPLOY", false)
 	expectedRegistry      = env.Get("EXPECTED_REGISTRY", "^docker\\.io|^gcr\\.io")
 	bookinfoNamespace     = env.Get("BOOKINFO_NAMESPACE", "bookinfo")
+	multicluster          = env.GetBool("MULTICLUSTER", false)
+
+	k *kubectl.KubectlBuilder
 )
 
 func TestInstall(t *testing.T) {
+	if multicluster {
+		t.Skip("Skipping test for multicluster")
+	}
 	RegisterFailHandler(Fail)
 	setup()
 	RunSpecs(t, "Control Plane Suite")
@@ -52,6 +59,8 @@ func setup() {
 	GinkgoWriter.Println("************ Running Setup ************")
 
 	GinkgoWriter.Println("Initializing k8s client")
-	cl, err = k8sclient.InitK8sClient()
+	cl, err = k8sclient.InitK8sClient("")
 	Expect(err).NotTo(HaveOccurred())
+
+	k = kubectl.NewKubectlBuilder()
 }

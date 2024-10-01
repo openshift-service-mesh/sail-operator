@@ -79,7 +79,12 @@ GINKGO_FLAGS := $(if $(VERBOSE),-v) $(if $(CI),--no-color)
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
 # - use the CHANNELS as arg of the bundle target (e.g make bundle CHANNELS=candidate,fast,stable)
 # - use environment variables to overwrite this value (e.g export CHANNELS="candidate,fast,stable")
-CHANNELS ?= ${MINOR_VERSION}
+CHANNEL_PREFIX := dev
+ifneq (,$(findstring release-,$(shell git rev-parse --abbrev-ref HEAD)))
+CHANNEL_PREFIX = stable
+endif
+
+CHANNELS ?= $(CHANNEL_PREFIX)-$(MINOR_VERSION)
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS = --channels=\"$(CHANNELS)\"
 endif
@@ -165,8 +170,8 @@ test.e2e.ocp: ## Run the end-to-end tests against an existing OCP cluster.
 	GINKGO_FLAGS="$(GINKGO_FLAGS)" ${SOURCE_DIR}/tests/e2e/integ-suite-ocp.sh
 
 .PHONY: test.e2e.kind
-test.e2e.kind: ## Deploy a KinD cluster and run the end-to-end tests against it.
-	GINKGO_FLAGS="$(GINKGO_FLAGS)" ${SOURCE_DIR}/tests/e2e/integ-suite-kind.sh
+test.e2e.kind: istioctl ## Deploy a KinD cluster and run the end-to-end tests against it.
+	GINKGO_FLAGS="$(GINKGO_FLAGS)" ISTIOCTL="$(ISTIOCTL)" ${SOURCE_DIR}/tests/e2e/integ-suite-kind.sh
 
 .PHONY: test.e2e.describe
 test.e2e.describe: ## Runs ginkgo outline -format indent over the e2e test to show in BDD style the steps and test structure
@@ -381,7 +386,7 @@ gen-charts: ## Pull charts from istio repository.
 gen: gen-all-except-bundle bundle ## Generate everything.
 
 .PHONY: gen-all-except-bundle
-gen-all-except-bundle: operator-name operator-chart controller-gen gen-api gen-charts gen-manifests gen-code gen-api-docs
+gen-all-except-bundle: operator-name operator-chart controller-gen gen-api gen-charts gen-manifests gen-code gen-api-docs github-workflow
 
 .PHONY: gen-check
 gen-check: gen restore-manifest-dates check-clean-repo ## Verify that changes in generated resources have been checked in.
@@ -425,6 +430,9 @@ operator-chart:
 	sed -i -e "s|^\(image: \).*$$|\1${IMAGE}|g" \
 	       -e "s/^\(  version: \).*$$/\1${VERSION}/g" chart/values.yaml
 
+github-workflow:
+	sed -i -e '1,/default:/ s/^\(.*default:\).*$$/\1 ${CHANNELS}/' .github/workflows/release.yaml
+
 .PHONY: update-istio
 update-istio: ## Update the Istio commit hash in the 'latest' entry in versions.yaml to the latest commit in the branch.
 	@hack/update-istio.sh
@@ -450,6 +458,7 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GITLEAKS ?= $(LOCALBIN)/gitleaks
 OPM ?= $(LOCALBIN)/opm
+ISTIOCTL ?= $(LOCALBIN)/istioctl
 
 ## Tool Versions
 OPERATOR_SDK_VERSION ?= v1.36.1
@@ -457,6 +466,7 @@ HELM_VERSION ?= v3.15.3
 CONTROLLER_TOOLS_VERSION ?= v0.16.0
 OPM_VERSION ?= v1.45.0
 GITLEAKS_VERSION ?= v8.18.4
+ISTIOCTL_VERSION ?= 1.23.0
 
 # GENERATE_RELATED_IMAGES defines whether `spec.relatedImages` is going to be generated or not
 # To disable set flag to false
@@ -482,6 +492,28 @@ $(OPERATOR_SDK): $(LOCALBIN)
 	@test -s $(LOCALBIN)/operator-sdk || \
 	curl -sSLfo $(LOCALBIN)/operator-sdk https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS)_$(ARCH) && \
 	chmod +x $(LOCALBIN)/operator-sdk;
+
+.PHONY: istioctl $(ISTIOCTL)
+istioctl: $(ISTIOCTL) ## Download istioctl to bin directory.
+istioctl: TARGET_OS=$(shell go env GOOS)
+istioctl: TARGET_ARCH=$(shell go env GOARCH)
+$(ISTIOCTL): $(LOCALBIN)
+	@test -s $(LOCALBIN)/istioctl || { \
+		OSEXT=$(if $(filter $(TARGET_OS),Darwin),osx,linux); \
+		URL="https://github.com/istio/istio/releases/download/$(ISTIOCTL_VERSION)/istioctl-$(ISTIOCTL_VERSION)-$$OSEXT-$(TARGET_ARCH).tar.gz"; \
+		echo "Fetching istioctl from $$URL"; \
+		curl -fsL $$URL -o /tmp/istioctl.tar.gz || { \
+			echo "Download failed! Please check the URL and ISTIO_VERSION."; \
+			exit 1; \
+		}; \
+		tar -xzf /tmp/istioctl.tar.gz -C /tmp || { \
+			echo "Extraction failed!"; \
+			exit 1; \
+		}; \
+		mv /tmp/istioctl $(LOCALBIN)/istioctl; \
+		rm -f /tmp/istioctl.tar.gz; \
+		echo "istioctl has been downloaded and placed in $(LOCALBIN)"; \
+	}
 
 .PHONY: controller-gen
 controller-gen: $(LOCALBIN) ## Download controller-gen to bin directory. If wrong version is installed, it will be overwritten.
@@ -624,7 +656,7 @@ git-hook: gitleaks ## Installs gitleaks as a git pre-commit hook.
 		chmod +x .git/hooks/pre-commit; \
 	fi
 
-.SILENT: helm $(HELM) $(LOCALBIN) deploy-yaml gen-api operator-name operator-chart
+.SILENT: helm $(HELM) $(LOCALBIN) deploy-yaml gen-api operator-name operator-chart github-workflow
 
 COMMON_IMPORTS ?= lint-all lint-scripts lint-copyright-banner lint-go lint-yaml lint-helm format-go tidy-go check-clean-repo update-common
 .PHONY: $(COMMON_IMPORTS)

@@ -19,7 +19,7 @@ csv:
     - v1.23.0
     - v1.22.3
     - v1.21.5
-    - latest (b28bdd77)
+    - latest (fe2a0468)
 
     [See this page](https://github.com/istio-ecosystem/sail-operator/blob/main/bundle/README.md) for instructions on how to use it.
   support: Community based
@@ -42,8 +42,28 @@ csv:
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "true"
     features.operators.openshift.io/csi: "false"
-image: quay.io/maistra-dev/sail-operator:3.0-latest
-imagePullPolicy: Always
+image: quay.io/maistra-dev/sail-operator:0.2-latest
+# We're commenting out the imagePullPolicy to use k8s defaults
+# imagePullPolicy: Always
+proxy:
+  image: gcr.io/kubebuilder/kube-rbac-proxy:v0.16.0
+  # We're commenting out the imagePullPolicy to use k8s defaults
+  # imagePullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 5m
+      memory: 64Mi
+operator:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
 
 # setting this to true will add resources required to generate the bundle using operator-sdk
 bundleGeneration: false

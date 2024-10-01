@@ -18,6 +18,8 @@ package common
 
 import (
 	"context"
+	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -39,6 +41,14 @@ var (
 	istioName             = env.Get("ISTIO_NAME", "default")
 	istioCniName          = env.Get("ISTIOCNI_NAME", "default")
 	istioCniNamespace     = env.Get("ISTIOCNI_NAMESPACE", "istio-cni")
+
+	// version can have one of the following formats:
+	// - 1.22.2
+	// - 1.23.0-rc.1
+	// - 1.24-alpha
+	istiodVersionRegex = regexp.MustCompile(`Version:"(\d+\.\d+(\.\d+)?(-\w+(\.\d+)?)?)`)
+
+	k = kubectl.NewKubectlBuilder()
 )
 
 // getObject returns the object with the given key
@@ -51,6 +61,36 @@ func GetObject(ctx context.Context, cl client.Client, key client.ObjectKey, obj 
 func GetList(ctx context.Context, cl client.Client, list client.ObjectList, opts ...client.ListOption) (client.ObjectList, error) {
 	err := cl.List(ctx, list, opts...)
 	return list, err
+}
+
+// GetPodNameByLabel returns the name of the pod with the given label
+func GetPodNameByLabel(ctx context.Context, cl client.Client, ns, labelKey, labelValue string) (string, error) {
+	podList := &corev1.PodList{}
+	err := cl.List(ctx, podList, client.InNamespace(ns), client.MatchingLabels{labelKey: labelValue})
+	if err != nil {
+		return "", err
+	}
+	if len(podList.Items) == 0 {
+		return "", fmt.Errorf("no pod found with label %s=%s", labelKey, labelValue)
+	}
+	return podList.Items[0].Name, nil
+}
+
+// GetSVCAddress returns the address of the service with the given name
+func GetSVCLoadBalancerAddress(ctx context.Context, cl client.Client, ns, svcName string) (string, error) {
+	svc := &corev1.Service{}
+	err := cl.Get(ctx, client.ObjectKey{Namespace: ns, Name: svcName}, svc)
+	if err != nil {
+		return "", err
+	}
+
+	// To avoid flakiness, wait for the LoadBalancer to be ready
+	Eventually(func() ([]corev1.LoadBalancerIngress, error) {
+		err := cl.Get(ctx, client.ObjectKey{Namespace: ns, Name: svcName}, svc)
+		return svc.Status.LoadBalancer.Ingress, err
+	}, "1m", "1s").ShouldNot(BeEmpty(), "LoadBalancer should be ready")
+
+	return svc.Status.LoadBalancer.Ingress[0].IP, nil
 }
 
 // checkNamespaceEmpty checks if the given namespace is empty
@@ -97,52 +137,54 @@ func LogDebugInfo() {
 }
 
 func logOperatorDebugInfo() {
-	operator, err := kubectl.GetYAML(namespace, "deployment", deploymentName)
+	operator, err := k.SetNamespace(namespace).GetYAML("deployment", deploymentName)
 	logDebugElement("Operator Deployment YAML", operator, err)
 
-	logs, err := kubectl.Logs(namespace, "deploy/"+deploymentName, ptr.Of(120*time.Second))
+	logs, err := k.SetNamespace(namespace).Logs("deploy/"+deploymentName, ptr.Of(120*time.Second))
+	k.ResetNamespace()
 	logDebugElement("Operator logs", logs, err)
 
-	events, err := kubectl.GetEvents(namespace)
+	events, err := k.SetNamespace(namespace).GetEvents()
 	logDebugElement("Events in "+namespace, events, err)
 
 	// Temporaty information to gather more details about failure
-	pods, err := kubectl.GetPods(namespace, "-o wide")
+	pods, err := k.SetNamespace(namespace).GetPods("", "-o wide")
 	logDebugElement("Pods in "+namespace, pods, err)
 
-	describe, err := kubectl.Describe(namespace, "deployment", deploymentName)
+	describe, err := k.SetNamespace(namespace).Describe("deployment", deploymentName)
 	logDebugElement("Operator Deployment describe", describe, err)
 }
 
 func logIstioDebugInfo() {
-	resource, err := kubectl.GetYAML("", "istio", istioName)
+	resource, err := k.GetYAML("istio", istioName)
 	logDebugElement("Istio YAML", resource, err)
 
-	output, err := kubectl.GetPods(controlPlaneNamespace, "-o wide")
+	output, err := k.SetNamespace(controlPlaneNamespace).GetPods("", "-o wide")
 	logDebugElement("Pods in "+controlPlaneNamespace, output, err)
 
-	logs, err := kubectl.Logs(controlPlaneNamespace, "deploy/istiod", ptr.Of(120*time.Second))
+	logs, err := k.SetNamespace(controlPlaneNamespace).Logs("deploy/istiod", ptr.Of(120*time.Second))
+	k.ResetNamespace()
 	logDebugElement("Istiod logs", logs, err)
 
-	events, err := kubectl.GetEvents(controlPlaneNamespace)
+	events, err := k.SetNamespace(controlPlaneNamespace).GetEvents()
 	logDebugElement("Events in "+controlPlaneNamespace, events, err)
 }
 
 func logCNIDebugInfo() {
-	resource, err := kubectl.GetYAML("", "istiocni", istioCniName)
+	resource, err := k.GetYAML("istiocni", istioCniName)
 	logDebugElement("IstioCNI YAML", resource, err)
 
-	ds, err := kubectl.GetYAML(istioCniNamespace, "daemonset", "istio-cni-node")
+	ds, err := k.SetNamespace(istioCniNamespace).GetYAML("daemonset", "istio-cni-node")
 	logDebugElement("Istio CNI DaemonSet YAML", ds, err)
 
-	events, err := kubectl.GetEvents(istioCniNamespace)
+	events, err := k.SetNamespace(istioCniNamespace).GetEvents()
 	logDebugElement("Events in "+istioCniNamespace, events, err)
 
 	// Temporaty information to gather more details about failure
-	pods, err := kubectl.GetPods(istioCniNamespace, "-o wide")
+	pods, err := k.SetNamespace(istioCniNamespace).GetPods("", "-o wide")
 	logDebugElement("Pods in "+istioCniNamespace, pods, err)
 
-	describe, err := kubectl.Describe(istioCniNamespace, "daemonset", "istio-cni-node")
+	describe, err := k.SetNamespace(istioCniNamespace).Describe("daemonset", "istio-cni-node")
 	logDebugElement("Istio CNI DaemonSet describe", describe, err)
 }
 
@@ -154,4 +196,18 @@ func logDebugElement(caption string, info string, err error) {
 	} else {
 		GinkgoWriter.Println(indent + strings.ReplaceAll(strings.TrimSpace(info), "\n", "\n"+indent))
 	}
+}
+
+func GetVersionFromIstiod() (string, error) {
+	k := kubectl.NewKubectlBuilder()
+	output, err := k.SetNamespace(controlPlaneNamespace).Exec("deploy/istiod", "", "pilot-discovery version")
+	if err != nil {
+		return "", fmt.Errorf("error getting version from istiod: %w", err)
+	}
+
+	matches := istiodVersionRegex.FindStringSubmatch(output)
+	if len(matches) > 1 && matches[1] != "" {
+		return matches[1], nil
+	}
+	return "", fmt.Errorf("error getting version from istiod: version not found in output: %s", output)
 }
