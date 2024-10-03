@@ -603,9 +603,7 @@ spec:
               name: ingressgateway-ca-certs
               readOnly: true
       securityContext:
-        runAsGroup: 1337
         runAsNonRoot: true
-        runAsUser: 1337
       serviceAccountName: istio-eastwestgateway-service-account
       volumes:
         - name: ingressgateway-certs
