@@ -17,16 +17,16 @@ These steps are common to every multicluster deployment and should be completed 
 
 * Setup env vars. This to avoid to set the `--context` flag in every command.
 ```bash
-export CTX_CLUSTER1=<cluster1-ctx>
-export CTX_CLUSTER2=<cluster2-ctx>
+export KUBECONFIG_1=<path-to-kubeconfig-cluster-1>
+export KUBECONFIG_2=<path-to-kubeconfig-cluster-2>
 export ISTIO_VERSION=1.23.0
 ```
 Set the `ISTIO_VERSION` to the version of Istio that you want to install using the OpenShift Service Mesh 3 operator (Check current available Istio version in the OpenShift Service Mesh 3).
 
 * Create `istio-system` namespace on each cluster.
 ```bash
-oc --context $CTX_CLUSTER1 create namespace istio-system
-oc --context $CTX_CLUSTER2 create namespace istio-system
+oc --kubeconfig "${KUBECONFIG_1}" create namespace istio-system
+oc --kubeconfig "${KUBECONFIG_2}" create namespace istio-system
 ```
 
 * Create shared trust and add intermediate CAs to each cluster.
@@ -138,16 +138,16 @@ cat certs/west/ca-cert.pem certs/root-cert.pem > certs/west/cert-chain.pem
 
     * Push the intermediate CAs to the clusters:
 ```bash
-oc --context "${CTX_CLUSTER1}" label namespace istio-system topology.istio.io/network=network1
-oc --context "${CTX_CLUSTER2}" label namespace istio-system topology.istio.io/network=network2
+oc --kubeconfig "${KUBECONFIG_1}" label namespace istio-system topology.istio.io/network=network1
+oc --kubeconfig "${KUBECONFIG_2}" label namespace istio-system topology.istio.io/network=network2
 
-oc get secret -n istio-system --context "${CTX_CLUSTER1}" cacerts || oc --context "${CTX_CLUSTER1}" create secret generic cacerts -n istio-system \
+oc get secret -n istio-system --kubeconfig "${KUBECONFIG_1}" cacerts || oc --kubeconfig "${KUBECONFIG_1}" create secret generic cacerts -n istio-system \
     --from-file=certs/east/ca-cert.pem \
     --from-file=certs/east/ca-key.pem \
     --from-file=certs/root-cert.pem \
     --from-file=certs/east/cert-chain.pem
 
-oc get secret -n istio-system --context "${CTX_CLUSTER2}" cacerts || oc --context "${CTX_CLUSTER2}" create secret generic cacerts -n istio-system \
+oc get secret -n istio-system --kubeconfig "${KUBECONFIG_2}" cacerts || oc --kubeconfig "${KUBECONFIG_2}" create secret generic cacerts -n istio-system \
     --from-file=certs/west/ca-cert.pem \
     --from-file=certs/west/ca-key.pem \
     --from-file=certs/root-cert.pem \
@@ -160,7 +160,7 @@ The Multi-Primary - Multi-Network deployment model is a way to deploy OpenShift 
 #### Procedure
 1. Create an Istio and IstioCNI resources on cluster1.
 ```bash
-oc apply --context "${CTX_CLUSTER1}" -f - <<EOF
+oc apply --kubeconfig "${KUBECONFIG_1}" -f - <<EOF
 apiVersion: sailoperator.io/v1alpha1
 kind: Istio
 metadata:
@@ -175,12 +175,12 @@ spec:
         clusterName: cluster1
       network: network1
 EOF
-oc wait --context "${CTX_CLUSTER1}" --for=condition=Ready istios/default --timeout=3m
+oc wait --kubeconfig "${KUBECONFIG_1}" --for=condition=Ready istios/default --timeout=3m
 ```
 
 ```bash
-oc create namespace istio-cni --context="${CTX_CLUSTER1}"
-oc apply --context "${CTX_CLUSTER1}" -f - <<EOF
+oc create namespace istio-cni --kubeconfig "${KUBECONFIG_1}" 
+oc apply --kubeconfig "${KUBECONFIG_1}" -f - <<EOF
 apiVersion: sailoperator.io/v1alpha1
 kind: IstioCNI
 metadata:
@@ -193,7 +193,7 @@ EOF
 
 2. Create east-west gateway on cluster1.
 ```bash
-oc apply --context "${CTX_CLUSTER1}" -f - <<EOF
+oc apply --kubeconfig "${KUBECONFIG_1}" -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -444,7 +444,7 @@ EOF
 
 3. Expose services on cluster1.
 ```bash
-oc --context "${CTX_CLUSTER1}" apply -n istio-system -f - <<EOF
+oc --kubeconfig "${KUBECONFIG_1}" apply -n istio-system -f - <<EOF
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
@@ -466,7 +466,7 @@ EOF
 
 4. Create Istio and IstioCNI resources on cluster2.
 ```bash
-oc apply --context "${CTX_CLUSTER2}" -f - <<EOF
+oc apply --kubeconfig "${KUBECONFIG_2}" -f - <<EOF
 apiVersion: sailoperator.io/v1alpha1
 kind: Istio
 metadata:
@@ -481,12 +481,12 @@ spec:
         clusterName: cluster2
       network: network2
 EOF
-oc wait --context "${CTX_CLUSTER2}" --for=jsonpath='{.status.revisions.ready}'=1 istios/default --timeout=3m
+oc wait --kubeconfig "${KUBECONFIG_2}" --for=jsonpath='{.status.revisions.ready}'=1 istios/default --timeout=3m
 ```
 
 ```bash
-oc create namespace istio-cni --context="${CTX_CLUSTER2}"
-oc apply --context "${CTX_CLUSTER2}" -f - <<EOF
+oc create namespace istio-cni --kubeconfig "${KUBECONFIG_2}"
+oc apply --kubeconfig "${KUBECONFIG_2}" -f - <<EOF
 apiVersion: sailoperator.io/v1alpha1
 kind: IstioCNI
 metadata:
@@ -499,7 +499,7 @@ EOF
 
 5. Create east-west gateway on cluster2.
 ```bash
-oc apply --context "${CTX_CLUSTER2}" -f - <<EOF
+oc apply --kubeconfig "${KUBECONFIG_2}" -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -751,7 +751,7 @@ EOF
 
 6. Expose services on cluster2.
 ```bash
-oc --context "${CTX_CLUSTER2}" apply -n istio-system -f - <<EOF
+oc --kubeconfig "${KUBECONFIG_2}" apply -n istio-system -f - <<EOF
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
@@ -774,63 +774,63 @@ EOF
 7. Install a remote secret in cluster2 that provides access to the cluster1 API server.
 ```bash
 istioctl create-remote-secret \
-  --context="${CTX_CLUSTER1}" \
-  --name=cluster1 | \
-  oc apply -f - --context="${CTX_CLUSTER2}"
+  --kubeconfig "${KUBECONFIG_1}" \
+  --name=cluster1 |\
+  oc apply -f - --kubeconfig "${KUBECONFIG_2}"
 ```
 
 8. Install a remote secret in cluster1 that provides access to the cluster2 API server.
 ```bash
 istioctl create-remote-secret \
-  --context="${CTX_CLUSTER2}" \
-  --name=cluster2 | \
-  oc apply -f - --context="${CTX_CLUSTER1}"
+  --kubeconfig "${KUBECONFIG_2}" \
+  --name=cluster2 |\
+  oc apply -f - --kubeconfig "${KUBECONFIG_1}"
 ```
 
 #### Verification
 1. Deploy sample applications to cluster1.
 We will be deploying the `helloworld` and `sleep` applications to cluster1.
 ```bash
-oc get ns sample --context "${CTX_CLUSTER1}" || oc create --context="${CTX_CLUSTER1}" namespace sample
-oc label --context="${CTX_CLUSTER1}" namespace sample istio-injection=enabled
-oc apply --context="${CTX_CLUSTER1}" \
+oc get ns sample --kubeconfig "${KUBECONFIG_1}" || oc create --kubeconfig "${KUBECONFIG_1}" namespace sample
+oc label --kubeconfig "${KUBECONFIG_1}" namespace sample istio-injection=enabled
+oc apply --kubeconfig "${KUBECONFIG_1}" \
   -f https://raw.githubusercontent.com/istio/istio/${ISTIO_VERSION}/samples/helloworld/helloworld.yaml \
   -l service=helloworld -n sample
-oc apply --context="${CTX_CLUSTER1}" \
+oc apply --kubeconfig "${KUBECONFIG_1}" \
   -f https://raw.githubusercontent.com/istio/istio/${ISTIO_VERSION}/samples/helloworld/helloworld.yaml \
   -l version=v1 -n sample
-oc apply --context="${CTX_CLUSTER1}" \
+oc apply --kubeconfig "${KUBECONFIG_1}" \
   -f https://raw.githubusercontent.com/istio/istio/${ISTIO_VERSION}/samples/sleep/sleep.yaml -n sample
 ```
 
 2. Deploy sample applications to cluster2.
 ```bash
-oc get ns sample --context "${CTX_CLUSTER2}" || oc create --context="${CTX_CLUSTER2}" namespace sample
-oc label --context="${CTX_CLUSTER2}" namespace sample istio-injection=enabled
-oc apply --context="${CTX_CLUSTER2}" \
+oc get ns sample --kubeconfig "${KUBECONFIG_2}" || oc create --kubeconfig "${KUBECONFIG_2}" namespace sample
+oc label --kubeconfig "${KUBECONFIG_2}" namespace sample istio-injection=enabled
+oc apply --kubeconfig "${KUBECONFIG_2}" \
   -f https://raw.githubusercontent.com/istio/istio/${ISTIO_VERSION}/samples/helloworld/helloworld.yaml \
   -l service=helloworld -n sample
-oc apply --context="${CTX_CLUSTER2}" \
+oc apply --kubeconfig "${KUBECONFIG_2}" \
   -f https://raw.githubusercontent.com/istio/istio/${ISTIO_VERSION}/samples/helloworld/helloworld.yaml \
   -l version=v2 -n sample
-oc apply --context="${CTX_CLUSTER2}" \
+oc apply --kubeconfig "${KUBECONFIG_2}" \
   -f https://raw.githubusercontent.com/istio/istio/${ISTIO_VERSION}/samples/sleep/sleep.yaml -n sample
 ```
 
 3. Verify that you see a response from both v1 and v2.
 ```bash
-oc exec --context="${CTX_CLUSTER1}" -n sample -c sleep \
-    "$(oc get pod --context="${CTX_CLUSTER1}" -n sample -l \
+oc exec --kubeconfig "${KUBECONFIG_1}" -n sample -c sleep \
+    "$(oc get pod --kubeconfig "${KUBECONFIG_1}" -n sample -l \
     app=sleep -o jsonpath='{.items[0].metadata.name}')" \
     -- curl -sS helloworld.sample:5000/hello
 ```
 You should see a response from v1 and v2 `helloworld` app.
 
 ```bash
-    oc exec --context="${CTX_CLUSTER2}" -n sample -c sleep \
-        "$(oc get pod --context="${CTX_CLUSTER2}" -n sample -l \
-        app=sleep -o jsonpath='{.items[0].metadata.name}')" \
-        -- curl -sS helloworld.sample:5000/hello
+oc exec --kubeconfig "${KUBECONFIG_2}" -n sample -c sleep \
+    "$(oc get pod --kubeconfig "${KUBECONFIG_2}" -n sample -l \
+    app=sleep -o jsonpath='{.items[0].metadata.name}')" \
+    -- curl -sS helloworld.sample:5000/hello
 ```
 You should see a response from v1 and v2 `helloworld` app.
 
@@ -838,12 +838,12 @@ You should see a response from v1 and v2 `helloworld` app.
 
 #### Clean up.
 ```bash
-oc delete istios default --context="${CTX_CLUSTER1}"
-oc delete ns istio-system --context="${CTX_CLUSTER1}" 
-oc delete ns sample --context="${CTX_CLUSTER1}"
-oc delete istios default --context="${CTX_CLUSTER2}"
-oc delete ns istio-system --context="${CTX_CLUSTER2}" 
-oc delete ns sample --context="${CTX_CLUSTER2}"
+oc delete istios default --kubeconfig "${KUBECONFIG_1}"
+oc delete ns istio-system --kubeconfig "${KUBECONFIG_1}" 
+oc delete ns sample --kubeconfig "${KUBECONFIG_1}"
+oc delete istios default --kubeconfig "${KUBECONFIG_2}"
+oc delete ns istio-system --kubeconfig "${KUBECONFIG_2}" 
+oc delete ns sample --kubeconfig "${KUBECONFIG_2}"
 ```
 
 ### Multicluster: Multi-Primary - Single-Network
