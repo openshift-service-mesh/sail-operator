@@ -34,11 +34,12 @@ If you already have a [shared trust](https://istio.io/latest/docs/setup/install/
 
     * Generate certificates:
 ```bash
-# Create a shared trust
-mkdir -p certs
+# Create Root Certificates:
+root_ca_dir=cacerts/root
+mkdir -p $root_ca_dir
 
-# Create a root CA
-cat <<EOF > certs/root-ca.conf
+openssl genrsa -out ${root_ca_dir}/root-key.pem 4096
+cat <<EOF > ${root_ca_dir}/root-ca.conf
 [ req ]
 encrypt_key = no
 prompt = no
@@ -48,29 +49,32 @@ default_bits = 4096
 req_extensions = req_ext
 x509_extensions = req_ext
 distinguished_name = req_dn
-
 [ req_ext ]
 subjectKeyIdentifier = hash
 basicConstraints = critical, CA:true
 keyUsage = critical, digitalSignature, nonRepudiation, keyEncipherment, keyCertSign
-
 [ req_dn ]
 O = Istio
 CN = Root CA
 EOF
 
-# Generate Root Key
-openssl genrsa -out certs/root-key.pem 4096
+openssl req -sha256 -new -key ${root_ca_dir}/root-key.pem \
+  -config ${root_ca_dir}/root-ca.conf \
+  -out ${root_ca_dir}/root-cert.csr
 
-# Generate Root Certificate Signing Request (CSR)
-openssl req -sha256 -new -key certs/root-key.pem -config certs/root-ca.conf -out certs/root-cert.csr
+openssl x509 -req -sha256 -days 3650 \
+  -signkey ${root_ca_dir}/root-key.pem \
+  -extensions req_ext -extfile ${root_ca_dir}/root-ca.conf \
+  -in ${root_ca_dir}/root-cert.csr \
+  -out ${root_ca_dir}/root-cert.pem
 
-# Generate Root Certificate
-openssl x509 -req -sha256 -days 3650 -signkey certs/root-key.pem -extensions req_ext -extfile certs/root-ca.conf -in certs/root-cert.csr -out certs/root-cert.pem
+# Create Intermediate Certificates:
+for cluster in west east; do
+  int_ca_dir=cacerts/${cluster}
+  mkdir $int_ca_dir
 
-# Create Intermediate CA Configuration for East and West clusters
-mkdir -p certs/east
-cat <<EOF > certs/east/ca.conf
+  openssl genrsa -out ${int_ca_dir}/ca-key.pem 4096
+  cat <<EOF > ${int_ca_dir}/intermediate.conf
 [ req ]
 encrypt_key = no
 prompt = no
@@ -80,60 +84,34 @@ default_bits = 4096
 req_extensions = req_ext
 x509_extensions = req_ext
 distinguished_name = req_dn
-
 [ req_ext ]
 subjectKeyIdentifier = hash
 basicConstraints = critical, CA:true, pathlen:0
 keyUsage = critical, digitalSignature, nonRepudiation, keyEncipherment, keyCertSign
 subjectAltName=@san
-
 [ san ]
 DNS.1 = istiod.istio-system.svc
-
 [ req_dn ]
 O = Istio
 CN = Intermediate CA
-L = East
+L = $cluster
 EOF
 
-mkdir -p certs/west
-cat <<EOF > certs/west/ca.conf
-[ req ]
-encrypt_key = no
-prompt = no
-utf8 = yes
-default_md = sha256
-default_bits = 4096
-req_extensions = req_ext
-x509_extensions = req_ext
-distinguished_name = req_dn
+  openssl req -new -config ${int_ca_dir}/intermediate.conf \
+    -key ${int_ca_dir}/ca-key.pem \
+    -out ${int_ca_dir}/cluster-ca.csr
 
-[ req_ext ]
-subjectKeyIdentifier = hash
-basicConstraints = critical, CA:true, pathlen:0
-keyUsage = critical, digitalSignature, nonRepudiation, keyEncipherment, keyCertSign
-subjectAltName=@san
+  openssl x509 -req -sha256 -days 3650 \
+    -CA ${root_ca_dir}/root-cert.pem \
+    -CAkey ${root_ca_dir}/root-key.pem -CAcreateserial \
+    -extensions req_ext -extfile ${int_ca_dir}/intermediate.conf \
+    -in ${int_ca_dir}/cluster-ca.csr \
+    -out ${int_ca_dir}/ca-cert.pem
 
-[ san ]
-DNS.1 = istiod.istio-system.svc
-
-[ req_dn ]
-O = Istio
-CN = Intermediate CA
-L = West
-EOF
-
-# Generate Intermediate CA Certificates
-# East
-openssl genrsa -out certs/east/ca-key.pem 4096
-openssl req -sha256 -new -config certs/east/ca.conf -key certs/east/ca-key.pem -out certs/east/ca-cert.csr
-openssl x509 -req -sha256 -days 3650 -CA certs/root-cert.pem -CAkey certs/root-key.pem -CAcreateserial -extensions req_ext -extfile certs/east/ca.conf -in certs/east/ca-cert.csr -out certs/east/ca-cert.pem
-cat certs/east/ca-cert.pem certs/root-cert.pem > certs/east/cert-chain.pem
-# West
-openssl genrsa -out certs/west/ca-key.pem 4096
-openssl req -sha256 -new -config certs/west/ca.conf -key certs/west/ca-key.pem -out certs/west/ca-cert.csr
-openssl x509 -req -sha256 -days 3650 -CA certs/root-cert.pem -CAkey certs/root-key.pem -CAcreateserial -extensions req_ext -extfile certs/west/ca.conf -in certs/west/ca-cert.csr -out certs/west/ca-cert.pem
-cat certs/west/ca-cert.pem certs/root-cert.pem > certs/west/cert-chain.pem
+  cat ${int_ca_dir}/ca-cert.pem ${root_ca_dir}/root-cert.pem \
+    > ${int_ca_dir}/cert-chain.pem
+  cp ${root_ca_dir}/root-cert.pem ${int_ca_dir}
+done
 ```
 
     * Push the intermediate CAs to the clusters:
@@ -142,16 +120,16 @@ oc --kubeconfig "${KUBECONFIG_1}" label namespace istio-system topology.istio.io
 oc --kubeconfig "${KUBECONFIG_2}" label namespace istio-system topology.istio.io/network=network2
 
 oc get secret -n istio-system --kubeconfig "${KUBECONFIG_1}" cacerts || oc --kubeconfig "${KUBECONFIG_1}" create secret generic cacerts -n istio-system \
-    --from-file=certs/east/ca-cert.pem \
-    --from-file=certs/east/ca-key.pem \
-    --from-file=certs/root-cert.pem \
-    --from-file=certs/east/cert-chain.pem
+  --from-file=cacerts/east/ca-cert.pem \
+  --from-file=cacerts/east/ca-key.pem \
+  --from-file=cacerts/east/root-cert.pem \
+  --from-file=cacerts/east/cert-chain.pem
 
 oc get secret -n istio-system --kubeconfig "${KUBECONFIG_2}" cacerts || oc --kubeconfig "${KUBECONFIG_2}" create secret generic cacerts -n istio-system \
-    --from-file=certs/west/ca-cert.pem \
-    --from-file=certs/west/ca-key.pem \
-    --from-file=certs/root-cert.pem \
-    --from-file=certs/west/cert-chain.pem
+  --from-file=cacerts/west/ca-cert.pem \
+  --from-file=cacerts/west/ca-key.pem \
+  --from-file=cacerts/west/root-cert.pem \
+  --from-file=cacerts/west/cert-chain.pem
 ```
 
 ### Multicluster: Multi-Primary - Multi-Network
