@@ -152,6 +152,9 @@ spec:
       multiCluster:
         clusterName: cluster1
       network: network1
+    pilot:
+      env:
+        ROOT_CA_DIR: "/etc/cacerts"
 EOF
 oc wait --kubeconfig "${KUBECONFIG_1}" --for=condition=Ready istios/default --timeout=3m
 ```
@@ -458,6 +461,9 @@ spec:
       multiCluster:
         clusterName: cluster2
       network: network2
+    pilot:
+      env:
+        ROOT_CA_DIR: "/etc/cacerts"
 EOF
 oc wait --kubeconfig "${KUBECONFIG_2}" --for=jsonpath='{.status.revisions.ready}'=1 istios/default --timeout=3m
 ```
@@ -801,16 +807,40 @@ for i in $(seq 10); do oc exec -n sample "$(oc get pod --kubeconfig "${KUBECONFI
     app=sleep -o jsonpath='{.items[0].metadata.name}')" --kubeconfig "${KUBECONFIG_1}" \
     -c sleep -- curl -s helloworld:5000/hello; done
 ```
-You should see a response from v1 and v2 `helloworld` app.
+You should see a response from v1 and v2 `helloworld` app. For example:
+```
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+Hello version: v2, instance: helloworld-v2-779454bb5f-psfhk
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+Hello version: v2, instance: helloworld-v2-779454bb5f-psfhk
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+Hello version: v2, instance: helloworld-v2-779454bb5f-psfhk
+```
 
 ```bash
 for i in $(seq 10); do oc exec -n sample "$(oc get pod --kubeconfig "${KUBECONFIG_2}" -n sample -l \
     app=sleep -o jsonpath='{.items[0].metadata.name}')" --kubeconfig "${KUBECONFIG_2}" \
     -c sleep -- curl -s helloworld:5000/hello; done
 ```
-You should see a response from v1 and v2 `helloworld` app. 
+You should see a response from v1 and v2 `helloworld` app. For example:
+```
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+Hello version: v2, instance: helloworld-v2-779454bb5f-psfhk
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+Hello version: v2, instance: helloworld-v2-779454bb5f-psfhk
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+Hello version: v2, instance: helloworld-v2-779454bb5f-psfhk
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+Hello version: v2, instance: helloworld-v2-779454bb5f-psfhk
+Hello version: v1, instance: helloworld-v1-69ff8fc747-w6h59
+```
 
-**Note:** If you have issues with the validation you can check the [debugging section](#debugging-multicluster-deployments).
+**Note:** If you have issues with the validation and configuration you can check the [debugging section](#debugging-multicluster-deployments).
 
 #### Clean up.
 ```bash
@@ -847,11 +877,12 @@ spec:
     pilot:
       env:
         EXTERNAL_ISTIOD: "true"
+        ROOT_CA_DIR: "/etc/cacerts"
     global:
       meshID: mesh1
       multiCluster:
         clusterName: cluster1
-      network: network1
+      network: network1        
 EOF
 oc wait --kubeconfig "${KUBECONFIG_1}" --for=jsonpath='{.status.revisions.ready}'=1 istios/default --timeout=3m
 ```
@@ -871,7 +902,7 @@ EOF
 
 2. Create east-west gateway on cluster1.
 ```bash
-oc apply --kubeconfig "${KUBECONFIG_2}" -f - <<EOF
+oc apply --kubeconfig "${KUBECONFIG_1}" -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -882,7 +913,7 @@ metadata:
     istio.io/rev: default
     operator.istio.io/component: IngressGateways
     release: istio
-    topology.istio.io/network: network2
+    topology.istio.io/network: network1
   name: istio-eastwestgateway-service-account
   namespace: istio-system
 
@@ -897,7 +928,7 @@ metadata:
     istio.io/rev: default
     operator.istio.io/component: IngressGateways
     release: istio
-    topology.istio.io/network: network2
+    topology.istio.io/network: network1
   name: istio-eastwestgateway
   namespace: istio-system
 spec:
@@ -905,7 +936,7 @@ spec:
     matchLabels:
       app: istio-eastwestgateway
       istio: eastwestgateway
-      topology.istio.io/network: network2
+      topology.istio.io/network: network1
   strategy:
     rollingUpdate:
       maxSurge: 100%
@@ -927,7 +958,7 @@ spec:
         operator.istio.io/component: IngressGateways
         release: istio
         sidecar.istio.io/inject: "true"
-        topology.istio.io/network: network2
+        topology.istio.io/network: network1
     spec:
       affinity:
         nodeAffinity:
@@ -936,7 +967,7 @@ spec:
       containers:
         - env:
             - name: ISTIO_META_REQUESTED_NETWORK_VIEW
-              value: network2
+              value: network1
             - name: ISTIO_META_UNPRIVILEGED_POD
               value: "true"
           image: auto
@@ -998,7 +1029,7 @@ metadata:
     istio.io/rev: default
     operator.istio.io/component: IngressGateways
     release: istio
-    topology.istio.io/network: network2
+    topology.istio.io/network: network1
   name: istio-eastwestgateway
   namespace: istio-system
 spec:
@@ -1007,7 +1038,7 @@ spec:
     matchLabels:
       app: istio-eastwestgateway
       istio: eastwestgateway
-      topology.istio.io/network: network2
+      topology.istio.io/network: network1
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1060,7 +1091,7 @@ metadata:
     istio.io/rev: default
     operator.istio.io/component: IngressGateways
     release: istio
-    topology.istio.io/network: network2
+    topology.istio.io/network: network1
   name: istio-eastwestgateway
   namespace: istio-system
 spec:
@@ -1090,7 +1121,7 @@ metadata:
     istio.io/rev: default
     operator.istio.io/component: IngressGateways
     release: istio
-    topology.istio.io/network: network2
+    topology.istio.io/network: network1
   name: istio-eastwestgateway
   namespace: istio-system
 spec:
@@ -1114,57 +1145,72 @@ spec:
   selector:
     app: istio-eastwestgateway
     istio: eastwestgateway
-    topology.istio.io/network: network2
+    topology.istio.io/network: network1
   type: LoadBalancer
 
 ---
 EOF
 ```
 
-6. Expose services on cluster2.
+3. Expose istiod on cluster1.
 ```bash
-oc --kubeconfig "${KUBECONFIG_2}" apply -n istio-system -f - <<EOF
+oc apply --kubeconfig "${KUBECONFIG_1}" -n istio-system -f - <<EOF
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
-  name: cross-network-gateway
+  name: istiod-gateway
 spec:
   selector:
     istio: eastwestgateway
   servers:
     - port:
-        number: 15443
-        name: tls
-        protocol: TLS
+        name: tls-istiod
+        number: 15012
+        protocol: tls
       tls:
-        mode: AUTO_PASSTHROUGH
+        mode: PASSTHROUGH        
       hosts:
-        - "*.local"
-EOF
-```
-
-3. Expose services on cluster1.
-```bash
-oc --kubeconfig "${KUBECONFIG_1}" apply -n istio-system -f - <<EOF
-apiVersion: networking.istio.io/v1alpha3
-kind: Gateway
-metadata:
-  name: cross-network-gateway
-spec:
-  selector:
-    istio: eastwestgateway
-  servers:
+        - "*"
     - port:
-        number: 15443
-        name: tls
-        protocol: TLS
+        name: tls-istiodwebhook
+        number: 15017
+        protocol: tls
       tls:
-        mode: AUTO_PASSTHROUGH
+        mode: PASSTHROUGH          
       hosts:
-        - "*.local"
+        - "*"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istiod-vs
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - istiod-gateway
+  tls:
+  - match:
+    - port: 15012
+      sniHosts:
+      - "*"
+    route:
+    - destination:
+        host: istiod.istio-system.svc.cluster.local
+        port:
+          number: 15012
+  - match:
+    - port: 15017
+      sniHosts:
+      - "*"
+    route:
+    - destination:
+        host: istiod.istio-system.svc.cluster.local
+        port:
+          number: 443
+---
 EOF
 ```
-
 4. Expose services on cluster1.
 ```bash
 oc --kubeconfig "${KUBECONFIG_1}" apply -n istio-system -f - <<EOF
@@ -1187,16 +1233,38 @@ spec:
 EOF
 ```
 
-5. Create Istio with remote profile and IstioCNI resources on cluster2.
-[TBD] Waiting for RemoteIstio API to be delete and check the new way to create remote profile.
+5. Create RemoteIstio and IstionCNI resources on cluster2.
+```bash
+export EXTERNAL_ISTIOD_ADDR=<hostname-from-loadbalancer-istio-eastwestgateway-service>
+oc apply --kubeconfig "${KUBECONFIG_2}" -f - <<EOF
+apiVersion: sailoperator.io/v1alpha1
+kind: RemoteIstio
+metadata:
+  name: default
+spec:
+  version: v${ISTIO_VERSION}
+  namespace: istio-system
+  values:
+    istiodRemote:
+      injectionPath: /inject/cluster/remote/net/network2
+      injectionURL: https://${EXTERNAL_ISTIOD_ADDR}:15017/inject/cluster/cluster1/net/network1
+    base:
+      validationURL: https://${EXTERNAL_ISTIOD_ADDR}:15017/validate
+EOF
+```
+**Note**: `injectionURL` should be used if the loadbalancer configured use hostname instead of ExternalIP. In case you have ExternalIP available you can set `remotePilotAddress` to the `istio-eastwestgateway` service in cluster1 by deleting `spec.values.istiodRemote.injectionURL` and `spec.values.base.validationURL` and adding `spec.values.global.remotePilotAddress` under `spec.values.`:
+```bash
+    global:
+      remotePilotAddress: $(oc --kubeconfig "${KUBECONFIG_1}" -n istio-system get svc istio-eastwestgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+```
 
-6. Set the controlplane cluster and network for cluster2.
+5. Set the controlplane cluster and network for cluster2.
 ```bash
 oc --kubeconfig "${KUBECONFIG_2}" annotate namespace istio-system topology.istio.io/controlPlaneClusters=cluster1
 oc --kubeconfig "${KUBECONFIG_2}" label namespace istio-system topology.istio.io/network=network2
 ```
 
-7. Install a remote secret on cluster1 that provides access to the cluster2 API server.
+6. Install a remote secret on cluster1 that provides access to the cluster2 API server.
 ```bash
 istioctl create-remote-secret \
   --kubeconfig "${KUBECONFIG_2}" \
@@ -1204,7 +1272,7 @@ istioctl create-remote-secret \
   oc apply -f - --kubeconfig "${KUBECONFIG_1}"
 ```
 
-8. Install east-west gateway in cluster2.
+7. Install east-west gateway in cluster2.
 ```bash
 oc apply --kubeconfig "${KUBECONFIG_2}" -f - <<EOF
 apiVersion: v1
@@ -1310,9 +1378,7 @@ spec:
               name: ingressgateway-ca-certs
               readOnly: true
       securityContext:
-        runAsGroup: 1337
         runAsNonRoot: true
-        runAsUser: 1337
       serviceAccountName: istio-eastwestgateway-service-account
       volumes:
         - name: ingressgateway-certs
@@ -1512,7 +1578,7 @@ oc delete istiocni default --kubeconfig "${KUBECONFIG_1}"
 oc delete ns istio-system --kubeconfig "${KUBECONFIG_1}"
 oc delete ns istio-cni --kubeconfig "${KUBECONFIG_1}" 
 oc delete ns sample --kubeconfig "${KUBECONFIG_1}"
-oc delete istios default --kubeconfig "${KUBECONFIG_2}"
+oc delete remoteistio default --kubeconfig "${KUBECONFIG_2}"
 oc delete ns istio-system --kubeconfig "${KUBECONFIG_2}" 
 oc delete ns sample --kubeconfig "${KUBECONFIG_2}"
 ```
@@ -1543,6 +1609,9 @@ spec:
   namespace: istio-system
   global:
     network: network1
+    pilot:
+      env:
+        ROOT_CA_DIR: "/etc/cacerts"
 EOF
 oc wait --kubeconfig "${KUBECONFIG_1}"" --for=condition=Ready istios/default --timeout=3m
 ```
@@ -1749,9 +1818,7 @@ spec:
           name: ingressgateway-ca-certs
           readOnly: true
       securityContext:
-        runAsGroup: 1337
         runAsNonRoot: true
-        runAsUser: 1337
       serviceAccountName: istio-ingressgateway-service-account
       volumes:
       - emptyDir: {}
@@ -2010,6 +2077,7 @@ spec:
         LOCAL_CLUSTER_SECRET_WATCHER: "true"
         CLUSTER_ID: cluster2
         SHARED_MESH_CONFIG: istio
+        ROOT_CA_DIR: "/etc/cacerts"
     global:
       caAddress: $EXTERNAL_ISTIOD_ADDR:15012
       istioNamespace: external-istiod
@@ -2112,7 +2180,7 @@ oc apply --kubeconfig "${KUBECONFIG_2}" \
 oc get pods --kubeconfig "${KUBECONFIG_2}" -n sample
 ```
 You should see the `helloworld` and `sleep` pods with a sidecar injected. For example:
-```bash
+```
 NAME                             READY   STATUS    RESTARTS   AGE
 helloworld-v1-6d65866976-jb6qc   2/2     Running   0          49m
 sleep-5fcd8fd6c8-mg8n2           2/2     Running   0          49m
@@ -2123,7 +2191,7 @@ sleep-5fcd8fd6c8-mg8n2           2/2     Running   0          49m
 oc exec --kubeconfig "${KUBECONFIG_2}" -n sample -c sleep "$(oc get pod --kubeconfig "${KUBECONFIG_2}" -n sample -l app=sleep -o jsonpath='{.items[0].metadata.name}')" -- curl -sS helloworld.sample:5000/hello
 ```
 You should see a response from the `helloworld` app. For example:
-```bash
+```
 Hello version: v1, instance: helloworld-v1-6d65866976-jb6qc
 ```
 
@@ -2144,21 +2212,21 @@ Confirm you can access the helloworld application through the ingress gateway cr
 curl -s "http://$(oc -n sample --kubeconfig "${KUBECONFIG_2}" get gtw helloworld-gateway -o jsonpath='{.status.addresses[0].value}'):80/hello"
 ```
 You should see a response from the `helloworld` app. For example:
-```bash
+```
 Hello version: v1, instance: helloworld-v1-6d65866976-jb6qc
 ```
 
 #### Clean up.
 ```bash
-oc delete istios default --context="${CTX_CLUSTER1}"
-oc delete istiocni default --context="${CTX_CLUSTER1}"
-oc delete ns istio-system --context="${CTX_CLUSTER1}"
-oc delete istios external-istiod --context="${CTX_CLUSTER1}"
-oc delete istiocni external-istiod --context="${CTX_CLUSTER1}"
-oc delete ns external-istiod --context="${CTX_CLUSTER1}"
-oc delete remoteistios external-istiod --context="${CTX_CLUSTER2}"
-oc delete ns external-istiod --context="${CTX_CLUSTER2}"
-oc delete ns sample --context="${CTX_CLUSTER2}"
+oc delete istios default --kubeconfig "${KUBECONFIG_1}"
+oc delete istiocni default --kubeconfig "${KUBECONFIG_1}"
+oc delete ns istio-system --kubeconfig "${KUBECONFIG_1}"
+oc delete istios external-istiod --kubeconfig "${KUBECONFIG_1}"
+oc delete istiocni external-istiod --kubeconfig "${KUBECONFIG_1}"
+oc delete ns external-istiod --kubeconfig "${KUBECONFIG_1}"
+oc delete remoteistios external-istiod --kubeconfig "${KUBECONFIG_2}"
+oc delete ns external-istiod --kubeconfig "${KUBECONFIG_2}"
+oc delete ns sample --kubeconfig "${KUBECONFIG_2}"
 ```
 
 ### Debugging multicluster deployments
@@ -2176,7 +2244,7 @@ istioctl proxy-config endpoint "$(oc get pod --kubeconfig "${KUBECONFIG_1}" -n s
 ```
 
 This will show you the endpoints that the `sleep` application is trying to reach and the endpoints that the `helloworld` application is exposing. For example:
-```bash
+```
 istioctl proxy-config endpoint "$(oc get pod --kubeconfig "${KUBECONFIG_1}" -n sample -l \
     app=helloworld -o jsonpath='{.items[0].metadata.name}')" -n sample --kubeconfig "${KUBECONFIG_1}" |grep helloworld
 10.128.2.53:5000                                        HEALTHY     OK                outbound|5000||helloworld.sample.svc.cluster.local
