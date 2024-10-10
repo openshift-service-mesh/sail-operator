@@ -79,7 +79,12 @@ GINKGO_FLAGS := $(if $(VERBOSE),-v) $(if $(CI),--no-color)
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
 # - use the CHANNELS as arg of the bundle target (e.g make bundle CHANNELS=candidate,fast,stable)
 # - use environment variables to overwrite this value (e.g export CHANNELS="candidate,fast,stable")
-CHANNELS ?= ${MINOR_VERSION}
+CHANNEL_PREFIX := dev
+ifneq (,$(findstring release-,$(shell git rev-parse --abbrev-ref HEAD)))
+CHANNEL_PREFIX = stable
+endif
+
+CHANNELS ?= $(CHANNEL_PREFIX)-$(MINOR_VERSION)
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS = --channels=\"$(CHANNELS)\"
 endif
@@ -165,8 +170,8 @@ test.e2e.ocp: ## Run the end-to-end tests against an existing OCP cluster.
 	GINKGO_FLAGS="$(GINKGO_FLAGS)" ${SOURCE_DIR}/tests/e2e/integ-suite-ocp.sh
 
 .PHONY: test.e2e.kind
-test.e2e.kind: ## Deploy a KinD cluster and run the end-to-end tests against it.
-	GINKGO_FLAGS="$(GINKGO_FLAGS)" ${SOURCE_DIR}/tests/e2e/integ-suite-kind.sh
+test.e2e.kind: istioctl ## Deploy a KinD cluster and run the end-to-end tests against it.
+	GINKGO_FLAGS="$(GINKGO_FLAGS)" ISTIOCTL="$(ISTIOCTL)" ${SOURCE_DIR}/tests/e2e/integ-suite-kind.sh
 
 .PHONY: test.e2e.describe
 test.e2e.describe: ## Runs ginkgo outline -format indent over the e2e test to show in BDD style the steps and test structure
@@ -174,7 +179,7 @@ test.e2e.describe: ## Runs ginkgo outline -format indent over the e2e test to sh
 ##@ Build
 
 .PHONY: build
-build: build-$(TARGET_ARCH) ## Build manager binary.
+build: build-$(TARGET_ARCH) ## Build the sail-operator binary.
 
 .PHONY: run
 run: gen ## Run a controller from your host.
@@ -216,7 +221,7 @@ endif
 # BUILDX_BUILD_ARGS are the additional --build-arg flags passed to the docker buildx build command.
 BUILDX_BUILD_ARGS = --build-arg TARGETOS=$(TARGET_OS)
 
-# PLATFORMS defines the target platforms for  the manager image be build to provide support to multiple
+# PLATFORMS defines the target platforms for the sail-operator image be build to provide support to multiple
 # architectures. (i.e. make docker-buildx IMAGE=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - able to use docker buildx . More info: https://docs.docker.com/build/buildx/
 # - have enable BuildKit, More info: https://docs.docker.com/develop/develop-images/build_enhancements/
@@ -228,8 +233,8 @@ PLATFORM_ARCHITECTURES = $(shell echo ${PLATFORMS} | sed -e 's/,/\ /g' -e 's/lin
 ifndef BUILDX
 define BUILDX
 .PHONY: build-$(1)
-build-$(1): ## Build manager binary for specific architecture.
-	GOARCH=$(1) LDFLAGS="$(LD_FLAGS)" common/scripts/gobuild.sh $(REPO_ROOT)/out/$(TARGET_OS)_$(1)/manager cmd/main.go
+build-$(1): ## Build sail-operator binary for specific architecture.
+	GOARCH=$(1) LDFLAGS="$(LD_FLAGS)" common/scripts/gobuild.sh $(REPO_ROOT)/out/$(TARGET_OS)_$(1)/sail-operator cmd/main.go
 
 .PHONY: build-all
 build-all: build-$(1)
@@ -248,6 +253,9 @@ docker-buildx: build-all ## Build and push docker image with cross-platform supp
 	docker buildx build $(BUILDX_OUTPUT) --platform=$(PLATFORMS) --tag ${IMAGE} $(BUILDX_ADDITIONAL_TAGS) $(BUILDX_BUILD_ARGS) -f Dockerfile.cross .
 	docker buildx rm project-v4-builder
 	rm Dockerfile.cross
+
+clean: ## Cleans all the intermediate files and folders previously generated.
+	rm -rf $(REPO_ROOT)/out
 
 ##@ Deployment
 
@@ -381,7 +389,7 @@ gen-charts: ## Pull charts from istio repository.
 gen: gen-all-except-bundle bundle ## Generate everything.
 
 .PHONY: gen-all-except-bundle
-gen-all-except-bundle: operator-name operator-chart controller-gen gen-api gen-charts gen-manifests gen-code gen-api-docs
+gen-all-except-bundle: operator-name operator-chart controller-gen gen-api gen-charts gen-manifests gen-code gen-api-docs github-workflow
 
 .PHONY: gen-check
 gen-check: gen restore-manifest-dates check-clean-repo ## Verify that changes in generated resources have been checked in.
@@ -425,6 +433,9 @@ operator-chart:
 	sed -i -e "s|^\(image: \).*$$|\1${IMAGE}|g" \
 	       -e "s/^\(  version: \).*$$/\1${VERSION}/g" chart/values.yaml
 
+github-workflow:
+	sed -i -e '1,/default:/ s/^\(.*default:\).*$$/\1 ${CHANNELS}/' .github/workflows/release.yaml
+
 .PHONY: update-istio
 update-istio: ## Update the Istio commit hash in the 'latest' entry in versions.yaml to the latest commit in the branch.
 	@hack/update-istio.sh
@@ -450,13 +461,15 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GITLEAKS ?= $(LOCALBIN)/gitleaks
 OPM ?= $(LOCALBIN)/opm
+ISTIOCTL ?= $(LOCALBIN)/istioctl
 
 ## Tool Versions
-OPERATOR_SDK_VERSION ?= v1.36.1
-HELM_VERSION ?= v3.15.3
-CONTROLLER_TOOLS_VERSION ?= v0.16.0
-OPM_VERSION ?= v1.45.0
-GITLEAKS_VERSION ?= v8.18.4
+OPERATOR_SDK_VERSION ?= v1.37.0
+HELM_VERSION ?= v3.16.2
+CONTROLLER_TOOLS_VERSION ?= v0.16.3
+OPM_VERSION ?= v1.47.0
+GITLEAKS_VERSION ?= v8.20.1
+ISTIOCTL_VERSION ?= 1.23.0
 
 # GENERATE_RELATED_IMAGES defines whether `spec.relatedImages` is going to be generated or not
 # To disable set flag to false
@@ -482,6 +495,28 @@ $(OPERATOR_SDK): $(LOCALBIN)
 	@test -s $(LOCALBIN)/operator-sdk || \
 	curl -sSLfo $(LOCALBIN)/operator-sdk https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(OS)_$(ARCH) && \
 	chmod +x $(LOCALBIN)/operator-sdk;
+
+.PHONY: istioctl $(ISTIOCTL)
+istioctl: $(ISTIOCTL) ## Download istioctl to bin directory.
+istioctl: TARGET_OS=$(shell go env GOOS)
+istioctl: TARGET_ARCH=$(shell go env GOARCH)
+$(ISTIOCTL): $(LOCALBIN)
+	@test -s $(LOCALBIN)/istioctl || { \
+		OSEXT=$(if $(filter $(TARGET_OS),Darwin),osx,linux); \
+		URL="https://github.com/istio/istio/releases/download/$(ISTIOCTL_VERSION)/istioctl-$(ISTIOCTL_VERSION)-$$OSEXT-$(TARGET_ARCH).tar.gz"; \
+		echo "Fetching istioctl from $$URL"; \
+		curl -fsL $$URL -o /tmp/istioctl.tar.gz || { \
+			echo "Download failed! Please check the URL and ISTIO_VERSION."; \
+			exit 1; \
+		}; \
+		tar -xzf /tmp/istioctl.tar.gz -C /tmp || { \
+			echo "Extraction failed!"; \
+			exit 1; \
+		}; \
+		mv /tmp/istioctl $(LOCALBIN)/istioctl; \
+		rm -f /tmp/istioctl.tar.gz; \
+		echo "istioctl has been downloaded and placed in $(LOCALBIN)"; \
+	}
 
 .PHONY: controller-gen
 controller-gen: $(LOCALBIN) ## Download controller-gen to bin directory. If wrong version is installed, it will be overwritten.
@@ -560,6 +595,13 @@ bundle-publish-nightly: OPERATOR_VERSION=$(VERSION)-nightly-$(TODAY)  ## Publish
 bundle-publish-nightly: TAG=$(MINOR_VERSION)-nightly-$(TODAY)
 bundle-publish-nightly: bundle-nightly bundle-publish
 
+.PHONY: helm-artifacts-publish
+helm-artifacts-publish: helm ## Publish Helm artifacts to be available for "Helm repo add"
+	@export GIT_USER=$(GITHUB_USER); \
+	export GITHUB_TOKEN=$(GITHUB_TOKEN); \
+	export OPERATOR_VERSION=${OPERATOR_VERSION}; \
+	./hack/helm-artifacts.sh
+
 .PHONY: opm $(OPM)
 opm: $(OPM)
 opm: OS=$(shell go env GOOS)
@@ -624,7 +666,7 @@ git-hook: gitleaks ## Installs gitleaks as a git pre-commit hook.
 		chmod +x .git/hooks/pre-commit; \
 	fi
 
-.SILENT: helm $(HELM) $(LOCALBIN) deploy-yaml gen-api operator-name operator-chart
+.SILENT: helm $(HELM) $(LOCALBIN) deploy-yaml gen-api operator-name operator-chart github-workflow
 
 COMMON_IMPORTS ?= lint-all lint-scripts lint-copyright-banner lint-go lint-yaml lint-helm format-go tidy-go check-clean-repo update-common
 .PHONY: $(COMMON_IMPORTS)
