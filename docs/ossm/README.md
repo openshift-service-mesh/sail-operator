@@ -6,4 +6,4 @@ This documentation is specific to the OpenShift Service Mesh product and may dif
 
 # Table of Contents
 
-TODO
+ - [Compared to OpenShift Service Mesh 3](./ossm2-vs-ossm3.md)
