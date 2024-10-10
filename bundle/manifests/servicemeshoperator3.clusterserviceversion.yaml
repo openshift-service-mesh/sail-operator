@@ -34,7 +34,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: OpenShift Optional, Integration & Delivery, Networking, Security
     containerImage: quay.io/maistra-dev/sail-operator:3.0-latest
-    createdAt: "2024-10-10T07:52:12Z"
+    createdAt: "2024-10-10T21:15:06Z"
     description: The OpenShift Service Mesh Operator enables you to install, configure,
       and manage an instance of Red Hat OpenShift Service Mesh. OpenShift Service
       Mesh is based on the open source Istio project.
@@ -50,7 +50,7 @@ metadata:
     features.operators.openshift.io/token-auth-gcp: "false"
     operators.openshift.io/valid-subscription: '["OpenShift Container Platform", "OpenShift
       Platform Plus"]'
-    operators.operatorframework.io/builder: operator-sdk-v1.36.1
+    operators.operatorframework.io/builder: operator-sdk-v1.37.0
     operators.operatorframework.io/internal-objects: '["wasmplugins.extensions.istio.io","destinationrules.networking.istio.io","envoyfilters.networking.istio.io","gateways.networking.istio.io","proxyconfigs.networking.istio.io","serviceentries.networking.istio.io","sidecars.networking.istio.io","virtualservices.networking.istio.io","workloadentries.networking.istio.io","workloadgroups.networking.istio.io","authorizationpolicies.security.istio.io","peerauthentications.security.istio.io","requestauthentications.security.istio.io","telemetries.telemetry.istio.io"]'
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/istio-ecosystem/sail-operator
@@ -596,7 +596,7 @@ spec:
         serviceAccountName: servicemesh-operator3
       deployments:
       - label:
-          app.kubernetes.io/component: manager
+          app.kubernetes.io/component: sail-operator
           app.kubernetes.io/created-by: servicemeshoperator3
           app.kubernetes.io/instance: servicemesh-operator3
           app.kubernetes.io/managed-by: helm
@@ -615,12 +615,12 @@ spec:
           template:
             metadata:
               annotations:
-                images.v1_23_0.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9:1.23.0.tp.1
-                images.v1_23_0.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9:1.23.0.tp.1
-                images.v1_23_0.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9:3.0.0.tp.1
-                images.v1_23_0.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9:3.0.0.tp.1
-                images.v1_23_0.ztunnel: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9:1.23.0.tp.1
-                kubectl.kubernetes.io/default-container: manager
+                images.v1_23_2.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9:1.23.2.tp.1
+                images.v1_23_2.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9:1.23.2.tp.1
+                images.v1_23_2.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9:3.0.0.tp.1
+                images.v1_23_2.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9:3.0.0.tp.1
+                images.v1_23_2.ztunnel: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9:1.23.2.tp.1
+                kubectl.kubernetes.io/default-container: sail-operator
               labels:
                 app.kubernetes.io/created-by: servicemeshoperator3
                 app.kubernetes.io/part-of: servicemeshoperator3
@@ -671,16 +671,15 @@ spec:
                 - --metrics-bind-address=127.0.0.1:8080
                 - --default-profile=openshift
                 command:
-                - /manager
+                - /sail-operator
                 image: quay.io/maistra-dev/sail-operator:3.0-latest
-                imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
                     path: /healthz
                     port: 8081
                   initialDelaySeconds: 15
                   periodSeconds: 20
-                name: manager
+                name: sail-operator
                 readinessProbe:
                   httpGet:
                     path: /readyz
