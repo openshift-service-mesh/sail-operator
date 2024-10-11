@@ -2,7 +2,7 @@
 This section describes how to run OSSM 2 and OSSM 3 side by side in one cluster without interfering with each other.
 > **_NOTE:_** It's not OSSM 2 -> OSSM 3 migration guide.
 
-To better understand steps described here, it's recommended to read OSSM 2 [deployment models](https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/service_mesh/service-mesh-2-x#ossm-deployment-models) and upstream Istio [Multiple Control Planes](https://istio.io/latest/docs/setup/install/multiple-controlplanes/) documentation. This document assumes OSSM 2.6 is already running and the goal is to install OSSM 3.0.
+To better understand the steps described here, it's recommended to read the OSSM 2 [deployment models](https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/service_mesh/service-mesh-2-x#ossm-deployment-models) and upstream Istio [Multiple Control Planes](https://istio.io/latest/docs/setup/install/multiple-controlplanes/) documentation. This document assumes OSSM 2.6 is already running and the goal is to install OSSM 3.0 on the same cluster without interfering with the OSSM 2.6 installation.
 
 Follow the steps described below for your OSSM 2 deployment model (Multi-tenant or Cluster-Wide).
 
