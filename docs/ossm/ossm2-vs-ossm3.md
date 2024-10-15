@@ -6,11 +6,11 @@ OpenShift Service Mesh 3 is a major update with a feature set closer to the [Ist
 
 ## From Maistra to Istio
 
-While OpenShift Service Mesh 1 and 2 releases were based on Istio, they included additional functionality that was maintained as part of the midstream Maistra project, which itself was based on the upstream Istio project. Maistra maintained several features that were not part of the upstream Istio project. While this provided extra features to OpenShift Service Mesh users, the effort to maintain the Maistra meant that OpenShift Service Mesh was usually several releases behind Istio with support omitted for major features like multi-cluster. Meanwhile, Istio has matured to cover most of the use cases addressed by Maistra. Basing OpenShift Service Mesh directly on Istio ensures that it will support users on the latest stable Istio features while Red Hat is able to contributing directly to the Istio community on behalf of its customers. 
+While OpenShift Service Mesh 1 and 2 releases were based on Istio, they included additional functionality that was maintained as part of the midstream Maistra project, which itself was based on the upstream Istio project. Maistra maintained several features that were not part of the upstream Istio project. While this provided extra features to OpenShift Service Mesh users, the effort to maintain Maistra meant that OpenShift Service Mesh was usually several releases behind Istio with support omitted for major features like multi-cluster. Meanwhile, Istio has matured to cover most of the use cases addressed by Maistra. Basing OpenShift Service Mesh directly on Istio ensures that it will support users on the latest stable Istio features while Red Hat is able to contribute directly to the Istio community on behalf of its customers. 
 
 ## The OpenShift Service Mesh 3 operator
 
-OpenShift Service Mesh 3 uses an operator that is maintained upstream as the sail-operator in the istio-ecosystem organization. This operator is smaller in scope and includes significant changes from the operator used in OpenShift Service Mesh 2 that was maintained as part of the Maisra.io project.
+OpenShift Service Mesh 3 uses an operator that is maintained upstream as the sail-operator in the istio-ecosystem organization. This operator is smaller in scope and includes significant changes from the operator used in OpenShift Service Mesh 2 that was maintained as part of the Maistra.io project.
 
 ## Observability integrations rather than addons
 
@@ -24,7 +24,7 @@ This simplification greatly reduces the footprint and complexity of OpenShift Se
 
 While OpenShift Service Mesh 2 used a resource called `ServiceMeshControlPlane` to configure Istio, OpenShift Service Mesh 3 uses a resource called `Istio`. 
 
-The `Istio` resource contains a `spec.values` field that derives its schema from Istio’s Helm chart values. While this is a different configuration schema than `ServiceMeshControlPlane` uses, the fact that it is derived from Istio’s configuration means that configuration examples from the community Istio documentation can often be applied directly to Red Hat OpenShift Service Mesh’s `Istio` resource. The `spec.values` field has a similar format in `IstioOperator` resource (which is not part of OpenShift Service Mesh), with the `Istio` resource providing an additional validation schema enabling the ability to explore the resource using the OpenShift CLI command `oc explain istios.spec.values`.
+The `Istio` resource contains a `spec.values` field that derives its schema from Istio’s Helm chart values. While this is a different configuration schema than `ServiceMeshControlPlane` uses, the fact that it is derived from Istio’s configuration means that configuration examples from the community Istio documentation can often be applied directly to Red Hat OpenShift Service Mesh’s `Istio` resource. The `spec.values` field in the `IstioOperator` resource (which is not part of OpenShift Service Mesh) has a similar format. The `Istio` resource provides an additional validation schema enabling the ability to explore the resource using the OpenShift CLI command `oc explain istios.spec.values`.
 
 # New resource: `IstioCNI`
 
@@ -32,7 +32,7 @@ The Istio CNI node agent is used to configure traffic redirection for pods in th
 
 In OpenShift Service Mesh 2, service meshes were namespace scoped by default and thus each mesh included its own instance of Istio CNI. As all OpenShift Service Mesh 3 meshes are cluster-wide, there can only be one version of Istio CNI per cluster, regardless of how many service mesh control planes are on the cluster.
 
-For these reasons, the OpenShift Service Mesh 3 operator manages Istio CNI with a separate resource called `IstioCNI`. A single instance of this resource is common to all Istio control planes (managed by `Istio` resources). The `IstioCNI` resource must be upgraded before individual control planes (`Istio` resources) are upgraded.
+For these reasons, the OpenShift Service Mesh 3 operator manages Istio CNI with a separate resource called `IstioCNI`. A single instance of this resource is shared by all Istio control planes (managed by `Istio` resources). The `IstioCNI` resource must be upgraded before individual control planes (`Istio` resources) are upgraded.
 
 ## Scoping of the Mesh: Discovery Selectors and labels replace `ServiceMeshMemberRoll` and `ServiceMeshMember`
 
@@ -44,13 +44,13 @@ OpenShift Service Mesh 3 converges with Istio in making all meshes “cluster-wi
 
 To replace `ServiceMeshMemberRoll`, a `discoverySelector` may be configured to limit the scope of the mesh to one or more namespaces with labels that match the `discoverySelector`'s label selector. 
 
-To replace `ServiceMeshMember`, label(s) may be added to namespaces such that they trigger the label selector specified by `d`iscoverySelector`.
+To replace `ServiceMeshMember`, label(s) may be added to namespaces such that they trigger the label selector specified by `discoverySelector`.
 
 ## Multiple Control Planes with Revisions
 
 OpenShift Service Mesh 3 supports multiple service meshes in the same cluster, but in a different manner than in OpenShift Service Mesh 2. A cluster administrator must create multiple `Istio` instances and then configure `discoverySelectors` appropriately to ensure that there is no overlap between mesh namespaces. 
 
-As `Istio` resources are cluster-scoped, they must have unique names to represent unique meshes within the same cluster. The OpenShift Service Mesh 3 operator uses this unique name to create a resource called `IstioRevision` with a name in the format of `{Istio name}` or `{Istio name}-{Istio version}`. Each instance of `IstioRevision` is responsible for managing a single control plane. It does this using Istio's revision labels of the format `istio.io/rev={IstioRevision name}` to identify pods that are part of their control plane. The name with the version identifier becomes important to support canary-style control plane upgrades (more on this in the upgrades section below).
+As `Istio` resources are cluster-scoped, they must have unique names to represent unique meshes within the same cluster. The OpenShift Service Mesh 3 operator uses this unique name to create a resource called `IstioRevision` with a name in the format of `{Istio name}` or `{Istio name}-{Istio version}`. Each instance of `IstioRevision` is responsible for managing a single control plane. Workloads are assigned to a specific control plane using Istio's revision labels of the format `istio.io/rev={IstioRevision name}`. The name with the version identifier becomes important to support canary-style control plane upgrades (more on this in the upgrades section below).
 
 ## Sidecar Injection: New Considerations
 
@@ -68,11 +68,11 @@ In Istio, gateways are used to manage traffic entering (ingress) and exiting (eg
 
 In OpenShift Service Mesh 3, gateways are created and managed independent of the operator and control plane using gateway injection or Kubernetes Gateway API resources, both of which provide much greater flexibility than was possible with the ServiceMeshControlPlane. This allows the gateways to be customized for a set of applications, deployed and managed with the same lifecycle as their corresponding applications.
 
-This change was made because, as a good practice, gateways are better managed together with their corresponding worklods than with the service mesh control plane. This change also means starting with a gateway configuration that can expand over time to meet the more robust needs of a production environment, which was not possible with the default gateways in OpenShift Service Mesh 2. 
+This change was made because, as a good practice, gateways are better managed together with their corresponding workloads than with the service mesh control plane. This change also means starting with a gateway configuration that can expand over time to meet the more robust needs of a production environment, which was not possible with the default gateways in OpenShift Service Mesh 2. 
 
 Note that even with this change, gateways may continue to be deployed onto nodes or namespaces independent of applications (for example, a centralized gateway node).  Istio gateways also remain eligible to be deployed on OpenShift infrastructure nodes.
 
-## OpenShift Routes must be explicitely created
+## OpenShift Routes must be explicitly created
 
 An OpenShift `Route` resource allows an application to be exposed with a public URL using OpenShift's Ingress operator for managing HAProxy based Ingress controllers. OpenShift Service Mesh 2 included a feature called Istio OpenShift Routing (IOR) that automatically created and managed OpenShift routes for Istio gateways. While this was convenient, as the operator would manage these routes for the user, it often caused confusion around ownership as many `Route` resources are managed by administrators. The feature also lacked the configurability of an independent `Route` resource, created unnecessary routes, and exhibited unpredictable behavior during upgrades.
 
@@ -92,7 +92,7 @@ OpenShift Service Mesh 3 includes support for Istio's multi-cluster topologies, 
 
 ## Istioctl
 
-OpenShift Service Mesh 1 and 2 did not include support for Istioctl, the command line utility for the Istio project that includes many diagnostic and debugging utiltiies. OpenShift Service Mesh 3 introduces support for Istioctl for select commands. Installation and management of Istio will only be supported by the OpenShift Service Mesh 3 operator.
+OpenShift Service Mesh 1 and 2 did not include support for Istioctl, the command line utility for the Istio project that includes many diagnostic and debugging utilties. OpenShift Service Mesh 3 introduces support for Istioctl for select commands. Installation and management of Istio will only be supported by the OpenShift Service Mesh 3 operator.
 
 ## Kubernetes Network Policy Management
 
