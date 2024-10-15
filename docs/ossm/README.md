@@ -6,4 +6,5 @@ This documentation is specific to the OpenShift Service Mesh product and may dif
 
 # Table of Contents
 
-- [Running Red Hat OpenShift Service Mesh (OSSM) 2 and OSSM 3 side by side](./ossm-2-and-ossm-3-side-by-side/README.md)
+ - [Compared to OpenShift Service Mesh 2](./ossm2-vs-ossm3.md)
+ - [Running Red Hat OpenShift Service Mesh (OSSM) 2 and OSSM 3 side by side](./ossm-2-and-ossm-3-side-by-side/README.md)
