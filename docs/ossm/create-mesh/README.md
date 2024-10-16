@@ -101,20 +101,16 @@ spec:
 ### Injection
 In order to take advantage of all of Istio’s features, pods in the mesh must be running an Istio sidecar proxy.
 
-The following sections describe two ways of injecting the Istio sidecar into a pod: enabling automatic Istio sidecar injection in the pod’s namespace, or by manually using the `istioctl` command.
+The following sections describe automatic Istio sidecar injection in the pod’s namespace. Manual injection using the `istioctl` command is not supported by OpenShift Service Mesh 3.
 
 When enabled in a pod’s namespace, automatic injection injects the proxy configuration at pod creation time using an admission controller.
-
-Manual injection directly modifies configuration, like deployments, by adding the proxy configuration into it.
-
-If you are not sure which one to use, automatic injection is recommended.
 
 ### Automatic sidecar injection
 Sidecars can be automatically added to applicable Kubernetes pods using a [mutating webhook admission controller](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/) provided by Istio.
 
 When you set the `istio-injection=enabled` or `istio.io/rev=<revision>` label on a namespace, any new pods that are created in that namespace will automatically have a sidecar added to them.
 
-Note that unlike manual injection, automatic injection occurs at the pod-level. You won’t see any change to the deployment itself. Instead, you’ll want to check individual pods (via `oc describe`) to see the injected proxy.
+Automatic injection occurs at the pod-level. You won’t see any change to the deployment itself. Instead, you’ll want to check individual pods (via `oc describe`) to see the injected proxy.
 
 #### Controlling the injection policy
 You enabled and disabled injection at the namespace level. Injection can also be controlled on a per-pod basis, by configuring the `sidecar.istio.io/inject` label on a pod:
