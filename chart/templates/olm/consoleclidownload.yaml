@@ -7,6 +7,5 @@ spec:
     manage OpenShift Service Mesh resources.
   displayName: istioctl - OpenShift Service Mesh Command Line Interface (CLI)
   links:
-  ## TODO: modify the download URL
-  - href: https://developers.redhat.com/content-gateway/rest/browse/pub/openshift-v4/clients/servicemesh/{{ .Values.csv.version }}
+  - href: https://mirror.openshift.com/pub/cgw/servicemesh/latest
     text: Download istioctl
