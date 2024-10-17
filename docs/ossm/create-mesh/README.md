@@ -1,9 +1,15 @@
 # Adding services to a service mesh
-OpenShift Service Mesh 3 is very different compared to OpenShift Service Mesh 2 in a way how one can add a service to your service mesh. OSSM 3 is much closer to the [Istio](https://istio.io/) project. Detailed list of OSSM 3 vs. OSSM 2 changes is available in [Compared to OpenShift Service Mesh 2](../ossm2-vs-ossm3.md) chapter.
-
 This document describes basic concepts how Istio control plane monitors your OCP resources and how to scope your service mesh.
 
+Adding your workload to a mesh is a two steps process:
+1. Your workload must be discovered by Istio control plane
+1. Your workload must be injected with Istio Proxy sidecar
+
+First step is described in this guide, see [Installing the Sidecar
+](../injection/README.md) for second step.
+
 ## Concepts
+To better understand next chaptes, it's recommended to read Service mesh architecture guide first.
 
 ### Cluster wide by default
 In order to program the service mesh, the Istio control plane (Istiod) reads a variety of configurations, including core OpenShift types like Service and Node, and Istio’s own types like Gateway. These are then sent to the data plane.
@@ -22,37 +28,7 @@ Istio offers a few tools to help control the scope of a configuration to meet di
 - `exportTo` provides a mechanism to export a configuration to a set of workloads
 - `discoverySelectors` provides a mechanism to let Istio completely ignore a set of configurations
 
-### Sidecar import
-The `egress.hosts` field in [Sidecar](https://istio.io/latest/docs/reference/config/networking/sidecar/) allows specifying a list of configurations to import. Only configurations matching the specified criteria will be seen by sidecars impacted by the `Sidecar` resource.
-
-For example:
-```yaml
-apiVersion: networking.istio.io/v1
-kind: Sidecar
-metadata:
-  name: default
-spec:
-  egress:
-  - hosts:
-    - "./*" # Import all configuration from our own namespace
-    - "bookinfo/*" # Import all configuration from the bookinfo namespace
-    - "external-services/example.com" # Import only 'example.com' from the external-services namespace
-```
-### exportTo
-Istio’s `VirtualService`, `DestinationRule`, and `ServiceEntry` provide a `spec.exportTo` field. Similarly, `Service` can be configured with the `networking.istio.io/exportTo` annotation.
-
-Unlike Sidecar which allows a workload owner to control what dependencies it has, exportTo works in the opposite way, and allows the service owners to control their own service’s visibility.
-
-For example, this configuration makes the `details Service` only visible to its own namespace, and the client namespace:
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: details
-  annotations:
-    networking.istio.io/exportTo: ".,client"
-spec: ...
-```
+This chapter is focusing on `DiscoverySelectors`, see [Single-mesh isolation ("zone") features](../zones/README.md) for details about `Sidecar` and `exportTo`.
 
 ### DiscoverySelectors
 While the previous controls operate on a workload or service owner level, `DiscoverySelectors` provides mesh wide control over configuration visibility. Discovery selectors allows specifying criteria for which namespaces should be visible to the control plane. Any namespaces not matching are ignored by the control plane entirely.
@@ -78,67 +54,17 @@ You can configure each label selector for expressing a variety of use cases, inc
 - A list of namespace labels using set-based selectors which carries OR semantics, for example, all namespaces with label `istio-discovery=enabled` OR `region=us-east1`
 - Inclusion and/or exclusion of namespaces, for example, all namespaces with label `istio-discovery=enabled` AND label key `app` equal to `helloworld`
 
-Example of Istio CR with `discoverySelectors` defined:
-```yaml
-kind: Istio
-apiVersion: sailoperator.io/v1alpha1
-metadata:
-  name: ossm3
-spec:
-  namespace: istio-system3
-  values:
-    meshConfig:
-      discoverySelectors:
-        - matchExpressions:
-          - key: maistra.io/member-of
-            operator: DoesNotExist
-  updateStrategy:
-    type: InPlace
-  version: v1.23.0
-```
+#### Discovery Selectors in Action
+Assuming you know which namespaces to include as part of the service mesh, as a mesh administrator, you can configure `discoverySelectors` at installation time or post-installation by adding your desired discovery selectors to Istio’s MeshConfig resource. For example, you can configure Istio to discover only the namespaces that have the label `istio-discovery=enabled`.
 
-## Installing the Sidecar
-### Injection
-In order to take advantage of all of Istio’s features, pods in the mesh must be running an Istio sidecar proxy.
-
-The following sections describe automatic Istio sidecar injection in the pod’s namespace. Manual injection using the `istioctl` command is not supported by OpenShift Service Mesh 3.
-
-When enabled in a pod’s namespace, automatic injection injects the proxy configuration at pod creation time using an admission controller.
-
-### Automatic sidecar injection
-Sidecars can be automatically added to applicable Kubernetes pods using a [mutating webhook admission controller](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/) provided by Istio.
-
-When you set the `istio-injection=enabled` or `istio.io/rev=<revision>` label on a namespace, any new pods that are created in that namespace will automatically have a sidecar added to them.
-
-Automatic injection occurs at the pod-level. You won’t see any change to the deployment itself. Instead, you’ll want to check individual pods (via `oc describe`) to see the injected proxy.
-
-#### Controlling the injection policy
-You enabled and disabled injection at the namespace level. Injection can also be controlled on a per-pod basis, by configuring the `sidecar.istio.io/inject` label on a pod:
-| Resource | Label | Enabled value | Disabled value |
-| --- | --- | --- | --- |
-| Namespace | `istio-injection` | `enabled` | `disabled` |
-| Pod | `sidecar.istio.io/inject` | `"true"` | `"false"` |
-
-If you are using control plane revisions, revision specific labels are instead used by a matching `istio.io/rev` label. For example, for a revision named `canary`:
-| Resource | Enabled Label | Disabled Label |
-| --- | --- | --- |
-| Namespace | `istio.io/rev=canary` | `istio-injection=disabled` |
-| Pod | `istio.io/rev=canary` | `sidecar.istio.io/inject="false"` |
-
-If the `istio-injection` label and the `istio.io/rev` label are both present on the same namespace, the istio-injection label will take precedence.
-
-The injector is configured with the following logic:
-
-1. If either label (`istio-injection` or `sidecar.istio.io/inject`) is disabled, the pod is not injected.
-2. If either label (`istio-injection` or `sidecar.istio.io/inject` or `istio.io/rev`) is enabled, the pod is injected.
-
-#### Deploying an app
-Prerequisites:
+##### Prerequisites
 - OpenShift Service Mesh 3 operator is installed
 - Istio CNI resource is created
 
-1. Create `default` Istio CR in `istio-system` namespace:
+1. Create the `istio-system` system namespace and create the Istio CR with `discoverySelectors` configured:
     ```bash
+    oc create ns istio-system
+    oc label ns istio-system istio-discovery=enabled
     oc apply -f - <<EOF
     kind: Istio
     apiVersion: sailoperator.io/v1alpha1
@@ -146,56 +72,59 @@ Prerequisites:
       name: default
     spec:
       namespace: istio-system
+      values:
+        meshConfig:
+          discoverySelectors:
+            - matchLabels:
+                istio-discovery: enabled
       updateStrategy:
         type: InPlace
       version: v1.23.0
     EOF
     ```
-1. Deploy `sleep` app:
+1. Create two application namespaces:
     ```bash
-    oc apply -f https://raw.githubusercontent.com/istio/istio/release-1.23/samples/sleep/sleep.yaml
+    oc create ns app-ns-1
+    oc create ns app-ns-2
     ```
-1. Verify both deployment and pod have a single container:
+1. Label first application namespace to be matched by defined `discoverySelectors` and enable sidecar injection:
     ```bash
-    oc get deployment -o wide
-    NAME    READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES            SELECTOR
-    sleep   1/1     1            1           16s   sleep        curlimages/curl   app=sleep
-    oc get pod -l app=sleep
-    NAME                     READY   STATUS    RESTARTS   AGE
-    sleep-5577c64d7c-ntn9d   1/1     Running   0          16s
+    oc label ns app-ns-1 istio-discovery=enabled istio-injection=enabled
     ```
-1. Label the `default` namespace with `istio-injection=enabled`:
+1. Deploy the sleep application to both namespaces:
     ```bash
-    oc label namespace default istio-injection=enabled
+    oc apply -f https://raw.githubusercontent.com/istio/istio/release-1.23/samples/sleep/sleep.yaml -n app-ns-1
+    oc apply -f https://raw.githubusercontent.com/istio/istio/release-1.23/samples/sleep/sleep.yaml -n app-ns-2
     ```
-1. Injection occurs at pod creation time. Kill the running pod and verify a new pod is created with the injected sidecar. The original pod has `1/1 READY` containers, and the pod with injected sidecar has `2/2 READY` containers.
+1. Verify that you don't see any endpoints from the second namespace:
     ```bash
-    oc delete pod -l app=sleep
-    oc get pod -l app=sleep
-    NAME                     READY   STATUS    RESTARTS   AGE
-    sleep-5577c64d7c-w9vpk   2/2     Running   0          12s
+    istioctl pc endpoint deploy/sleep -n app-ns-1
+    ENDPOINT                                                STATUS      OUTLIER CHECK     CLUSTER
+    10.128.2.197:15010                                      HEALTHY     OK                outbound|15010||istiod.istio-system.svc.cluster.local
+    10.128.2.197:15012                                      HEALTHY     OK                outbound|15012||istiod.istio-system.svc.cluster.local
+    10.128.2.197:15014                                      HEALTHY     OK                outbound|15014||istiod.istio-system.svc.cluster.local
+    10.128.2.197:15017                                      HEALTHY     OK                outbound|443||istiod.istio-system.svc.cluster.local
+    10.131.0.32:80                                          HEALTHY     OK                outbound|80||sleep.app-ns-1.svc.cluster.local
+    127.0.0.1:15000                                         HEALTHY     OK                prometheus_stats
+    127.0.0.1:15020                                         HEALTHY     OK                agent
+    unix://./etc/istio/proxy/XDS                            HEALTHY     OK                xds-grpc
+    unix://./var/run/secrets/workload-spiffe-uds/socket     HEALTHY     OK                sds-grpc
     ```
-1. View detailed state of the injected pod. You should see the injected `istio-proxy` container.
+1. Verify that after labeling second namespace it also appears on the list of discovered endpoints:
     ```bash
-    oc describe pod -l app=sleep
-    ...
-    Events:
-      Type    Reason          Age   From               Message
-      ----    ------          ----  ----               -------
-      Normal  Scheduled       50s   default-scheduler  Successfully assigned default/sleep-5577c64d7c-w9vpk to user-rhos-d-1-v8rnx-worker-0-rwjrr
-      Normal  AddedInterface  50s   multus             Add eth0 [10.128.2.179/23] from ovn-kubernetes
-      Normal  Pulled          50s   kubelet            Container image "registry.redhat.io/openshift-service-mesh-tech-preview/istio-proxyv2-rhel9@sha256:c0170ef9a34869828a5f2fea285a7cda543d99e268f7771e6433c54d6b2cbaf4" already present on machine
-      Normal  Created         50s   kubelet            Created container istio-validation
-      Normal  Started         50s   kubelet            Started container istio-validation
-      Normal  Pulled          50s   kubelet            Container image "curlimages/curl" already present on machine
-      Normal  Created         50s   kubelet            Created container sleep
-      Normal  Started         50s   kubelet            Started container sleep
-      Normal  Pulled          50s   kubelet            Container image "registry.redhat.io/openshift-service-mesh-tech-preview/istio-proxyv2-rhel9@sha256:c0170ef9a34869828a5f2fea285a7cda543d99e268f7771e6433c54d6b2cbaf4" already present on machine
-      Normal  Created         50s   kubelet            Created container istio-proxy
-      Normal  Started         50s   kubelet            Started container istio-proxy
-    ...
+    oc label ns app-ns-2 istio-discovery=enabled
+    istioctl pc endpoint deploy/sleep -n app-ns-1
+    ENDPOINT                                                STATUS      OUTLIER CHECK     CLUSTER
+    10.128.2.197:15010                                      HEALTHY     OK                outbound|15010||istiod.istio-system.svc.cluster.local
+    10.128.2.197:15012                                      HEALTHY     OK                outbound|15012||istiod.istio-system.svc.cluster.local
+    10.128.2.197:15014                                      HEALTHY     OK                outbound|15014||istiod.istio-system.svc.cluster.local
+    10.128.2.197:15017                                      HEALTHY     OK                outbound|443||istiod.istio-system.svc.cluster.local
+    10.131.0.32:80                                          HEALTHY     OK                outbound|80||sleep.app-ns-1.svc.cluster.local
+    10.131.0.33:80                                          HEALTHY     OK                outbound|80||sleep.app-ns-2.svc.cluster.local
+    127.0.0.1:15000                                         HEALTHY     OK                prometheus_stats
+    127.0.0.1:15020                                         HEALTHY     OK                agent
+    unix://./etc/istio/proxy/XDS                            HEALTHY     OK                xds-grpc
+    unix://./var/run/secrets/workload-spiffe-uds/socket     HEALTHY     OK                sds-grpc
     ```
 
-> **_NOTE:_** In case you choose a different name for the control plane (other than `default`), you have to use `istio.io/rev=<revName>` label instead of `istio-injection=enabled`.
-
-
+See [Multiple Istio Control Planes in a Single Cluster](../multi-control-planes/README.md) for another example of `discoverySelectors` usage.
