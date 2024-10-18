@@ -2,7 +2,7 @@
 ### Injection
 In order to take advantage of all of Istio’s features, pods in the mesh must be running an Istio sidecar proxy.
 
-The following sections describe automatic Istio sidecar injection in the pod’s namespace. Manual injection using the `istioctl` command is not supported by OpenShift Service Mesh 3.
+The following sections describe automatic Istio sidecar injection in the pod’s namespace. Manual injection using the `istioctl` command is not supported by OpenShift Service Mesh.
 
 When enabled in a pod’s namespace, automatic injection injects the proxy configuration at pod creation time using an admission controller.
 
