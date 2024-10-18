@@ -26,7 +26,7 @@ While OpenShift Service Mesh 2 used a resource called `ServiceMeshControlPlane` 
 
 The `Istio` resource contains a `spec.values` field that derives its schema from Istio’s Helm chart values. While this is a different configuration schema than `ServiceMeshControlPlane` uses, the fact that it is derived from Istio’s configuration means that configuration examples from the community Istio documentation can often be applied directly to Red Hat OpenShift Service Mesh’s `Istio` resource. The `spec.values` field in the `IstioOperator` resource (which is not part of OpenShift Service Mesh) has a similar format. The `Istio` resource provides an additional validation schema enabling the ability to explore the resource using the OpenShift CLI command `oc explain istios.spec.values`.
 
-# New resource: `IstioCNI`
+## New resource: `IstioCNI`
 
 The Istio CNI node agent is used to configure traffic redirection for pods in the mesh. It runs as a DaemonSet, on every node, with elevated privileges. The Istio CNI agent has a lifecycle that is independent of Istio control planes, and must be upgraded separately. 
 
@@ -66,7 +66,7 @@ However, when an Istio resource has a name other than “default” - as require
 
 In Istio, gateways are used to manage traffic entering (ingress) and exiting (egress) the mesh. While by default, OpenShift Service Mesh 2 deployed and managed an Ingress Gateway and an Egress Gateway with the service mesh control plane, configured in the `ServiceMeshControlPlane` resource, the OpenShift Service Mesh 3 operator will no longer create or manage gateways. 
 
-In OpenShift Service Mesh 3, gateways are created and managed independent of the operator and control plane using gateway injection or Kubernetes Gateway API resources, both of which provide much greater flexibility than was possible with the ServiceMeshControlPlane. This allows the gateways to be customized for a set of applications, deployed and managed with the same lifecycle as their corresponding applications.
+In OpenShift Service Mesh 3, gateways are created and managed independent of the operator and control plane using gateway injection. This provides much greater flexibility than was possible with the `ServiceMeshControlPlane` resource and ensures that gateways can be fully customized and managed as part of a GitOps pipeline. This allows the gateways deployed and managed alongside their applications with the same lifecycle.
 
 This change was made because, as a good practice, gateways are better managed together with their corresponding workloads than with the service mesh control plane. This change also means starting with a gateway configuration that can expand over time to meet the more robust needs of a production environment, which was not possible with the default gateways in OpenShift Service Mesh 2. 
 
