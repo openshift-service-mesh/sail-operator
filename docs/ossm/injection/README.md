@@ -35,12 +35,11 @@ The injector is configured with the following logic:
 
 #### Deploying an app
 Prerequisites:
-- OpenShift Service Mesh 3 operator is installed
-- Istio CNI resource is created
+- The OpenShift Service Mesh operator has been installed
+- An Istio CNI resource has been created
 
-1. Create `default` Istio CR in `istio-system` namespace:
-    ```bash
-    oc apply -f - <<EOF
+1. Prepare `default` `istio.yaml`:
+    ```yaml
     kind: Istio
     apiVersion: sailoperator.io/v1alpha1
     metadata:
@@ -50,7 +49,10 @@ Prerequisites:
       updateStrategy:
         type: InPlace
       version: v1.23.0
-    EOF
+    ```
+1. Create `default` Istio CR in `istio-system` namespace:
+    ```bash
+    oc apply -f istio.yaml
     ```
 1. Deploy `sleep` app:
     ```bash
@@ -69,9 +71,12 @@ Prerequisites:
     ```bash
     oc label namespace default istio-injection=enabled
     ```
-1. Injection occurs at pod creation time. Kill the running pod and verify a new pod is created with the injected sidecar. The original pod has `1/1 READY` containers, and the pod with injected sidecar has `2/2 READY` containers.
+1. Injection occurs at pod creation time. Kill the running pod to be injected with a proxy sidecar. 
     ```bash
     oc delete pod -l app=sleep
+    ```
+1. Verify a new pod is created with the injected sidecar. The original pod has `1/1 READY` containers, and the pod with injected sidecar has `2/2 READY` containers.
+    ```bash
     oc get pod -l app=sleep
     NAME                     READY   STATUS    RESTARTS   AGE
     sleep-5577c64d7c-w9vpk   2/2     Running   0          12s

@@ -2,17 +2,22 @@
 By default, the control plane will read all configuration in all namespaces - see [Cluster wide by default](../create-mesh/README.md#cluster-wide-by-default) for details. To achieve [soft multi-tenancy](../create-mesh/README.md#soft-multi-tenancy), Istio provides [discoverySelectors](../create-mesh/README.md#discoveryselectors)  which together with revisions capability allows to install multiple control planes in a Single Cluster.
 
 ## Prerequisites
-- OpenShift Service Mesh 3 operator is installed
-- Istio CNI resource is created
+- The OpenShift Service Mesh operator has been installed
+- An Istio CNI resource has been created
 
 ## Deploying multiple control planes
 The cluster will host two control planes installed in two different system namespaces. The mesh application workloads will run in multiple application-specific namespaces, each namespace associated with one or the other control plane based on revision and discovery selector configurations.
 
-1. Create the first system namespace, `usergroup-1`, and create the Istio CR:
+1. Create the first system namespace `usergroup-1`:
     ```bash
     oc create ns usergroup-1
+    ```
+1. Label the first system namespace:
+    ```bash
     oc label ns usergroup-1 usergroup=usergroup-1
-    oc apply -f - <<EOF
+    ```
+1. Prepare `istio-1.yaml`:
+    ```yaml
     kind: Istio
     apiVersion: sailoperator.io/v1alpha1
     metadata:
@@ -27,13 +32,21 @@ The cluster will host two control planes installed in two different system names
       updateStrategy:
         type: InPlace
       version: v1.23.0
-    EOF
     ```
-1. Create the second system namespace, `usergroup-2`, and create the Istio CR:
+1. Create `Istio` resource:
+    ```bash
+    oc apply -f istio-1.yaml
+    ```
+1. Create the second system namespace `usergroup-2`:
     ```bash
     oc create ns usergroup-2
+    ```
+1. Label the second system namespace:
+    ```bash
     oc label ns usergroup-2 usergroup=usergroup-2
-    oc apply -f - <<EOF
+    ```
+1. Prepare `istio-2.yaml`:
+    ```yaml
     kind: Istio
     apiVersion: sailoperator.io/v1alpha1
     metadata:
@@ -48,11 +61,13 @@ The cluster will host two control planes installed in two different system names
       updateStrategy:
         type: InPlace
       version: v1.23.0
-    EOF
     ```
-1. Deploy a policy for workloads in the `usergroup-1` namespace to only accept mutual TLS traffic:
+1. Create `Istio` resource:
     ```bash
-    oc apply -f - <<EOF
+    oc apply -f istio-2.yaml
+    ```
+1. Deploy a policy for workloads in the `usergroup-1` namespace to only accept mutual TLS traffic `peer-auth-1.yaml`:
+    ```yaml
     apiVersion: security.istio.io/v1
     kind: PeerAuthentication
     metadata:
@@ -61,11 +76,12 @@ The cluster will host two control planes installed in two different system names
     spec:
       mtls:
         mode: STRICT
-    EOF
     ```
-1. Deploy a policy for workloads in the `usergroup-2` namespace to only accept mutual TLS traffic:
     ```bash
-    oc apply -f - <<EOF
+    oc apply -f peer-auth-1.yaml
+    ```
+1. Deploy a policy for workloads in the `usergroup-2` namespace to only accept mutual TLS traffic `peer-auth-2.yaml`:
+    ```yaml
     apiVersion: security.istio.io/v1
     kind: PeerAuthentication
     metadata:
@@ -74,7 +90,9 @@ The cluster will host two control planes installed in two different system names
     spec:
       mtls:
         mode: STRICT
-    EOF
+    ```
+    ```bash
+    oc apply -f peer-auth-2.yaml
     ```
 1. Verify the control planes are deployed and running:
     ```bash

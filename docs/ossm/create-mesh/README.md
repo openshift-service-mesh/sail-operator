@@ -5,7 +5,12 @@ A service mesh will include a workload that:
 1. Has been discovered by the service mesh control plane
 1. Has been [injected with a Envoy proxy sidecar](../injection/README.md)
 
-By default, the service mesh control plane will watch all namespaces within the cluster, meaning that any workload with the appropriate sidecar or namespace injection label will be added to the service mesh. This may not be desirable in a shared cluster, and you may want to limit the scope of the service mesh to only a portion of your cluster. This is particularly important if you plan to have [multiple service meshes within the same cluster](./multi-control-planes/README.md).
+
+By default, the service mesh control plane will watch all namespaces within the cluster, meaning that:
+- Each proxy instance will receive configuration for all namespaces. This includes information about workloads that are not enrolled in the mesh.
+- Any workload with the appropriate sidecar or namespace injection label will be injected with a proxy sidecar.
+
+This may not be desirable in a shared cluster, and you may want to limit the scope of the service mesh to only a portion of your cluster. This is particularly important if you plan to have [multiple service meshes within the same cluster](./multi-control-planes/README.md).
 
 ### DiscoverySelectors
 Discovery selectors provide a mechanism for the mesh administrator to limit the scope of a service mesh. This is done through a Kubernetes [label selector](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors), which defines criteria for which namespaces will be visible to the service mesh control plane. Any namespaces not matching are ignored by the control plane entirely.
@@ -30,11 +35,16 @@ Assuming you know which namespaces to include as part of the service mesh, as a 
 - The OpenShift Service Mesh operator has been installed
 - An Istio CNI resource has been created
 
-1. Create the `istio-system` system namespace and create the Istio CR with `discoverySelectors` configured:
+1. Create the `istio-system` system namespace:
     ```bash
     oc create ns istio-system
+    ```
+1. Label the `istio-system` system namespace:
+    ```bash
     oc label ns istio-system istio-discovery=enabled
-    oc apply -f - <<EOF
+    ```
+1. Prepare `istio.yaml` with `discoverySelectors` configured:
+    ```yaml
     kind: Istio
     apiVersion: sailoperator.io/v1alpha1
     metadata:
@@ -49,20 +59,29 @@ Assuming you know which namespaces to include as part of the service mesh, as a 
       updateStrategy:
         type: InPlace
       version: v1.23.0
-    EOF
     ```
-1. Create two application namespaces:
+1. Apply the Istio CR:
+    ```bash
+    oc apply -f istio.yaml
+    ```
+1. Create first application namespace:
     ```bash
     oc create ns app-ns-1
+    ```
+1. Create second application namespace:
+    ```bash
     oc create ns app-ns-2
     ```
 1. Label first application namespace to be matched by defined `discoverySelectors` and enable sidecar injection:
     ```bash
     oc label ns app-ns-1 istio-discovery=enabled istio-injection=enabled
     ```
-1. Deploy the sleep application to both namespaces:
+1. Deploy the sleep application to the first namespaces:
     ```bash
     oc apply -f https://raw.githubusercontent.com/istio/istio/release-1.23/samples/sleep/sleep.yaml -n app-ns-1
+    ```
+1. Deploy the sleep application to the second namespaces:
+    ```bash
     oc apply -f https://raw.githubusercontent.com/istio/istio/release-1.23/samples/sleep/sleep.yaml -n app-ns-2
     ```
 1. Verify that you don't see any endpoints from the second namespace:
@@ -79,9 +98,12 @@ Assuming you know which namespaces to include as part of the service mesh, as a 
     unix://./etc/istio/proxy/XDS                            HEALTHY     OK                xds-grpc
     unix://./var/run/secrets/workload-spiffe-uds/socket     HEALTHY     OK                sds-grpc
     ```
-1. Verify that after labeling second namespace it also appears on the list of discovered endpoints:
+1. Label second application namespace to be matched by defined `discoverySelectors` and enable sidecar injection:
     ```bash
     oc label ns app-ns-2 istio-discovery=enabled
+    ```
+1. Verify that after labeling second namespace it also appears on the list of discovered endpoints:
+    ```bash
     istioctl pc endpoint deploy/sleep -n app-ns-1
     ENDPOINT                                                STATUS      OUTLIER CHECK     CLUSTER
     10.128.2.197:15010                                      HEALTHY     OK                outbound|15010||istiod.istio-system.svc.cluster.local
