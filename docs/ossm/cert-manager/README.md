@@ -36,11 +36,11 @@ You can install the cert-manager tool to manage the lifecycle of TLS certificate
     oc create namespace istio-system
     ```
 
-2.  Create the root cluster issuer.
+2.  Create the root issuer.
 
     - Create the `Issuer` object as in the following example:
 
-      _Example `cluster-issuer.yaml`_
+      _Example `issuer.yaml`_
 
       ```yaml
       apiVersion: cert-manager.io/v1
@@ -86,7 +86,7 @@ You can install the cert-manager tool to manage the lifecycle of TLS certificate
     - Create the objects by using the following command.
 
       ```sh
-      oc apply -f cluster-issuer.yaml
+      oc apply -f issuer.yaml
       ```
 
     - Wait for the `istio-ca` certificate to become ready.
@@ -141,11 +141,7 @@ You can install the cert-manager tool to manage the lifecycle of TLS certificate
 
     `RevisionBased` strategy installation
 
-    For the `RevisionBased` strategy, you need to specify all the istio revisions to your [istio-csr deployment](https://github.com/cert-manager/istio-csr/tree/main/deploy/charts/istio-csr#appistiorevisions0--string). You can find the names of your `IstioRevision`s with this command:
-
-    ```sh
-    oc get istiorevisions
-    ```
+    For the `RevisionBased` strategy, you need to specify all the istio revisions to your [istio-csr deployment](https://github.com/cert-manager/istio-csr/tree/main/deploy/charts/istio-csr#appistiorevisions0--string).
 
     - Add the jetstack charts to your local helm repo.
 
@@ -153,9 +149,8 @@ You can install the cert-manager tool to manage the lifecycle of TLS certificate
       helm repo add jetstack https://charts.jetstack.io --force-update
       ```
 
-    - Install the istio-csr chart with your revision name.
+    - Install the istio-csr chart with your revision name. Revision names will be of the form `<istio-name><istio-version-with-dashes>` e.g. `default-v1-23-0`.
       ```sh
-      helm repo add jetstack https://charts.jetstack.io --force-update
       helm upgrade cert-manager-istio-csr jetstack/cert-manager-istio-csr \
           --install \
           --namespace cert-manager \
@@ -171,7 +166,7 @@ You can install the cert-manager tool to manage the lifecycle of TLS certificate
 
 5.  Install your `Istio` resource.
 
-    Here we are disabling Istio's built in CA server and instead pointing istiod to the istio-csr CA server which will issue certificates for both istiod and the mesh workloads.
+    Here we are disabling Istio's built in CA server and instead pointing istiod to the istio-csr CA server which will issue certificates for both istiod and the mesh workloads. We also mount the istiod tls cert into the pod at a known location where it will be read.
 
     - Create the `Istio` object as in the following example:
 
@@ -191,6 +186,10 @@ You can install the cert-manager tool to manage the lifecycle of TLS certificate
           pilot:
             env:
               ENABLE_CA_SERVER: "false"
+            volumeMounts:
+              - mountPath: /tmp/var/run/secrets/istiod/tls
+                name: istio-csr-dns-cert
+                readOnly: true
       ```
 
     - Create the `Istio` resource by using the following command.
