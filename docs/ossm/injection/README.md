@@ -1,48 +1,55 @@
 ## Installing the Sidecar
 ### Injection
-To include workloads as part of the service mesh and to begin using Istio's many features, pods must be injected with a sidecar proxy that will be managed by an Istio control plane.
+To include workloads as part of the service mesh and to begin using Istio's many features, pods must be injected with a sidecar proxy that will be configured by an Istio control plane.
 
-Sidecar injection can be enabled via labels at the namespace or pod level that also serve to identify the control plane managing the sidecar proxy(ies). By adding a valid pod injection label (see below) on a namespace, any new pods that are created in that namespace will automatically have a sidecar added to them.
+Sidecar injection can be enabled via labels at the namespace or pod level that also serve to identify the control plane managing the sidecar proxy(ies). By adding a valid injection label on a Deployment, pods created through that deployment will automatically have a sidcar added to them. By adding a valid pod injection label on a namespace, any new pods that are created in that namespace will automatically have a sidecar added to them.
 
 The proxy configuration is injected at pod creation time using an [admission controller](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/). As sidecar injection occurs at the pod-level, you won’t see any change to `Deployment` resources. Instead, you’ll want to check individual pods (via `oc describe`) to see the injected Istio proxy container.
 
-### Enabling sidecar injection
-When the service mesh's `Istio` resource is created with the name `default`, it's possible to use following labels on a namespace or a pod:
-| Resource | Label | Enabled value | Disabled value |
-| --- | --- | --- | --- |
-| Namespace | `istio-injection` | `enabled` | `disabled` |
-| Pod | `sidecar.istio.io/inject` | `"true"` | `"false"` |
+### Identifying the revision name
 
-When the `Istio` resource is created with a different name, as required for revision based upgrades or to support multiple control planes, a label specifying the corresponding `IstioRevision` name must be used to map the pod to the desired control plane. When the `Istio` resources's `spec.updateStrategy.type` is set to `InPlace`, the `IstioRevision` will be the same name as the `Istio` resource. When the `Istio` resources's `spec.updateStrategy.type` is set to `RevisionBased`, the `IstioRevision` will be of the format `<Istio resource name>-<version>`.
+The correct label used to enable sidecar injection depends on the control plane instance being used. A control plane instance is called a "revision" and is managed by the `IstioRevision` resource. The `Istio` control plane resource creates and manages `IstioRevision` resources, thus users do not typically have to create or modify them. 
+
+When the `Istio` resources's `spec.updateStrategy.type` is set to `InPlace`, the `IstioRevision` will have the same name as the `Istio` resource. When the `Istio` resources's `spec.updateStrategy.type` is set to `RevisionBased`, the `IstioRevision` will have the format `<Istio resource name>-v<version>`.
+
+In most cases, there will be a single `IstioRevision` resource per `Istio` resource. During a revision based upgrade, there may be multiple `IstioRevision` instances present, each representing an independent control plane. 
 
 The available revision names can be checked with the command:
+
 ```console
 $ oc get istiorevision
 NAME              READY   STATUS    IN USE   VERSION   AGE
 my-mesh-v1-23-0   True    Healthy   False    v1.23.0   114s
 ```
-The injection label with revision is specified using the `istio.io/rev` label.
 
-For example, with the revision shown from the above commend, the following labels would enable injection:
+### Enabling sidecar injection - "default" revision
+
+When the service mesh's `IstioRevision` name is "default", it's possible to use following labels on a namespace or a pod to enable sidecar injection:
+| Resource | Label | Enabled value | Disabled value |
+| --- | --- | --- | --- |
+| Namespace | `istio-injection` | `enabled` | `disabled` |
+| Pod | `sidecar.istio.io/inject` | `"true"` | `"false"` |
+
+### Enabling sidecar injection - other revisions
+
+When the `IstioRevision` name is not "default", then the specific `IstioRevision` name must be used with the `istio.io/rev` label to map the pod to the desired control plane while enabling sidecar injection. 
+
+For example, with the revision shown above, the following labels would enable sidecar injection:
 | Resource | Enabled Label | Disabled Label |
 | --- | --- | --- |
 | Namespace | `istio.io/rev=my-mesh-v1-23-0` | `istio-injection=disabled` |
 | Pod | `istio.io/rev=my-mesh-v1-23-0` | `sidecar.istio.io/inject="false"` |
 
-For example, with an `Istio` resource named `my-mesh` where `RevisionBased` upgrade strategy is used and the control plane is Istio version 1.23.0, the following labels would enable injection:
-| Resource | Enabled Label | Disabled Label |
-| --- | --- | --- |
-| Namespace | `istio.io/rev=my-mesh-v1-23-0` | `istio-injection=disabled` |
-| Pod | `istio.io/rev=my-mesh-v1-23-0` | `sidecar.istio.io/inject="false"` |
+### Sidecar injection logic
 
-If the `istio-injection` label and the `istio.io/rev` label are both present on the same namespace, the istio-injection label will take precedence.
+If the `istio-injection` label and the `istio.io/rev` label are both present on the same namespace, the `istio-injection` label (mapping to the "default" revision) will take precedence.
 
 The injector is configured with the following logic:
 
 1. If either label (`istio-injection` or `sidecar.istio.io/inject`) is disabled, the pod is not injected.
 2. If either label (`istio-injection` or `sidecar.istio.io/inject` or `istio.io/rev`) is enabled, the pod is injected.
 
-### Deploying an app
+### Example: Enabling sidecar injection
 Prerequisites:
 - The OpenShift Service Mesh operator has been installed
 - An Istio CNI resource has been created
@@ -59,15 +66,15 @@ Prerequisites:
         type: InPlace
       version: v1.23.0
     ```
-1. Create `default` Istio CR in `istio-system` namespace:
+1. Create the `default` Istio CR in `istio-system` namespace:
     ```bash
     oc apply -f istio.yaml
     ```
-1. Deploy `sleep` app:
+1. Deploy the `sleep` app:
     ```bash
     oc apply -f https://raw.githubusercontent.com/istio/istio/release-1.23/samples/sleep/sleep.yaml
     ```
-1. Verify both deployment and pod have a single container:
+1. Verify both the deployment and pod have a single container:
     ```bash
     oc get deployment -o wide
     NAME    READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES            SELECTOR
@@ -80,7 +87,7 @@ Prerequisites:
     ```bash
     oc label namespace default istio-injection=enabled
     ```
-1. Injection occurs at pod creation time. Kill the running pod to be injected with a proxy sidecar. 
+1. Injection occurs at pod creation time. Remove the running pod to be injected with a proxy sidecar. 
     ```bash
     oc delete pod -l app=sleep
     ```
@@ -90,7 +97,7 @@ Prerequisites:
     NAME                     READY   STATUS    RESTARTS   AGE
     sleep-5577c64d7c-w9vpk   2/2     Running   0          12s
     ```
-1. View detailed state of the injected pod. You should see the injected `istio-proxy` container.
+1. View the detailed state of the injected pod. You should see the injected `istio-proxy` container.
     ```bash
     oc describe pod -l app=sleep
     ...
