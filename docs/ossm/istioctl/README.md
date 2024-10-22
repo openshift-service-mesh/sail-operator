@@ -44,27 +44,27 @@ at the terminal:
 |-----------------------|----------------------------------------------------------------------------------------|--------------------|
 | admin                 | Manage control plane (istiod) configuration                                            | :white_check_mark: |
 | analyze               | Analyze Istio configuration and print validation messages                              | :white_check_mark: |
-| authz                 | (authz is experimental. Use `istioctl experimental authz`)                             |                    |
+| authz                 | (authz is experimental. Use `istioctl experimental authz`)                             | :x:                |
 | bug-report            | Cluster information and log capture support tool.                                      | :white_check_mark: |
-| completion            | Generate the autocompletion script for the specified shell                             |                    |
+| completion            | Generate the autocompletion script for the specified shell                             | :white_check_mark: |
 | create-remote-secret  | Create a secret with credentials to allow Istio to access remote Kubernetes apiservers | :white_check_mark: |
-| dashboard             | Access to Istio web UIs                                                                |                    |
-| experimental          | Experimental commands that may be modified or deprecated                               |                    |
+| dashboard             | Access to Istio web UIs                                                                | :x:                |
+| experimental          | Experimental commands that may be modified or deprecated                               | :x:                |
 | help                  | Help about any command                                                                 | :white_check_mark: |
 | install               | Applies an Istio manifest, installing or reconfiguring Istio on a cluster.             | :x:                |
 | kube-inject           | Inject Istio sidecar into Kubernetes pod resources                                     | :x:                |
-| manifest              | Commands related to Istio manifests                                                    |                    |
+| manifest              | Commands related to Istio manifests                                                    | :white_check_mark: |
 | operator              | Commands related to Istio operator controller.                                         | :x:                |
 | profile               | Commands related to Istio configuration profiles                                       | :x:                |
 | proxy-config          | Retrieve information about proxy configuration from Envoy [kube only]                  | :white_check_mark: |
 | proxy-status          | Retrieves the synchronization status of each Envoy in the mesh                         | :white_check_mark: |
-| remote-clusters       | Lists the remote clusters each istiod instance is connected to.                        |                    |
-| tag                   | Command group used to interact with revision tags                                      |                    |
+| remote-clusters       | Lists the remote clusters each istiod instance is connected to.                        | :white_check_mark: |
+| tag                   | Command group used to interact with revision tags                                      | :x:                |
 | uninstall             | Uninstall Istio from a cluster                                                         | :x:                |
 | upgrade               | Upgrade Istio control plane in-place                                                   | :x:                |
-| validate              | Validate Istio policy and rules files                                                  |                    |
+| validate              | Validate Istio policy and rules files                                                  | :x:                |
 | verify-install        | Verifies Istio Installation Status                                                     | :x:                |
 | version               | Prints out build version information                                                   | :white_check_mark: |
-| waypoint              | Manage waypoint configuration                                                          |                    |
-| ztunnel-config        | Update or retrieve current Ztunnel configuration.                                      |                    |
+| waypoint              | Manage waypoint configuration                                                          | :x:                |
+| ztunnel-config        | Update or retrieve current Ztunnel configuration.                                      | :x:                |
 
