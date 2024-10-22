@@ -10,7 +10,7 @@ While OpenShift Service Mesh 1 and 2 releases were based on Istio, they included
 
 ## The OpenShift Service Mesh 3 operator
 
-OpenShift Service Mesh 3 uses an operator that is maintained upstream as the sail-operator in the istio-ecosystem organization. This operator is smaller in scope and includes significant changes from the operator used in OpenShift Service Mesh 2 that was maintained as part of the Maistra.io project.
+OpenShift Service Mesh 3 uses an operator that is maintained upstream as the Sail Operator in the istio-ecosystem organization. This operator is smaller in scope and includes significant changes from the operator used in OpenShift Service Mesh 2 that was maintained as part of the Maistra.io project.
 
 ## Observability integrations rather than addons
 
@@ -20,7 +20,7 @@ The OpenShift Service Mesh 3 operator limits its scope to Istio related resource
 
 This simplification greatly reduces the footprint and complexity of OpenShift Service Mesh, while providing better, production-grade support for observability through Red Hat OpenShift Observability.
 
-## `Istio` replaces `ServiceMeshControlPlane`
+## The `Istio` resource replaces the `ServiceMeshControlPlane` resource
 
 While OpenShift Service Mesh 2 used a resource called `ServiceMeshControlPlane` to configure Istio, OpenShift Service Mesh 3 uses a resource called `Istio`. 
 
@@ -30,7 +30,9 @@ The `Istio` resource contains a `spec.values` field that derives its schema from
 
 The Istio CNI node agent is used to configure traffic redirection for pods in the mesh. It runs as a DaemonSet, on every node, with elevated privileges. The Istio CNI agent has a lifecycle that is independent of Istio control planes, and must be upgraded separately. 
 
-In OpenShift Service Mesh 2, service meshes were namespace scoped by default and thus each mesh included its own instance of Istio CNI. As all OpenShift Service Mesh 3 meshes are cluster-wide, there can only be one version of Istio CNI per cluster, regardless of how many service mesh control planes are on the cluster.
+In OpenShift Service Mesh 2, the operator deployed an Istio CNI instance for each minor version of Istio present in the cluster and pods were automatically annotated during sidecar injection, such that they picked up the correct Istio CNI. This was enabled by using the Multus CNI plugin and meant that the management of Istio CNI was mostly hidden from users.
+
+OpenShift Service Mesh 3 no longer uses the Multus CNI plugin, and instead runs Istio CNI as a chained CNI plugin. While this simplification provides greater flexibility for network integrations, without Multus, it means that only one instance of Istio CNI may be present in the cluster at any given time and users must manage its lifecycle independent of Istio control planes. 
 
 For these reasons, the OpenShift Service Mesh 3 operator manages Istio CNI with a separate resource called `IstioCNI`. A single instance of this resource is shared by all Istio control planes (managed by `Istio` resources). The `IstioCNI` resource must be upgraded before individual control planes (`Istio` resources) are upgraded.
 
@@ -38,35 +40,33 @@ For these reasons, the OpenShift Service Mesh 3 operator manages Istio CNI with 
 
 OpenShift Service Mesh 2 used the two resources `ServiceMeshMemberRoll` and `ServiceMeshMember` to indicate which namespaces were to be included in the mesh. When a mesh was created, it would only be scoped to the namespaces listed in the `ServiceMeshMemberRoll` or containing a `ServiceMeshMember` instance. This made it simple to include multiple service meshes in a cluster with each mesh tightly scoped, referred to as a “multitenant” configuration. 
 
-In OpenShift Service Mesh 2.4, a “cluster-wide” mode was introduced to allow a mesh to be cluster-scoped, with the option to limit the mesh using an Istio feature called `discoverySelectors`, which limits the scope of the mesh to a set of namespaces defined with a [label selector](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/). This is aligned with how community Istio worked, and allowed Istio to manage cluster-level resources.
+In OpenShift Service Mesh 2.4, a “cluster-wide” mode was introduced to allow a mesh to be cluster-scoped, with the option to limit the mesh using an Istio feature called `discoverySelectors`, which limits the Istio control plane's visibility to a set of namespaces defined with a [label selector](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/). This is aligned with how community Istio worked, and allowed Istio to manage cluster-level resources.
 
-OpenShift Service Mesh 3 converges with Istio in making all meshes “cluster-wide”. This means that Istio control planes are all cluster-scoped resources and the resources `ServiceMeshMemberRoll` and `ServiceMeshMember` are no longer present, with meshes scoped to the entire cluster by default and then scoped down using `discoverySelectors`.
+OpenShift Service Mesh 3 converges with Istio in making all meshes “cluster-wide”. This means that Istio control planes are all cluster-scoped resources and the resources `ServiceMeshMemberRoll` and `ServiceMeshMember` are no longer present, with control planes watching ("discovering") the entire cluster by default. The control plane's discovery of namespaces can be limited using the `discoverySelectors` feature. 
 
-To replace `ServiceMeshMemberRoll`, a `discoverySelector` may be configured to limit the scope of the mesh to one or more namespaces with labels that match the `discoverySelector`'s label selector. 
-
-To replace `ServiceMeshMember`, label(s) may be added to namespaces such that they trigger the label selector specified by `discoverySelector`.
-
-## Multiple Control Planes with Revisions
-
-OpenShift Service Mesh 3 supports multiple service meshes in the same cluster, but in a different manner than in OpenShift Service Mesh 2. A cluster administrator must create multiple `Istio` instances and then configure `discoverySelectors` appropriately to ensure that there is no overlap between mesh namespaces. 
-
-As `Istio` resources are cluster-scoped, they must have unique names to represent unique meshes within the same cluster. The OpenShift Service Mesh 3 operator uses this unique name to create a resource called `IstioRevision` with a name in the format of `{Istio name}` or `{Istio name}-{Istio version}`. Each instance of `IstioRevision` is responsible for managing a single control plane. Workloads are assigned to a specific control plane using Istio's revision labels of the format `istio.io/rev={IstioRevision name}`. The name with the version identifier becomes important to support canary-style control plane upgrades (more on this in the upgrades section below).
+Note that even though the Istio control plane discovers a namespace, the workloads present in that namespace still require sidecar proxies to be included as workloads in the service mesh, and to be able to use Istio's many features. Changes to sidecar injection - the process of adding a sidecar proxy container to an existing pod, are described below. 
 
 ## Sidecar Injection: New Considerations
 
 OpenShift Service Mesh 2 supported using pod annotations and labels to configure sidecar injection and there was no need to indicate which control plane a workload belonged to.
 
-Sidecar injection in OpenShift Service Mesh 3 works the same way as it does for Istio - with pod or namespace labels used to trigger sidecar injection and it may be necessary to include a label that indicates which control plane the workload belongs to.  Note that Istio has deprecated pod annotations in favor of labels for sidecar injection.
+Sidecar injection in OpenShift Service Mesh 3 works the same way as it does for Istio - with pod or namespace labels used to trigger sidecar injection and it may be necessary to include a label that indicates which control plane the workload belongs to. Note that Istio has deprecated pod annotations in favor of labels for sidecar injection.
 
-When an `Istio` resource has the name “default”, the label `istio-injection=enabled` may be used.
+When an `Istio` resource has the name “default” and `InPlace` upgrades are used (as opposed to `RevisionBased` described below), there will be a single `IstioRevision` with the name "default" and the label `istio-injection=enabled` may be used for injection.
 
-However, when an Istio resource has a name other than “default” - as required when multiple control plane instances are present and/or a canary-style control plane upgrade is in progress, it is necessary to use a label that indicates which control plane (revision) the workload(s) belong to - namely, `istio.io/rev=<IstioRevision-name>`. These labels may be applied at the workload or namespace level.
+However, when an `IstioRevision` resource has a name other than “default” - as required when multiple control plane instances are present and/or a canary-style control plane upgrade is in progress, it is necessary to use a label that indicates which control plane (revision) the workload(s) belong to - namely, `istio.io/rev=<IstioRevision-name>`. These labels may be applied at the workload or namespace level. Available revisions may be inspected with the command `oc get istiorevision`. 
+
+## Multiple Control Plane Support
+
+OpenShift Service Mesh 3 supports multiple service meshes in the same cluster, but in a different manner than in OpenShift Service Mesh 2. A cluster administrator must create multiple `Istio` instances and then configure `discoverySelectors` appropriately to ensure that there is no overlap between mesh namespaces. 
+
+As `Istio` resources are cluster-scoped, they must have unique names to represent unique meshes within the same cluster. The OpenShift Service Mesh 3 operator uses this unique name to create a resource called `IstioRevision` with a name in the format of `{Istio name}` or `{Istio name}-{Istio version}`. Each instance of `IstioRevision` is responsible for managing a single control plane. Workloads are assigned to a specific control plane using Istio's revision labels of the format `istio.io/rev={IstioRevision name}`. The name with the version identifier becomes important to support canary-style control plane upgrades (more on this in the upgrades section below).
 
 ## Independently Managed Gateways
 
 In Istio, gateways are used to manage traffic entering (ingress) and exiting (egress) the mesh. While by default, OpenShift Service Mesh 2 deployed and managed an Ingress Gateway and an Egress Gateway with the service mesh control plane, configured in the `ServiceMeshControlPlane` resource, the OpenShift Service Mesh 3 operator will no longer create or manage gateways. 
 
-In OpenShift Service Mesh 3, gateways are created and managed independent of the operator and control plane using gateway injection. This provides much greater flexibility than was possible with the `ServiceMeshControlPlane` resource and ensures that gateways can be fully customized and managed as part of a GitOps pipeline. This allows the gateways deployed and managed alongside their applications with the same lifecycle.
+In OpenShift Service Mesh 3, gateways are created and managed independent of the operator and control plane using gateway injection or Kubernetes Gateway API. This provides much greater flexibility than was possible with the `ServiceMeshControlPlane` resource and ensures that gateways can be fully customized and managed as part of a GitOps pipeline. This allows the gateways deployed and managed alongside their applications with the same lifecycle.
 
 This change was made because, as a good practice, gateways are better managed together with their corresponding workloads than with the service mesh control plane. This change also means starting with a gateway configuration that can expand over time to meet the more robust needs of a production environment, which was not possible with the default gateways in OpenShift Service Mesh 2. 
 
@@ -80,7 +80,7 @@ Thus, in OpenShift Service Mesh 3, when a `Route` is desired to expose an Istio 
 
 ## Introducing Canary Upgrades
 
-OpenShift Service Mesh 2 supported only one approach for upgrades - an in-place style upgrade, where the control plane was upgraded, then  all gateways and workloads were restarted for the proxies could be upgraded. While this is a simple approach, it can create risk for large meshes where once the control plane was upgraded, all workloads must upgrade to the new control plane version without a simple way to roll back if something goes wrong.
+OpenShift Service Mesh 2 supported only one approach for upgrades - an in-place style upgrade, where the control plane was upgraded, then all gateways and workloads needed to be restarted for the proxies could be upgraded. While this is a simple approach, it can create risk for large meshes where once the control plane was upgraded, all workloads must upgrade to the new control plane version without a simple way to roll back if something goes wrong.
 
 While OpenShift Service Mesh 3 retains support for simple in-place style upgrades, it adds support for canary-style upgrades of the service mesh control plane using Istio’s revision feature. This is supported by the `Istio` resource which manages Istio revision labels using the `IstioRevision` resource. When the `Istio` resource's `updateStrategy` is set to type `RevisionBased`, it will create Istio revision labels using the `Istio` resource's name combined with the Istio version (e.g. “mymesh-v1-21-2”). During an upgrade, a new `IstioRevision` will deploy the new control plane with an updated revision label (e.g. “mymesh-v1-22-0”). Workloads may then be migrated between control planes using the revision label on namespaces or workloads (e.g. “istio.io/rev=mymesh-v1-22-0”).
 
