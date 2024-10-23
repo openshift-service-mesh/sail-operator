@@ -40,9 +40,6 @@ For example, with the revision shown above, the following labels would enable si
 | Namespace | `istio.io/rev=my-mesh-v1-23-0` | `istio-injection=disabled` |
 | Pod | `istio.io/rev=my-mesh-v1-23-0` | `sidecar.istio.io/inject="false"` |
 
-> [!NOTE]
-> Next tech preview release will add support for revision tags which will simplify the upgrade process significantly and also will allow to use the `istio-injection` label for cases when `IstioRevision` name is not "default".
-
 ### Sidecar injection logic
 
 If the `istio-injection` label and the `istio.io/rev` label are both present on the same namespace, the `istio-injection` label (mapping to the "default" revision) will take precedence.
