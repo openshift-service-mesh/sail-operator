@@ -2,7 +2,7 @@
 ### Injection
 To include workloads as part of the service mesh and to begin using Istio's many features, pods must be injected with a sidecar proxy that will be configured by an Istio control plane.
 
-Sidecar injection can be enabled via labels at the namespace or pod level that also serve to identify the control plane managing the sidecar proxy(ies). By adding a valid injection label on a Deployment, pods created through that deployment will automatically have a sidcar added to them. By adding a valid pod injection label on a namespace, any new pods that are created in that namespace will automatically have a sidecar added to them.
+Sidecar injection can be enabled via labels at the namespace or pod level that also serve to identify the control plane managing the sidecar proxy(ies). By adding a valid injection label on a `Deployment`, pods created through that deployment will automatically have a sidcar added to them. By adding a valid pod injection label on a namespace, any new pods that are created in that namespace will automatically have a sidecar added to them.
 
 The proxy configuration is injected at pod creation time using an [admission controller](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/). As sidecar injection occurs at the pod-level, you won’t see any change to `Deployment` resources. Instead, you’ll want to check individual pods (via `oc describe`) to see the injected Istio proxy container.
 
@@ -39,6 +39,9 @@ For example, with the revision shown above, the following labels would enable si
 | --- | --- | --- |
 | Namespace | `istio.io/rev=my-mesh-v1-23-0` | `istio-injection=disabled` |
 | Pod | `istio.io/rev=my-mesh-v1-23-0` | `sidecar.istio.io/inject="false"` |
+
+> [!NOTE]
+> Next tech preview release will add support for revision tags which will simplify the upgrade process significantly and also will allow to use the `istio-injection` label for cases when `IstioRevision` name is not "default".
 
 ### Sidecar injection logic
 
