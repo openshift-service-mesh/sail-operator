@@ -54,6 +54,10 @@ Prerequisites:
 - The OpenShift Service Mesh operator has been installed
 - An Istio CNI resource has been created
 
+1. Create the `istio-system` namespace:
+    ```bash
+    oc create ns istio-system
+    ```
 1. Prepare `default` `istio.yaml`:
     ```yaml
     kind: Istio
@@ -69,6 +73,10 @@ Prerequisites:
 1. Create the `default` Istio CR in `istio-system` namespace:
     ```bash
     oc apply -f istio.yaml
+    ```
+1. Wait for `Istio` to become ready.
+    ```bash
+    oc wait --for=condition=Ready istios/default -n istio-system
     ```
 1. Deploy the `sleep` app:
     ```bash
