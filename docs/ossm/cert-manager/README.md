@@ -6,7 +6,7 @@ The cert-manager tool is a solution for X.509 certificate management on Kubernet
 
 The cert-manager tool ensures the certificates are valid and up-to-date by attempting to renew certificates at a configured time before they expire.
 
-For Istio users, cert-manager also provides integration with istio-csr, which is a certificate authority (CA) server that handles certificate signing requests (CSR) from Istio proxies. The server then delegates signing to cert-manager, which forwards CSRs to the configured CA server.
+For Istio users, cert-manager provides integration with Istio through an external agent called istio-csr. istio-csr handles certificate signing requests (CSR) from Istio proxies and the controlplane by verifying the identity of the workload and then creating a CSR through cert-manager for the workload. cert-manager then creates a CSR to the configured CA Issuer which then signs the certificate.
 
 > [!NOTE]
 > Red Hat provides support for integrating with istio-csr and cert-manager. Red Hat does not provide direct support for the istio-csr or the community cert-manager components. The use of community cert-manager shown here is for demonstration purposes only.
@@ -18,15 +18,14 @@ For Istio users, cert-manager also provides integration with istio-csr, which is
   - community cert-manager Operator 1.11 or later
   - cert-manager 1.11 or later
 - OpenShift Service Mesh Operator 3.0 or later
-- istio-csr 0.6.0 or later
 - `IstioCNI` instance is running in the cluster
 - [istioctl](https://istio.io/latest/docs/setup/install/istioctl/) is installed
 - [jq](https://github.com/jqlang/jq) is installed
 - [helm](https://helm.sh/docs/intro/install/) is installed
 
-## Installing cert-manager
+## Integrating cert-manager with Service Mesh
 
-You can install the cert-manager tool to manage the lifecycle of TLS certificates and ensure that they are valid and up-to-date. If you are running Istio in your environment, you can also install the istio-csr certificate authority (CA) server, which handles certificate signing requests (CSR) from Istio proxies. The istio-csr CA delegates signing to the cert-manager tool, which delegates to the configured CA.
+You can integrate cert-manager with your Service Mesh by deploying istio-csr and then creating an `Istio` resource that uses istio-csr to process workload and controlplane certificate signing requests. The procedure below creates a self signed `Issuer`, but any other `Issuer` can be used instead.
 
 ### Procedure
 
@@ -94,7 +93,7 @@ You can install the cert-manager tool to manage the lifecycle of TLS certificate
       oc wait --for=condition=Ready certificates/istio-ca -n istio-system
       ```
 
-3.  Export the Root CA to a local file.
+3.  Copy the `istio-ca` certificate to the `cert-manager` namespace.
 
     Here we are copying our `istio-ca` certificate to the `cert-manager` namespace where it can be used by istio-csr.
 
@@ -166,7 +165,7 @@ You can install the cert-manager tool to manage the lifecycle of TLS certificate
 
 5.  Install your `Istio` resource.
 
-    Here we are disabling Istio's built in CA server and instead pointing istiod to the istio-csr CA server which will issue certificates for both istiod and the mesh workloads. We also mount the istiod tls cert into the pod at a known location where it will be read.
+    Here we are disabling Istio's built in CA server and instead configuring istiod to forward certificate signing requests to istio-csr which will obtain certificates for both istiod and the mesh workloads from cert-manager. We also mount the istiod tls certificate created by istio-csr into the pod at a known location where it will be read.
 
     - Create the `Istio` object as in the following example:
 
