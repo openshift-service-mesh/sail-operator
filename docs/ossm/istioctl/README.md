@@ -11,7 +11,7 @@ operators to debug and diagnose Istio service mesh deployments.
 for the Service Mesh deployment. For checking the `Istio` version, run the following command:
 
     ```bash
-    $ kubectl -n istio-system get istio
+    oc -n istio-system get istio
     ```
 
 ## Steps
@@ -23,11 +23,22 @@ for the Service Mesh deployment. For checking the `Istio` version, run the follo
 
     **NB**: All the releases of `istioctl` are directly downloadable [here](https://mirror.openshift.com/pub/cgw/servicemesh/)
 
-1. Extract the `istioctl` binary and add the client to your path, on your system.
+1. Extract the `istioctl` binary.
 
     ```bash
-    $ tar xzf istioctl-<OS>-<ARCH>.tar.gz -C $HOME/.istioctl/bin
-    $ export PATH=$HOME/.istioctl/bin:$PATH
+    tar xzf istioctl-<VERSION>-<OS>-<ARCH>.tar.gz
+    ```
+
+1. Move to the uncompressed directory.
+
+    ```bash
+    cd istioctl-<VERSION>-<OS>-<ARCH>
+    ```
+
+1. Add `istioctl` client to your path.
+
+    ```bash
+    export PATH=$PATH:$PWD
     ```
 
 1. Confirm that the `istioctl` client version and the Istio control plane 
