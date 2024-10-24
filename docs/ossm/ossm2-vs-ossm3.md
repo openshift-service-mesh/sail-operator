@@ -28,13 +28,11 @@ The `Istio` resource contains a `spec.values` field that derives its schema from
 
 ## New resource: `IstioCNI`
 
-The Istio CNI node agent is used to configure traffic redirection for pods in the mesh. It runs as a DaemonSet, on every node, with elevated privileges. The Istio CNI agent has a lifecycle that is independent of Istio control planes, and must be upgraded separately. 
+The Istio CNI node agent is used to configure traffic redirection for pods in the mesh. It runs as a DaemonSet, on every node, with elevated privileges. 
 
-In OpenShift Service Mesh 2, the operator deployed an Istio CNI instance for each minor version of Istio present in the cluster and pods were automatically annotated during sidecar injection, such that they picked up the correct Istio CNI. This was enabled by using the Multus CNI plugin and meant that the management of Istio CNI was mostly hidden from users.
+In OpenShift Service Mesh 2, the operator deployed an Istio CNI instance for each minor version of Istio present in the cluster and pods were automatically annotated during sidecar injection, such that they picked up the correct Istio CNI. While this meant that the management of Istio CNI was mostly hidden from users, it obscured the fact that the Istio CNI agent has a lifecycle that is independent of the Istio control plane and in some cases, must be upgraded separately.
 
-OpenShift Service Mesh 3 no longer uses the Multus CNI plugin, and instead runs Istio CNI as a chained CNI plugin. While this simplification provides greater flexibility for network integrations, without Multus, it means that only one instance of Istio CNI may be present in the cluster at any given time and users must manage its lifecycle independent of Istio control planes. 
-
-For these reasons, the OpenShift Service Mesh 3 operator manages Istio CNI with a separate resource called `IstioCNI`. A single instance of this resource is shared by all Istio control planes (managed by `Istio` resources). The `IstioCNI` resource must be upgraded before individual control planes (`Istio` resources) are upgraded.
+For these reasons, the OpenShift Service Mesh 3 operator manages Istio CNI with a separate resource called `IstioCNI`. A single instance of this resource is shared by all Istio control planes (managed by `Istio` resources). The `IstioCNI` version 1.x is compatible with control plane version 1.x an 1.x+1, meaning that the control planes must be upgraded before Istio CNI, with their version difference keeping within one minor version.
 
 ## Scoping of the Mesh: Discovery Selectors and labels replace `ServiceMeshMemberRoll` and `ServiceMeshMember`
 
