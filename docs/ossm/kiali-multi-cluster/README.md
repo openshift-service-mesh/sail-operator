@@ -49,7 +49,7 @@ In this tutorial, we will deploy Kiali on the `east` cluster and then grant Kial
 
 1. Create an `OAuthClient` on the remote cluster so that Kiali can access the OpenShift API server on behalf of users.
 
-   Find your Kiali route's hostname
+   Find your Kiali route's hostname.
 
    ```sh
    oc --context east get route kiali -n istio-system -o jsonpath='{.spec.host}'
@@ -122,8 +122,16 @@ In this tutorial, we will deploy Kiali on the `east` cluster and then grant Kial
 
    When you first visit Kiali, you will login to the cluster where Kiali is deployed. In our case it will be the `east` cluster.
 
+   Find your Kiali route's hostname.
+
    ```sh
-   oc --context east get route -l app=kiali -n istio-system
+   oc --context east get route kiali -n istio-system -o jsonpath='{.spec.host}'
+   ```
+
+   Navigate to your Kiali URL in your browser.
+
+   ```sh
+   https://<your-kiali-route-hostname>
    ```
 
 1. Login to the `west` cluster through Kiali.
