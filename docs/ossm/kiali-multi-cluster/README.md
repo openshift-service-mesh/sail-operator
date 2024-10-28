@@ -17,7 +17,7 @@ Before proceeding with the setup, ensure you meet the requirements.
 
 ## Setup
 
-In this tutorial, we will deploy Kiali on the `east` cluster and then grant Kiali access to the `west` cluster. The unified multi-cluster setup requires the Kiali Service Account (SA) to have read access to each Kubernetes cluster in the mesh. This is separate from the user credentials that are required when a user logs into Kiali. Kiali uses the user's credentials to check if the user has access to a namespace and when performing any write operation such as creating/editing/deleting objects in Kubernetes. To give the Kiali Service Account access to each remote cluster, a kubeconfig with credentials needs to be created and mounted into the Kiali pod.
+In this tutorial, we will deploy Kiali on the `east` cluster and then grant Kiali access to the `west` cluster. The unified multi-cluster setup requires a Kiali Service Account (SA) to have read access to each Kubernetes cluster in the mesh. This is separate from the user credentials that are required when a user logs into Kiali. Kiali uses the user's credentials to check if the user has access to a namespace and when performing any write operation such as creating/editing/deleting objects in Kubernetes. To give the Kiali Service Account access to each remote cluster, a kubeconfig with credentials needs to be created and mounted into the Kiali pod.
 
 ### Procedure
 
