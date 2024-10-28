@@ -8,7 +8,7 @@ Before proceeding with the setup, ensure you meet the requirements.
 
 ## Requirements
 
-- Two openshift clusters. In this tutorial they are named `east` and `west`.
+- Two OpenShift clusters. In this tutorial they are named `east` and `west`.
 - Istio installed in a multi-cluster configuration on each cluster.
 - IstioCNI installed on each cluster.
 - Aggregated metrics and traces. Kiali needs a single endpoint for metrics and a single endpoint for traces where it can consume aggregated metrics/traces across all clusters. There are multiple ways to aggregate metrics/traces such as Prometheus federation or using OTEL collector pipelines.
@@ -44,12 +44,12 @@ In this tutorial, we will deploy Kiali on the `east` cluster and then grant Kial
    Wait for Kiali to become ready.
 
    ```sh
-   oc --context east wait --for=condition=Successful --timeout=60s kialis/kiali -n istio-system
+   oc --context east wait --for=condition=Successful --timeout=2m kialis/kiali -n istio-system
    ```
 
 1. Create an `OAuthClient` on the remote cluster so that Kiali can access the OpenShift API server on behalf of users.
 
-   Find your Kiali URL
+   Find your Kiali route's hostname
 
    ```sh
    oc --context east get route kiali -n istio-system -o jsonpath='{.spec.host}'
@@ -69,7 +69,7 @@ In this tutorial, we will deploy Kiali on the `east` cluster and then grant Kial
        app.kubernetes.io/part-of: kiali
      name: kiali-istio-system
    redirectURIs:
-     - https://<your-kiali-route>/api/auth/callback/west
+     - https://<your-kiali-route-hostname>/api/auth/callback/west
    ```
 
    Create the `OAuthClient` in the west cluster.
@@ -86,7 +86,7 @@ In this tutorial, we will deploy Kiali on the `east` cluster and then grant Kial
    - Create RBAC resources for this Service Account in the remote cluster.
    - Create a kubeconfig file and save this as a secret in the namespace where Kiali is deployed on the `east` cluster.
 
-   1. Download the `kiali-prepare-remote-cluster` script.
+   1. Download the `kiali-prepare-remote-cluster.sh` script.
 
       ```sh
       curl -L -o kiali-prepare-remote-cluster.sh https://raw.githubusercontent.com/kiali/kiali/master/hack/istio/multicluster/kiali-prepare-remote-cluster.sh
@@ -112,7 +112,7 @@ In this tutorial, we will deploy Kiali on the `east` cluster and then grant Kial
    oc --context east rollout restart deployments/kiali -n istio-system
    ```
 
-   Wait for Kiali to become ready
+   Wait for Kiali to become ready.
 
    ```sh
    oc --context east rollout status deployments/kiali -n istio-system
@@ -128,10 +128,10 @@ In this tutorial, we will deploy Kiali on the `east` cluster and then grant Kial
 
 1. Login to the `west` cluster through Kiali.
 
-   In order to see other clusters in the Kiali UI, you must first login as a user to those clusters through Kiali. Click on the user profile dropdown in the top right hand menu. Then select `Login to west`. You will again be redirected to an openshift login page and prompted for credentials but this will be for the `west` cluster.
+   In order to see other clusters in the Kiali UI, you must first login as a user to those clusters through Kiali. Click on the user profile dropdown in the top right hand menu. Then select `Login to west`. You will again be redirected to an OpenShift login page and prompted for credentials but this will be for the `west` cluster.
 
 1. Verify that Kiali shows information from both clusters.
 
-   1. Navigate to the `Overview` page from the lefthand nav and verify you can see namespaces from both clusters.
+   1. Navigate to the `Overview` page from the left hand nav and verify you can see namespaces from both clusters.
 
-   1. Navigate to the `Mesh` page from the lefthand nav and verify you see both clusters on the mesh graph.
+   1. Navigate to the `Mesh` page from the left hand nav and verify you see both clusters on the mesh graph.
