@@ -58,7 +58,7 @@ For example, you can configure Istio to discover only the namespaces that have t
     ```bash
     oc apply -f istio.yaml
     ```
-1. You then must ensure that all namespaces that will contain workloads that are to be part of the service mesh have both the `discoverySelector` label and, if desired, the appropriate Istio injection label. For the example, for the `bookinfo` application, you can apply both labels as follows:
+1. You then must ensure that all namespaces that will contain workloads that are to be part of the service mesh have both the `discoverySelector` label and, if desired, the appropriate Istio injection label. For example, for the `bookinfo` application, you can apply both labels as follows:
     ```bash
     oc label namespace bookinfo istio-discovery=enabled istio-injection=enabled
     ```
