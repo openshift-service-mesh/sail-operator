@@ -26,7 +26,7 @@ You can configure each label selector for a variety of use cases, including but 
 - A list of namespace labels using set-based selectors which carries OR semantics, for example, all namespaces with label `istio-discovery=enabled` OR `region=us-east1`
 - Inclusion and/or exclusion of namespaces, for example, all namespaces with label `istio-discovery=enabled` AND label key `app` equal to `helloworld`
 
-#### Using Discovery Selectors to Scope of a Service Mesh
+#### Using Discovery Selectors to Scope a Service Mesh
 Assuming you know which namespaces to include as part of the service mesh, as a mesh administrator, you can configure `discoverySelectors` at installation time or post-installation by adding your desired discovery selectors to Istio’s MeshConfig resource. 
 
 For example, you can configure Istio to discover only the namespaces that have the label `istio-discovery=enabled`.
