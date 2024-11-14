@@ -102,10 +102,10 @@ OpenShift Service Mesh 3 does not create these policies, leaving it to the user 
 
 ## Service Mesh Security TLS Configuration
 
-By default, OpenShift Service Mesh 2 created the `ServiceMeshControlPlane` resource. You can enable mTLS strict mode by setting the `spec.security.dataPlane.mtls` to `true`. 
-You can set the minimum and maximum TLS protocol versions by setting the `spec.security.controlPlane.tls.minProtocolVersion` or `spec.security.controlPlane.tls.maxProtocolVersion` in your `ServiceMeshControlPlane` resource.
+In OpenShift Service Mesh 2, users created the `ServiceMeshControlPlane` resource where you could enable mTLS strict mode by setting the `spec.security.dataPlane.mtls` to `true`. 
+You could set the minimum and maximum TLS protocol versions by setting the `spec.security.controlPlane.tls.minProtocolVersion` or `spec.security.controlPlane.tls.maxProtocolVersion` in your `ServiceMeshControlPlane` resource.
 
-OpenShift Service Mesh 3 does not create the `ServiceMeshControlPlane` resource. You can enable mTLS strict mode by applying the corresponding `PeerAuthentication` and `DestinationRule` resource(s). You can learn more about that in [Security mTLS Configuration](./security/security-mTLS-configuration.md).
+In OpenShift Service Mesh 3, the `Istio` resource replaces the `ServiceMeshControlPlane` resource and does not include these settings. You can enable mTLS strict mode by applying the corresponding `PeerAuthentication` and `DestinationRule` resource(s). You can learn more about that in [Security mTLS Configuration](./security/security-mTLS-configuration.md).
 The TLS protocol version can be set through [Istio Workload Minimum TLS Version Configuration](https://istio.io/latest/docs/tasks/security/tls-configuration/workload-min-tls-version/).
 
 `auto mTLS` is enabled by default in both OpenShift Service Mesh 2 and OpenShift Service Mesh 3.
