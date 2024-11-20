@@ -3,9 +3,8 @@ kind: ConsoleCLIDownload
 metadata:
   name: istioctl
 spec:
-  description: istioctl is the OpenShift Service Mesh client that allows you to manage
-    OpenShift Service Mesh resources.
-  displayName: istioctl - OpenShift Service Mesh Command Line Interface (CLI)
+  description: istioctl is the Istio client that allows you to manage Istio resources.
+  displayName: istioctl - Istio Command Line Interface (CLI)
   links:
   - href: https://mirror.openshift.com/pub/cgw/servicemesh/latest
     text: Download istioctl
