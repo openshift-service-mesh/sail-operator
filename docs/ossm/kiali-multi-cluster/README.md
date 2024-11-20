@@ -41,7 +41,7 @@ In this tutorial, we will deploy Kiali on the `east` cluster and then grant Kial
    oc --context east apply -f kiali.yaml
    ```
 
-   Wait for Kiali to become ready.
+   Wait for the Kiali Operator to finish deploying the Kiali Server:
 
    ```sh
    oc --context east wait --for=condition=Successful --timeout=2m kialis/kiali -n istio-system
