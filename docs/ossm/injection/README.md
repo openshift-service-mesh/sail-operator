@@ -137,7 +137,7 @@ Prerequisites:
     ```bash
     oc rollout restart deployment ratings-v1
     ```
-6. Verify that the deployed pod(s) now show "2/2" containers "READY", indicating that the sidecars have been successfully injected:
+6. Verify that only the `ratings-v1` pod now shows "2/2" containers "READY", indicating that the sidecar has been successfully injected:
     ```
     oc get pods
     NAME                              READY   STATUS    RESTARTS   AGE
