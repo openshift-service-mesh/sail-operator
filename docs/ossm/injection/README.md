@@ -63,7 +63,7 @@ Prerequisites:
 
 #### Example 1: Enabling sidecar injection with namespace labels
 
-In this example, all workloads within a namespace will be injected with a sidecar proxy. This is the best approach if  most of the workloads within a namespace are to be included in the mesh. 
+In this example, all workloads within a namespace will be injected with a sidecar proxy. This is the best approach if most of the workloads within a namespace are to be included in the mesh. 
 
 Procedure:
 
@@ -74,7 +74,7 @@ Procedure:
     NAME      TYPE    READY   STATUS    IN USE   VERSION   AGE
     default   Local   True    Healthy   False    v1.23.0   4m57s
     ```
-    Since the revision name is `default`, we can used the default injection labels  and do not need to reference the specific revision name. 
+    Since the revision name is `default`, we can used the default injection labels and do not need to reference the specific revision name. 
 
 1. For workloads already running in the desired namespace, verify that they show "1/1" containers as "READY", indicating that the pods are currently running without sidecars:
 
@@ -95,12 +95,12 @@ Procedure:
     namespace/bookinfo labeled
     ```
 
-1. Workloads that were already running when the injection label was added will need to be restarted for sidecar injection to occur. The following command can be used to restart all workloads in the `bookinfo` namespace:
+1. Workloads that were already running when the injection label was added will need to be redeployed for sidecar injection to occur. The following command can be used to perform a rolling update of all workloads in the `bookinfo` namespace:
     ```bash
     oc -n bookinfo rollout restart deployment
     ```
 
-1. Verify that once restarted, the pods show "2/2" containers "READY", indicating that the sidecars have been successfully injected:
+1. Verify that once rolled out, the new pods show "2/2" containers "READY", indicating that the sidecars have been successfully injected:
 
     ```bash
     $ oc get pods -n bookinfo
@@ -120,9 +120,9 @@ There may be times when you want to exclude individual workloads from a namespac
 
 Procedure: 
 
-1. Open the application’s Deployment YAML file in an editor.
+1. Open the application’s `Deployment` resource in an editor. In this case, we will exclude the `ratings-v1` service.
 
-1. Update the `spec.template.metadata.labels` section of your Deployment YAML file to include the appropriate pod injection or revision label. In this case, `sidecar.istio.io/inject: false`:
+1. Modify the `spec.template.metadata.labels` section of your `Deployment` resource to include the appropriate pod injection or revision label to set injection to "false". In this case, `sidecar.istio.io/inject: false`:
 
     ```yaml
     kind: Deployment
@@ -137,15 +137,13 @@ Procedure:
       template:
         metadata:
           labels:
-             sidecar.istio.io/inject: 'false'
+            sidecar.istio.io/inject: 'false'
     ```
+    > Note: Adding the label to the `Deployment`'s top level `labels` section will not impact sidecar injection.
 
-1. If the Deployment was already running, it will need to be restarted for sidecar injection to occur:
-    ```bash
-    oc rollout restart deployment details-v1
-    ```
+Updating the deployment will result in a rollout, where a new `ReplicaSet` is created with updated pod(s).
 
-1. Once restarted, verify that the excluded pod does not contain a sidecar container, and shows "1/1" containers "Running":
+1. Verify that the updated pod(s) do not contain a sidecar container, and shows "1/1" containers "Running":
     ```bash
     oc get pods -n bookinfo
     NAME                              READY   STATUS    RESTARTS   AGE
@@ -187,15 +185,9 @@ Procedure:
     reviews-v3-6f5b775685-mg5n6      1/1     Running   0          4m54s
     ```
 
-1. To find your deployments use the oc get command. For example, to view the Deployment YAML file for the 'ratings-v1' microservice in the bookinfo namespace, use the following command to see the resource in YAML format.
+1. Open the application’s `Deployment` resource in an editor. In this case, we will update the `ratings-v1` service.
 
-    ```bash
-    oc get deployment -n bookinfo ratings-v1 -o yaml
-    ```
-
-1. Open the application’s Deployment YAML file in an editor.
-
-1. Update the `spec.template.metadata.labels` section of your Deployment YAML file to include the appropriate pod injection or revision label. In this case, `istio.io/rev: my-mesh`:
+1. Update the `spec.template.metadata.labels` section of your `Deployment` to include the appropriate pod injection or revision label. In this case, `istio.io/rev: my-mesh`:
 
     ```yaml
     kind: Deployment
@@ -212,10 +204,11 @@ Procedure:
           labels:
             istio.io/rev: my-mesh
     ```
-1. If the Deployment was already running, it will need to be restarted for sidecar injection to occur:
-    ```bash
-    oc rollout restart deployment ratings-v1
-    ```
+
+    > Note: Adding the label to the `Deployment`'s top level `labels` section will not impact sidecar injection.
+
+    Updating the deployment will result in a rollout, where a new `ReplicaSet` is created with updated pod(s).
+
 1. Verify that only the `ratings-v1` pod now shows "2/2" containers "READY", indicating that the sidecar has been successfully injected:
     ```
     oc get pods -n bookinfo
@@ -229,3 +222,7 @@ Procedure:
     ```
 
 1. Repeat for other workloads that you wish to include in the mesh.
+
+
+Additional Resources
+- [Istio Sidecar injection problems](https://istio.io/latest/docs/ops/common-problems/injection/)
