@@ -218,7 +218,7 @@ Procedure:
     ```
 1. Verify that only the `ratings-v1` pod now shows "2/2" containers "READY", indicating that the sidecar has been successfully injected:
     ```
-    oc get pods
+    oc get pods -n bookinfo
     NAME                              READY   STATUS    RESTARTS   AGE
     details-v1-559cd49f6c-b89hw       1/1     Running   0          42m
     productpage-v1-5f48cdcb85-8ppz5   1/1     Running   0          42m
