@@ -1,0 +1,52 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: kiali-ossm
+  namespace: openshift-operators
+spec:
+  channel: stable
+  version: 1.89.7
+  installPlanApproval: Manual
+  name: kiali-ossm
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: servicemeshoperator3
+  namespace: openshift-operators
+spec:
+  channel: candidates
+  version: 3.0.0-tp.1
+  installPlanApproval: Manual
+  name: servicemeshoperator3
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: opentelemetry-product
+  namespace: openshift-operators
+  sourceNamespace: openshift-marketplace
+spec:
+  channel: stable
+  version: 0.107.0-5
+  installPlanApproval: Manual
+  name: opentelemetry-product
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: tempo-product
+  namespace: openshift-operators
+spec:
+  channel: stable
+  version: 0.13.0-1
+  installPlanApproval: Manual
+  name: tempo-product
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
