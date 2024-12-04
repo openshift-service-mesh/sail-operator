@@ -13,4 +13,4 @@ This documentation is specific to the OpenShift Service Mesh product and may dif
 - [Installing the Sidecar](./injection/README.md)
 - [Multiple Istio Control Planes in a Single Cluster](./multi-control-planes/README.md)
 - [Security Mutual TLS Configuration](./security/security-mTLS-configuration.md)
-
+- [Quickstart: OSSM3 with Kiali, Tempo, Bookinfo](./quickstarts/ossm3-kiali-tempo-bookinfo/README.MD)
