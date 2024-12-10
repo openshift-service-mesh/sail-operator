@@ -1413,13 +1413,10 @@ spec:
                 default: v1.24.1
                 description: |-
                   Defines the version of Istio to install.
-                  Must be one of: v1.24.1, v1.23.3, v1.23.0, v1.22.6, v1.22.4.
+                  Must be one of: v1.24.1, v1.23.0.
                 enum:
                 - v1.24.1
-                - v1.23.3
                 - v1.23.0
-                - v1.22.6
-                - v1.22.4
                 type: string
             required:
             - namespace
