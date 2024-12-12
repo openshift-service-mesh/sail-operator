@@ -20,6 +20,8 @@ metadata:
   name: {{ .Values.name }}.v{{ .Values.csv.version }}
   namespace: placeholder
 spec:
+  # TODO, hardcoded workaround
+  replaces: servicemeshoperator3.v3.0.0-tp.1
   apiservicedefinitions: {}
   description: |-
 {{ indent 4 .Values.csv.longDescription }}
