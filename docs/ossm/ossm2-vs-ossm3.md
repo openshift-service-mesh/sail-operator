@@ -112,7 +112,7 @@ The TLS protocol version can be set through [Istio Workload Minimum TLS Version 
 
 ## Kiali
 
-In OpenShift Service Mesh 3, Kiali introduces a revamped Traffic Page Graph UI, now built using PatternFly Topology, alongide with a new topology view showcasing the mesh infrastructure.
+In OpenShift Service Mesh 3, Kiali introduces a revamped Traffic Page Graph UI, now built using PatternFly Topology, alonside with a new topology view showcasing the mesh infrastructure.
 
 A significant breaking change involves Kiali's namespace management configuration. To control which namespaces are accessible or visible to users, Kiali now relies on `discoverySelectors` feature. The following previously supported configuration settings are deprecated and no longer available:
 1. spec.deployment.accessible_namespaces
