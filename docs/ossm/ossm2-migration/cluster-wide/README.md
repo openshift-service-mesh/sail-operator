@@ -25,7 +25,7 @@ There are a few conditions which must be verified to ensure a successful migrati
 
   During the migration, some proxies will be controlled by the 3.0 control plane while others will still be controlled by the 2.6 control plane. To assure the communication still works, both control planes must be aware of the same set of services. You must verify that:
   1. there are no Network Policies blocking the traffic
-  1. if used, `discoverySelectors`  defined in 3.0 `Istio` include all namespaces from 2.6 mesh. See [Scoping the service mesh with DiscoverySelectors](../../create-mesh/README.md)
+  1. Ensure that the `discoverySelectors` defined in your OpenShift Service Mesh 3.0 `Istio` resource will match the namespaces that make up your OpenShift Service Mesh 2.6 mesh. You may need to add additional labels onto your OpenShift Service Mesh 2.6 application namespaces to ensure that they are captured by your OpenShift Service Mesh 3.0 `Istio` `discoverySelectors`. See [Scoping the service mesh with DiscoverySelectors](../../create-mesh/README.md)
 - only one control plane will try to inject a side car
 
   This can be achieved by correct use of injection labels. Please see [Installing the Sidecar](../../injection/README.md) for details.
