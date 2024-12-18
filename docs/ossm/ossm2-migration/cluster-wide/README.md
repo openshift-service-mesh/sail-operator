@@ -4,8 +4,8 @@ This guide is for users who are currently running `ClusterWide` OpenShift Servic
 ## Migrating OpenShift Service Mesh 2.6 Cluster wide to OpenShift Service Mesh 3
 
 ### Prerequisites
-- you have completed all the steps from the [pre-migration checklist](../README.md#pre-migration-checklist)
 - you have read [OpenShift Service Mesh 2 vs. OpenShift Service Mesh 3](../../ossm2-vs-ossm3.md)
+- you have completed all the steps from the [pre-migration checklist](../README.md#pre-migration-checklist)
 - you have verified that your 2.6 `ServiceMeshControlPlane` is using `ClusterWide` mode
 - Red Hat OpenShift Service Mesh 3 operator is installed
 - `IstioCNI` is installed
@@ -20,22 +20,54 @@ There will be two cluster wide Istio control planes running during the migration
 There are a few conditions which must be verified to ensure a successful migration:
 - both control planes must share the same root certificate
 
-  This can be achieved simply by installing the 3.0 control plane to the same namespace as 2.6 control plane
+  This can be achieved simply by installing the 3.0 control plane to the same namespace as 2.6 control plane. The migration procedure below shows how to verify the root cert is shared.
 - 3.0 control plane must have access to all namespaces in 2.6 mesh
 
   During the migration, some proxies will be controlled by the 3.0 control plane while others will still be controlled by the 2.6 control plane. To assure the communication still works, both control planes must be aware of the same set of services. You must verify that:
   1. there are no Network Policies blocking the traffic
+
+     OpenShift Service Mesh 3.0 is no longer managing Network Policies and it's up to users to assure that existing Network Policies are not blocking the traffic for OpenShift Service Mesh 3.0 components. See Migration of Network Policies documentation for details.
+     <!--TODO: add a link when the doc is ready https://issues.redhat.com/browse/OSSM-8520-->
   1. Ensure that the `discoverySelectors` defined in your OpenShift Service Mesh 3.0 `Istio` resource will match the namespaces that make up your OpenShift Service Mesh 2.6 mesh. You may need to add additional labels onto your OpenShift Service Mesh 2.6 application namespaces to ensure that they are captured by your OpenShift Service Mesh 3.0 `Istio` `discoverySelectors`. See [Scoping the service mesh with DiscoverySelectors](../../create-mesh/README.md)
 - only one control plane will try to inject a side car
 
   This can be achieved by correct use of injection labels. Please see [Installing the Sidecar](../../injection/README.md) for details.
-  > **_NOTE:_** To disable 2.6 injector, we will use `maistra.io/ignore-namespace: "true"` label in this guide.
+  > **_NOTE:_** Due to a known issue in OpenShift Service Mesh 2.6 it's necessary to disable 2.6 injector when migrating the data plane namespace. We will use `maistra.io/ignore-namespace: "true"` label in this guide.
 
 Apart from the conditions above, it's recommended to decide which injection labels will be used. See [Installing the Sidecar](../../injection/README.md) explaining relation between Istio revisions and injection labels. Based on the decision, use correct injection labels later in this guide.
 
 #### Create your Istio resource
-See Installation documentation for details.
-While creating the `Istio` resource, make sure all conditions from previous chapter are fulfilled.
+1. Find a namespace with 2.6 control plane:
+
+    ```sh
+    oc get smcp -A
+    NAMESPACE      NAME                   READY   STATUS            PROFILES      VERSION   AGE
+    istio-system   install-istio-system   6/6     ComponentsReady   ["default"]   2.6.4     115m
+    ```
+1. Prepare the `Istio` resource yaml named `ossm-3.yaml` to be deployed to the same namespace as the 2.6 control plane:
+
+    Here we are not using any `discoverySelectors` so the control plane will have access to all namespaces. In case you want to define `discoverySelectors`, keep in mind that all data plane namespaces you are planning to migrate from 2.6 must be matched.
+
+    ```yaml
+   apiVersion: sailoperator.io/v1alpha1
+   kind: Istio
+   metadata:
+     name: ossm-3
+   spec:
+     namespace: istio-system # the same namespace where we run the 2.6 control plane
+     version: v1.24.1
+   ```
+1. Apply the `Istio` resource yaml:
+
+    ```sh
+    oc apply -f ossm-3.yaml
+    ```
+1. Verify that new `istiod` is using existing root certificate:
+
+    ```sh
+    oc logs istiod-ossm-3-768b7dcdb-xlbbt -n istio-system | grep 'Load signing key and cert from existing secret'
+    2024-12-18T08:13:53.788959Z	info	pkica	Load signing key and cert from existing secret istio-system/istio-ca-secret
+    ```
 
 > [!CAUTION]
 > In case you have decided to use a `default` name for 3.0 `Istio` resource with `InPlace` upgrade strategy or you have configured the `default` revision tag, 3.0 control plane will try to inject side cars to all pods in namespaces with `istio-injection=enabled` label and all pods with `sidecar.istio.io/inject="true"` label after next restart of the workloads.
