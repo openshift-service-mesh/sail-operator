@@ -65,7 +65,7 @@ Apart from the conditions above, it's recommended to decide which injection labe
 1. Verify that new `istiod` is using existing root certificate:
 
     ```sh
-    oc logs istiod-ossm-3-768b7dcdb-xlbbt -n istio-system | grep 'Load signing key and cert from existing secret'
+    oc logs deployments/istiod-ossm-3 -n istio-system | grep 'Load signing key and cert from existing secret'
     2024-12-18T08:13:53.788959Z	info	pkica	Load signing key and cert from existing secret istio-system/istio-ca-secret
     ```
 
