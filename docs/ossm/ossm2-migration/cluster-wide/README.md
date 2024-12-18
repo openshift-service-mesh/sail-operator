@@ -32,7 +32,7 @@ There are a few conditions which must be verified to ensure a successful migrati
 - only one control plane will try to inject a side car
 
   This can be achieved by correct use of injection labels. Please see [Installing the Sidecar](../../injection/README.md) for details.
-  > **_NOTE:_** Due to a known issue in OpenShift Service Mesh 2.6 it's necessary to disable 2.6 injector when migrating the data plane namespace. We will use `maistra.io/ignore-namespace: "true"` label in this guide.
+  > **_NOTE:_** Due to specific behavior of OpenShift Service Mesh 2.6 it's necessary to disable 2.6 injector when migrating the data plane namespace. We will use `maistra.io/ignore-namespace: "true"` label in this guide.
 
 Apart from the conditions above, it's recommended to decide which injection labels will be used. See [Installing the Sidecar](../../injection/README.md) explaining relation between Istio revisions and injection labels. Based on the decision, use correct injection labels later in this guide.
 
