@@ -73,7 +73,7 @@ Apart from the conditions above, it's recommended to decide which injection labe
 > If you use the name `default` for your 3.0 `Istio` resource with the `InPlace` upgrade strategy or you have configured the `default` revision tag, the 3.0 control plane will try to inject side cars to all pods in namespaces with the `istio-injection=enabled` label and all pods with the `sidecar.istio.io/inject="true"` label after next restart of the workloads.
 
 #### Migrate Workloads
-This guide will use `istio.io/rev=ossm-3` label. In case you are using the `default` revision or you have configured the `default` revision tag, it's possible to use `istio-injection=enabled` label. Following steps will work with that label (instead of `istio.io/rev=ossm-3`) too.
+This guide will use `istio.io/rev=ossm-3` label. In case you are using the `default` revision or you have configured the `default` revision tag, it's possible to use `istio-injection=enabled` label. The following steps will work with that label (instead of `istio.io/rev=ossm-3`) too.
 
 1. Update injection labels on the data plane namespace
 
