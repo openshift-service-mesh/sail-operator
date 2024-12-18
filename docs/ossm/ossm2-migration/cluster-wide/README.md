@@ -23,7 +23,7 @@ There are a few conditions which must be verified to ensure a successful migrati
   This can be achieved simply by installing the 3.0 control plane to the same namespace as 2.6 control plane
 - 3.0 control plane must have access to all namespaces in 2.6 mesh
 
-  At some point during the migration, some proxies will be already controlled by the 3.0 control plane and some still controlled by the 2.6 control plane. To assure the communication still works, both control planes must be aware of the same set of services. You have to verify that:
+  During the migration, some proxies will be controlled by the 3.0 control plane while others will still be controlled by the 2.6 control plane. To assure the communication still works, both control planes must be aware of the same set of services. You must verify that:
   1. there are no Network Policies blocking the traffic
   1. if used, `discoverySelectors`  defined in 3.0 `Istio` include all namespaces from 2.6 mesh. See [Scoping the service mesh with DiscoverySelectors](../../create-mesh/README.md)
 - only one control plane will try to inject a side car
