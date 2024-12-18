@@ -17,7 +17,7 @@ In this example, we'll be using the [bookinfo demo](https://raw.githubuserconten
 #### Plan the migration
 There will be two cluster wide Istio control planes running during the migration process so it's necessary to plan the migration steps in advance in order to avoid possible conflicts between the two control planes.
 
-There is a few conditions which must be assured to achieve the seamless migration:
+There are a few conditions which must be verified to ensure a successful migration:
 - both control planes must share the same root certificate
 
   This can be achieved simply by installing the 3.0 control plane to the same namespace as 2.6 control plane
