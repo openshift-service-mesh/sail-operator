@@ -136,7 +136,7 @@ This guide will use `istio.io/rev=ossm-3` label. In case you are using the `defa
   > **_NOTE:_** Even with different versions of the proxies, the communication between services should work normally.
 
 #### Remove 2.6 control plane
-Once you are done with the migration of all workloads in your mesh, you can clean 2.6 control plane.
+Once you are done with the migration of all workloads in your mesh, you can remove your 2.6 control plane.
 
 > [!CAUTION]
 > Following steps will remove also all NetworkPolicies created by 2.6 control plane. Please make sure you are done with the [pre-migration checklist](../README.md#pre-migration-checklist)
