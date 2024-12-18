@@ -1,4 +1,18 @@
 #!/bin/bash
+#
+# Copyright 2024 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 echo "This script set up the whole OSSM3 demo."
 
@@ -56,8 +70,9 @@ oc project istio-system
 echo "Creating cluster role binding for kiali to read ocp monitoring"
 oc apply -f ./resources/Kiali/kialiCrb.yaml -n istio-system
 echo "Installing KialiCR..."
-export TRACING_INGRESS_ROUTE="http://$(oc get -n tracing-system route tracing-ui -o jsonpath='{.spec.host}')"
-cat ./resources/Kiali/kialiCr.yaml | JAEGERROUTE="${TRACING_INGRESS_ROUTE}" envsubst | oc -n istio-system apply -f - 
+TRACING_INGRESS_ROUTE="http://$(oc get -n tracing-system route tracing-ui -o jsonpath='{.spec.host}')"
+export TRACING_INGRESS_ROUTE
+< ./resources/Kiali/kialiCr.yaml JAEGERROUTE="${TRACING_INGRESS_ROUTE}" envsubst | oc -n istio-system apply -f - 
 oc wait --for condition=Successful kiali/kiali --timeout 150s -n istio-system 
 oc annotate route kiali haproxy.router.openshift.io/timeout=60s -n istio-system 
 
@@ -80,11 +95,12 @@ oc apply -f ./resources/Kiali/kialiOssmcCr.yaml -n istio-system
 #oc wait -n istio-system --for=condition=Successful OSSMConsole ossmconsole --timeout 120s
 
 # this env will be used in traffic generator
-export INGRESSHOST=$(oc get route istio-ingressgateway -n istio-ingress -o=jsonpath='{.spec.host}')
+INGRESSHOST=$(oc get route istio-ingressgateway -n istio-ingress -o=jsonpath='{.spec.host}')
+export INGRESSHOST
 KIALI_HOST=$(oc get route kiali -n istio-system -o=jsonpath='{.spec.host}')
 
 echo "[optional] Installing Bookinfo traffic generator..."
-cat ./resources/Bookinfo/traffic-generator-configmap.yaml | ROUTE="http://${INGRESSHOST}/productpage" envsubst | oc -n bookinfo apply -f - 
+< ./resources/Bookinfo/traffic-generator-configmap.yaml ROUTE="http://${INGRESSHOST}/productpage" envsubst | oc -n bookinfo apply -f - 
 oc apply -f ./resources/Bookinfo/traffic-generator.yaml -n bookinfo
 
 echo "===================================================================================================="

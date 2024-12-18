@@ -7,8 +7,6 @@ spec:
     strategy: openshift
   deployment:
     cluster_wide_access: true
-    accessible_namespaces:
-      - "**"
     namespace: istio-system
     pod_labels:
       sidecar.istio.io/inject: 'false'
@@ -41,8 +39,8 @@ spec:
       url: 'https://thanos-querier.openshift-monitoring.svc.cluster.local:9091'
     tracing:
       enabled: true
-      in_cluster_url: "http://tempo-sample-query-frontend.tracing-system.svc.cluster.local:16685"
-      url: ${JAEGERROUTE} 
+      internal_url: "http://tempo-sample-query-frontend.tracing-system.svc.cluster.local:16685"
+      external_url: ${JAEGERROUTE} 
       query_timeout: 60
       use_grpc: true
   installation_tag: "Kiali [istio-system]"
