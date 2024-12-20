@@ -244,6 +244,115 @@ This guide is not using revision tags but it's recommended to use them for big m
 
 Now you can proceed with the migration of next namespaces.
 
+#### Advanced migration of 2.6 installation with istio-injection=enabled label 
+This procedure should be used by users seeking full controll at any given time during the migration process when using `istio-injection=enabled` label on 2.6 data plane namespaces and planning to use that label even in OpenShift Service Mesh 3.0. Compared to the simple Migration of 2.6 installation with istio-injection=enabled label above, it is safe to restart any workloads at any given time during the migration. To achive this, it require more manual steps and re-labeling.
+
+##### Create your Istio resource
+1. Find a namespace with 2.6 control plane:
+
+    ```sh
+    oc get smcp -A
+    NAMESPACE      NAME                   READY   STATUS            PROFILES      VERSION   AGE
+    istio-system   install-istio-system   6/6     ComponentsReady   ["default"]   2.6.4     115m
+    ```
+1. Prepare the `Istio` resource yaml named `ossm-3.yaml` to be deployed to the same namespace as the 2.6 control plane:
+
+    Here we are not using any `discoverySelectors` so the control plane will have access to all namespaces. In case you want to define `discoverySelectors`, keep in mind that all data plane namespaces you are planning to migrate from 2.6 must be matched.
+
+    We don't want the new control plane to inject proxies to workloads in namespaces with `istio-injection=enabled` label at this point so we can't use `default` name and we can't create `default` revision tag at this point.
+
+    ```yaml
+   apiVersion: sailoperator.io/v1alpha1
+   kind: Istio
+   metadata:
+     name: ossm-3 # the name, updateStrategy and version are significant for injection labels
+   spec:
+     updateStrategy:
+       type: RevisionBased # the name and the updateStrategy is significant for injection labels
+     namespace: istio-system # the name, updateStrategy and version are significant for injection labels
+     version: v1.24.1 # the name, updateStrategy and version are significant for injection labels
+   ```
+1. Apply the `Istio` resource yaml:
+
+    ```sh
+    oc apply -f ossm-3.yaml
+    ```
+1. Verify that new `istiod` is using existing root certificate:
+
+    ```sh
+    oc logs deployments/istiod-ossm-3-v1-24-1 -n istio-system | grep 'Load signing key and cert from existing secret'
+    2024-12-18T08:13:53.788959Z	info	pkica	Load signing key and cert from existing secret istio-system/istio-ca-secret
+    ```
+##### Migrate Workloads
+1. Apply correct labels to the data plane namespace
+
+    Here we're adding two and removing one label:
+
+    1. The `istio.io/rev=ossm-3-v1-24-1` label which ensures that any new pods that get created in that namespace will connect to the 3.0 proxy. In our example, the 3.0 revision is named `ossm-3-v1-24-1`
+    1. The `maistra.io/ignore-namespace: "true"` label which will disable sidecar injection for 2.6 proxies in the namespace. This ensures that 2.6 will stop injecting proxies in this namespace and any new proxies will be injected by the 3.0 control plane.
+    1. It's necessary to temporarily remove the `istio-injection=enabled` as it would prevent the proxy injection by 3.0 control plane.
+
+    ```sh
+    oc label ns bookinfo istio.io/rev=ossm-3-v1-24-1 maistra.io/ignore-namespace="true" istio-injection- --overwrite=true
+    ```
+
+1. Migrate workloads
+
+    You can now restart the workloads so that the new pods will be injected with the 3.0 proxy.
+
+    This can be done all at once:
+
+    ```sh
+    oc rollout restart deployments -n bookinfo
+    ```
+    or individually:
+    ```sh
+    oc rollout restart deployments productpage-v1 -n bookinfo
+    ```
+1. Validation of the workloads can be done the same way as in the previews procedures
+
+> [!CAUTION]
+> Before proceeding, it's necessary to finish migration of all remaining namespaces.
+
+##### Create a default revision tag and re-label namespaces
+1. Prepare a default revision tag yaml named `rev-tag.yaml`:
+    ```yaml
+    apiVersion: sailoperator.io/v1alpha1
+    kind: IstioRevisionTag
+    metadata:
+      name: default
+    spec:
+      targetRef:
+        kind: IstioRevision
+        name: ossm-3-v1-24-1
+    ```
+1. Apply the `rev-tag.yaml`:
+    ```sh
+    oc apply -f rev-tag.yaml
+    ```
+1. Verify `IstioRevisionTag` status:
+    ```sh
+    oc get istiorevisiontags
+    NAME      STATUS                    IN USE   REVISION        AGE
+    default   NotReferencedByAnything   False    ossm-3-v1-24-1  18s
+    ```
+1. Add `istio-injection=enabled` and remove `istio.io/rev` label:
+    ```sh
+    oc label ns bookinfo istio-injection=enabled istio.io/rev-
+    ```
+1. Restart the workloads:
+    ```sh
+    oc rollout restart deployments -n bookinfo
+    ```
+1. Verify the `IstioRevisionTag` is in use:
+    ```sh
+    oc get istiorevisiontags
+    NAME      STATUS    IN USE   REVISION        AGE
+    default   Healthy   True     ossm-3-v1-24-1  28s
+    ```
+1. Validation of the workloads can be done the same way as in the previews procedures
+1. Repeate steps 4. and 5. for other namespaces
+
 #### Remove 2.6 control plane
 Once you are done with the migration of all workloads in your mesh, you can remove your 2.6 control plane.
 
