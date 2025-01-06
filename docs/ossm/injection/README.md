@@ -119,7 +119,7 @@ If your revision name is not `default` - e.g. because you are using the `Revisio
 
 Procedure:
 
-1. Find name of your `Istio` resource:
+1. Find the name of your `Istio` resource:
 
     ```bash
     $ oc get istio 
