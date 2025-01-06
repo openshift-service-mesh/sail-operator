@@ -248,7 +248,7 @@ You will need to perform these updates to your istio-csr deployment:
       --set "app.istio.revisions={basic,ossm3-v1-24-1}"
   ```
 
-  Depending on whether you will use a `RevisionBased` update strategy or an `InPlace` update strategy, your revision name will vary. If using an `InPlace` strategy, your revision name will match your `Istio` name. If using a `RevisionBased` strategy, revision names use the following format, <istio-name>-v<major_version>-<minor_version>-<patch_version>. For example: `ossm3-v1-24-1`.
+  Depending on whether you will use a `RevisionBased` update strategy or an `InPlace` update strategy, your revision name will vary. If using an `InPlace` strategy, your revision name will match your `Istio` name. If using a `RevisionBased` strategy, revision names use the following format, `<istio-name>-v<major_version>-<minor_version>-<patch_version>`. For example: `ossm3-v1-24-1`.
 
 - The `app.controller.configmapNamespaceSelector` field needs to be either unset _before_ the migration begins or updated _after_ you have completed your migration.
 
@@ -268,6 +268,8 @@ You will need to perform these updates to your istio-csr deployment:
   ```
 
   To update this field:
+
+  > **_NOTE:_** Before updating, ensure you have completely finished your migration and the new injection label, in this example `istio-injection=enabled`, is present on all workload namespaces before updating istio-csr.
 
   ```console
   helm upgrade cert-manager-istio-csr jetstack/cert-manager-istio-csr \
