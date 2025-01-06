@@ -194,7 +194,7 @@ reviews-v3-596954cfd6-jnb6n       2/2     Running   0          33m
 1. Migrate to 3.0
 
 ```console
-oc label ns bookinfo istio.io/rev=ossm-3 maistra.io/ignore-namespace="true" istio-injection- --overwrite=true
+oc label ns bookinfo istio.io/rev=ossm3-v1-24-1 maistra.io/ignore-namespace="true" istio-injection- --overwrite=true
 oc rollout restart deployment -n bookinfo
 ```
 
