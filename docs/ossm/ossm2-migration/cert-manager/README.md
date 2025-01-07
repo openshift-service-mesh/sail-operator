@@ -83,8 +83,15 @@ spec:
 helm repo add jetstack https://charts.jetstack.io --force-update
 helm upgrade cert-manager-istio-csr jetstack/cert-manager-istio-csr \
     --install \
-    --namespace cert-manager \
+    --namespace istio-system \
     --wait \
+    --set "app.tls.rootCAFile=/var/run/secrets/istio-csr/ca.pem" \
+    --set "volumeMounts[0].name=root-ca" \
+    --set "volumeMounts[0].mountPath=/var/run/secrets/istio-csr" \
+    --set "volumes[0].name=root-ca" \
+    --set "volumes[0].secret.secretName=istio-ca" \
+    --set "volumes[0].secret.items[0].key=tls.crt" \
+    --set "volumes[0].secret.items[0].path=ca.pem" \
     --set "app.istio.revisions={basic}"
 ```
 
@@ -243,7 +250,7 @@ You will need to perform these updates to your istio-csr deployment:
   helm upgrade cert-manager-istio-csr jetstack/cert-manager-istio-csr \
       --install \
       --reuse-values \
-      --namespace cert-manager \
+      --namespace istio-system \
       --wait \
       --set "app.istio.revisions={basic,ossm3-v1-24-1}"
   ```
@@ -254,7 +261,7 @@ You will need to perform these updates to your istio-csr deployment:
 
   If you have set the `app.controller.configmapNamespaceSelector` field on your istio-csr deployment to `maistra.io/member-of`, you will need to update this accordingly. If you haven't set this field, you can keep it unset.
 
-  If unset the `configmapNamespaceSelector` field on your istio-csr deployment, the istio CA configmap will be injected into every namespace. `MultiTenant` deployments with more than one `ServiceMeshControlPlane` in the cluster should not remove this field since the wrong CA configmap would likely get written to the namespace. If you are keeping the field set, you need to wait until **after** you have completed your migration to update the `configmapNamespaceSelector` field. Otherwise namespaces without the injection label will no longer have the configmap CA injected.
+  If the `configmapNamespaceSelector` field on your istio-csr deployment is set, the istio CA configmap will only be injected into namespaces that match the label selector. `MultiTenant` deployments with more than one `ServiceMeshControlPlane` in the cluster should not remove this field since the wrong CA configmap would likely get written to the namespace. `ClusterWide` deployments with only a single `SMCP` can choose to leave this unset. If you are keeping the field set, you need to wait until **after** you have completed your migration to update the `configmapNamespaceSelector` field. Otherwise namespaces without the injection label will no longer have the configmap CA injected.
 
   To unset this field:
 
@@ -262,9 +269,9 @@ You will need to perform these updates to your istio-csr deployment:
   helm upgrade cert-manager-istio-csr jetstack/cert-manager-istio-csr \
       --install \
       --reuse-values \
-      --namespace cert-manager \
+      --namespace istio-system \
       --wait \
-      --set "app.controller.configmapNamespaceSelector=null"
+      --set "app.controller.configmapNamespaceSelector="
   ```
 
   To update this field:
@@ -275,7 +282,7 @@ You will need to perform these updates to your istio-csr deployment:
   helm upgrade cert-manager-istio-csr jetstack/cert-manager-istio-csr \
      --install \
      --reuse-values \
-     --namespace cert-manager \
+     --namespace istio-system \
      --wait \
      --set "app.controller.configmapNamespaceSelector=istio-injection=enabled"
   ```
