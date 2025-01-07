@@ -207,7 +207,7 @@ This procedure should be used by users seeking full control at any given time du
     ```sh
     oc rollout restart deployments productpage-v1 -n bookinfo
     ```
-1. Validation of the workloads can be done the same way as in the previews procedures
+1. Validation of the workloads can be done the same way as in the previous procedures
 
 > [!CAUTION]
 > Before proceeding, it's necessary to finish migration of all remaining namespaces.
@@ -248,7 +248,7 @@ This procedure should be used by users seeking full control at any given time du
     NAME      STATUS    IN USE   REVISION        AGE
     default   Healthy   True     ossm-3-v1-24-1  28s
     ```
-1. Validation of the workloads can be done the same way as in the previews procedures
+1. Validation of the workloads can be done the same way as in the previous procedures
 1. Repeat steps 4. and 5. for other namespaces
 
 #### Simple migration of 2.6 installation with istio-injection=enabled label
