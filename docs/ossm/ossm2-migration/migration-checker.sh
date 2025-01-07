@@ -3,7 +3,7 @@
 # This script checks your SMCP for fields/features that need to be disabled
 # before safely migrationg to OSSM 3.0.
 
-set -e
+set -o pipefail -eu
 
 BLUE='\033[1;34m'
 YELLOW='\033[1;33m'
