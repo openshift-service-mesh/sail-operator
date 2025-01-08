@@ -10,6 +10,10 @@ YELLOW='\033[1;33m'
 GREEN='\033[1;32m'
 BLANK='\033[0m'
 
+LATEST_VERSION=v2.6
+LATEST_CHART_VERSION=2.6.4
+TOTAL_WARNINGS=0
+
 warning() {
   echo -e "${YELLOW}[WARNING] $1${BLANK}"
 }
@@ -18,19 +22,23 @@ success() {
   echo -e "${GREEN}$1${BLANK}"
 }
 
-if ! command -v jq 2>&1 >/dev/null
+if ! command -v jq > /dev/null 2>&1
 then
     echo "jq must be installed and present in PATH."
     exit 1
 fi
 
-if ! command -v oc 2>&1 >/dev/null
+if ! command -v oc > /dev/null 2>&1
 then
     echo "oc must be installed and present in PATH."
     exit 1
 fi
 
-TOTAL_WARNINGS=0
+if ! oc whoami > /dev/null 2>&1
+then
+    echo "Unable to use oc. Ensure your cluster is online and you have logged in with 'oc login'"
+    exit 1
+fi
 
 check_smcp() {
     local name=$1
@@ -48,8 +56,17 @@ check_smcp() {
         ((num_warnings+=1))
     fi
 
-    if [ "$(echo "$smcp" | jq -r '.spec.gateways.openshiftRoute.enabled')" == "true" ]; then
-        warning "IOR is still enabled. Please set '.spec.gateways.openshiftRoute.enabled' = false"
+    local current_version
+    current_version=$(echo "$smcp" | jq -r '.spec.version')
+    if [ "$current_version" != "$LATEST_VERSION" ]; then
+        warning "Your ServiceMeshControlPlane is not on the latest version. Current version: '$current_version'. Latest version: '$LATEST_VERSION'. Please upgrade your ServiceMeshControlPlane to the latest version."
+        ((num_warnings+=1))
+    fi
+
+    local current_chart_version
+    current_chart_version=$(echo "$smcp" | jq -r '.status.chartVersion')
+    if [ "$current_chart_version" != "$LATEST_CHART_VERSION" ]; then
+        warning "Your ServiceMeshControlPlane does not have the latest z-stream release. Please ensure your Service Mesh operator is updated to the latest version. Current version: '$current_chart_version'. Latest version: '$LATEST_CHART_VERSION'."
         ((num_warnings+=1))
     fi
 
@@ -79,13 +96,40 @@ check_smcp() {
         ((num_warnings+=1))
     fi
 
+    # IOR is included in the above check since if this top level gateways field
+    # is disabled then IOR is disabled too because there won't be any gateways but
+    # we're checking it here to remind users to disable it.
+    # Default is 'false' so only log a warning if someone has set it to 'true'.
+    if [ "$(echo "$smcp" | jq -r '.spec.gateways.openshiftRoute.enabled')" == "true" ]; then
+        warning "IOR is still enabled. Please disable IOR gateways by setting '.spec.gateways.openshiftRoute.enabled' = false"
+        ((num_warnings+=1))
+    fi
+
     if [ "$num_warnings" -gt 0 ]; then
+        ((TOTAL_WARNINGS += num_warnings))
         echo -e "\n${YELLOW}$num_warnings warnings${BLANK}"
     else
         success "No issues detected with the ServiceMeshControlPlane $name/$namespace."
     fi
+}
 
-    ((TOTAL_WARNINGS += num_warnings))
+check_federation() {
+    local num_warnings=0
+
+    if [ "$(kubectl get exportedservicesets.federation.maistra.io -A -o jsonpath='{.items}' | jq 'length')" != 0 ]; then
+        warning "Detected federation resources 'exportedservicesets'. Migrating federation to 3.0 is not supported. Please remove your federation resources."
+        ((num_warnings+=1))
+    fi
+
+    if [ "$(kubectl get importedservicesets.federation.maistra.io -A -o jsonpath='{.items}' | jq 'length')" != 0 ]; then
+        warning "Detected federation resources 'importedservicesets'. Migrating federation to 3.0 is not supported. Please remove your federation resources."
+        ((num_warnings+=1))
+    fi
+
+    if [ "$num_warnings" -gt 0 ]; then
+        ((TOTAL_WARNINGS += num_warnings))
+        echo -e "-----------------------"
+    fi
 }
 
 # Find smcps and check each one.
@@ -96,6 +140,8 @@ for smcp in $(oc get smcp -A -o jsonpath='{range .items[*]}{.metadata.name}/{.me
 done
 
 echo -e "-----------------------"
+
+check_federation
 
 if [ "$TOTAL_WARNINGS" -eq 0 ]; then
     success "No issues detected. Proceed with the 2.6 --> 3.0 migration."
