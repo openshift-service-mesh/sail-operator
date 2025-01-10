@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script checks your SMCP for fields/features that need to be disabled
+# This script checks your SMCP and other resources for fields/features that need to be disabled
 # before safely migrationg to OSSM 3.0.
 
 set -o pipefail -eu
@@ -9,13 +9,41 @@ BLUE='\033[1;34m'
 YELLOW='\033[1;33m'
 GREEN='\033[1;32m'
 BLANK='\033[0m'
+WARNING_EMOJI='\u2757'
+SPACER="-----------------------"
 
 LATEST_VERSION=v2.6
 LATEST_CHART_VERSION=2.6.4
 TOTAL_WARNINGS=0
 
+SKIP_PROXY_CHECK=false
+
+# process command line args
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+    --skip-proxy-check)
+      SKIP_PROXY_CHECK="${2}"
+      shift;shift
+      ;;
+    -h|--help)
+      cat <<HELPMSG
+Valid command line arguments:
+  --skip-proxy-check
+    If 'true', will skip checking proxies for the latest version.
+    Default: false
+HELPMSG
+      exit 1
+      ;;
+    *)
+      echo "ERROR: Unknown argument [$key]. Use --help to see valid arguments."
+      exit 1
+      ;;
+  esac
+done
+
 warning() {
-  echo -e "${YELLOW}[WARNING] $1${BLANK}"
+  echo -e "${YELLOW}${WARNING_EMOJI}$1${BLANK}"
 }
 
 success() {
@@ -46,7 +74,7 @@ check_smcp() {
 
     local num_warnings=0
 
-    echo -e "-----------------------\nServiceMeshControlPlane\nName: ${BLUE}$name${BLANK}\nNamespace: ${BLUE}$namespace${BLANK}\n" 
+    echo -e "$SPACER\nServiceMeshControlPlane\nName: ${BLUE}$name${BLANK}\nNamespace: ${BLUE}$namespace${BLANK}\n"
 
     local smcp
     smcp=$(oc get smcp "$name" -n "$namespace" -o json)
@@ -66,7 +94,7 @@ check_smcp() {
     local current_chart_version
     current_chart_version=$(echo "$smcp" | jq -r '.status.chartVersion')
     if [ "$current_chart_version" != "$LATEST_CHART_VERSION" ]; then
-        warning "Your ServiceMeshControlPlane does not have the latest z-stream release. Please ensure your Service Mesh operator is updated to the latest version. Current version: '$current_chart_version'. Latest version: '$LATEST_CHART_VERSION'."
+        warning "Your ServiceMeshControlPlane does not have the latest z-stream release. If your ServiceMeshControlPlane is already on the latest version, please ensure your Service Mesh operator is also updated to the latest version. Current version: '$current_chart_version'. Latest version: '$LATEST_CHART_VERSION'."
         ((num_warnings+=1))
     fi
 
@@ -114,6 +142,7 @@ check_smcp() {
 }
 
 check_federation() {
+    echo -e "Checking for federation resources...\n"
     local num_warnings=0
 
     if [ "$(kubectl get exportedservicesets.federation.maistra.io -A -o jsonpath='{.items}' | jq 'length')" != 0 ]; then
@@ -128,23 +157,60 @@ check_federation() {
 
     if [ "$num_warnings" -gt 0 ]; then
         ((TOTAL_WARNINGS += num_warnings))
-        echo -e "-----------------------"
+    else
+        success "No federation resources found in the cluster."
     fi
+
+    echo -e "$SPACER"
 }
 
-# Find smcps and check each one.
-# Format is name/namespace.
-for smcp in $(oc get smcp -A -o jsonpath='{range .items[*]}{.metadata.name}/{.metadata.namespace}{" "}{end}'); do
-    IFS="/" read -r name namespace <<< "$smcp"
-    check_smcp "$name" "$namespace"
-done
+check_proxies_updated() {
+    echo -e "Checking proxies are up to date...\n"
+    local num_warnings=0
+    # Find pods and check each one.
+    # Format is name/namespace/version.
+    for pod in $(oc get pods -A -l maistra-version -o jsonpath='{range .items[*]}{.metadata.name}/{.metadata.namespace}/{.metadata.labels.maistra-version}{" "}{end}'); do
+        IFS="/" read -r name namespace version <<< "$pod"
+        # label version format: 2.6.4 --> 2.6
+        local sanitized_version=$(cut -c1-3 <<< "$version")
+        # latest version format: v2.6 --> 2.6
+        local sanitized_latest_version=$(cut -c2- <<< "$LATEST_VERSION")
+        if [ "$sanitized_version" != "$sanitized_latest_version" ]; then
+            warning "pod: $name/$namespace is running a proxy at an older version: $sanitized_version Please update your ServiceMeshControlPlane to the latest version: ${LATEST_VERSION} and then restart this workload."
+            ((num_warnings+=1))
+        fi
+    done
 
-echo -e "-----------------------"
+    if [ "$num_warnings" -gt 0 ]; then
+        ((TOTAL_WARNINGS += num_warnings))
+    else
+        success "All proxies are on the latest version."
+    fi
 
+    echo -e "$SPACER"
+}
+
+check_smcps() {
+    echo -e "Checking ServiceMeshControlPlanes...\n"
+    # Find smcps and check each one.
+    # Format is name/namespace.
+    for smcp in $(oc get smcp -A -o jsonpath='{range .items[*]}{.metadata.name}/{.metadata.namespace}{" "}{end}'); do
+        IFS="/" read -r name namespace <<< "$smcp"
+        check_smcp "$name" "$namespace"
+    done
+
+    echo -e "$SPACER"
+}
+
+check_smcps
 check_federation
+if [ "$SKIP_PROXY_CHECK" != "true" ]; then
+    check_proxies_updated
+fi
 
+echo -e "Summary\n"
 if [ "$TOTAL_WARNINGS" -eq 0 ]; then
     success "No issues detected. Proceed with the 2.6 --> 3.0 migration."
 else
-    warning "Detected $TOTAL_WARNINGS issues with installed ServiceMeshControlPlanes. Please fix these before proceeding with the migration."
+    warning "Detected $TOTAL_WARNINGS issues. Please fix these before proceeding with the migration."
 fi
