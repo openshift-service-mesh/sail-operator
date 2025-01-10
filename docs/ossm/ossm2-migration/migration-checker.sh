@@ -145,12 +145,12 @@ check_federation() {
     echo -e "Checking for federation resources...\n"
     local num_warnings=0
 
-    if [ "$(kubectl get exportedservicesets.federation.maistra.io -A -o jsonpath='{.items}' | jq 'length')" != 0 ]; then
+    if [ "$(oc get exportedservicesets.federation.maistra.io -A -o jsonpath='{.items}' | jq 'length')" != 0 ]; then
         warning "Detected federation resources 'exportedservicesets'. Migrating federation to 3.0 is not supported. Please remove your federation resources."
         ((num_warnings+=1))
     fi
 
-    if [ "$(kubectl get importedservicesets.federation.maistra.io -A -o jsonpath='{.items}' | jq 'length')" != 0 ]; then
+    if [ "$(oc get importedservicesets.federation.maistra.io -A -o jsonpath='{.items}' | jq 'length')" != 0 ]; then
         warning "Detected federation resources 'importedservicesets'. Migrating federation to 3.0 is not supported. Please remove your federation resources."
         ((num_warnings+=1))
     fi
