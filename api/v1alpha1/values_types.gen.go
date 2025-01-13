@@ -932,9 +932,7 @@ type Values struct {
 	//
 	// Deprecated: Marked as deprecated in pkg/apis/values_types.proto.
 	IstiodRemote *IstiodRemoteConfig `json:"istiodRemote,omitempty"`
-	// Specifies the aliases for the Istio control plane revision. A MutatingWebhookConfiguration
-	// is created for each alias.
-	RevisionTags []string `json:"revisionTags,omitempty"`
+
 	// The name of the default revision in the cluster.
 	DefaultRevision *string `json:"defaultRevision,omitempty"`
 	// Specifies which installation configuration profile to apply.
@@ -1185,7 +1183,7 @@ type MeshConfig struct {
 	ProxyInboundListenPort *int32 `json:"proxyInboundListenPort,omitempty"`
 	// Port on which Envoy should listen for HTTP PROXY requests if set.
 	ProxyHttpPort *int32 `json:"proxyHttpPort,omitempty"`
-	// Connection timeout used by Envoy. (MUST BE >=1ms)
+	// Connection timeout used by Envoy. (MUST be >=1ms)
 	// Default timeout is 10s.
 	ConnectTimeout *metav1.Duration `json:"connectTimeout,omitempty"`
 	// +hidefromdoc
@@ -1197,7 +1195,7 @@ type MeshConfig struct {
 	// MongoDB, etc. Envoy will timeout on the protocol detection after
 	// the specified period, defaulting to non mTLS plain TCP
 	// traffic. Set this field to tweak the period that Envoy will wait
-	// for the client to send the first bits of data. (MUST BE >=1ms or
+	// for the client to send the first bits of data. (MUST be >=1ms or
 	// 0s to disable). Default detection timeout is 0s (no timeout).
 	//
 	// Setting a timeout is not recommended nor safe. Even high timeouts (>5s) will be hit
@@ -1524,7 +1522,7 @@ type ConfigSource struct {
 	// fs:/// to specify a file-based backend with absolute path to the directory.
 	Address *string `json:"address,omitempty"`
 	// Use the tlsSettings to specify the tls mode to use. If the MCP server
-	// uses Istio mutual TLS and shares the root CA with Pilot, specify the TLS
+	// uses Istio mutual TLS and shares the root CA with istiod, specify the TLS
 	// mode as `ISTIO_MUTUAL`.
 	TlsSettings *ClientTLSSettings `json:"tlsSettings,omitempty"`
 	// Describes the source of configuration, if nothing is specified default is MCP
@@ -1671,6 +1669,7 @@ type MeshConfigExtensionProvider struct {
 	// Configures a Datadog tracing provider.
 	Datadog *MeshConfigExtensionProviderDatadogTracingProvider `json:"datadog,omitempty"`
 
+	// +hidefromdoc
 	// Configures a Stackdriver provider.
 	Stackdriver *MeshConfigExtensionProviderStackdriverProvider `json:"stackdriver,omitempty"`
 
@@ -1811,6 +1810,10 @@ type MeshConfigExtensionProviderEnvoyExternalAuthorizationHttpProvider struct {
 	// or if the authorization service has returned a HTTP 5xx error.
 	// Default is false and the request will be rejected with "Forbidden" response.
 	FailOpen *bool `json:"failOpen,omitempty"`
+	// If true, clears route cache in order to allow the external authorization service to correctly affect routing decisions.
+	// If true, recalculate routes with the new ExtAuthZ added/removed headers.
+	// Default is false
+	ClearRouteCache *bool `json:"clearRouteCache,omitempty"`
 	// Sets the HTTP status that is returned to the client when there is a network error to the authorization service.
 	// The default status is "403" (HTTP Forbidden).
 	StatusOnError *string `json:"statusOnError,omitempty"`
@@ -1899,6 +1902,10 @@ type MeshConfigExtensionProviderEnvoyExternalAuthorizationGrpcProvider struct {
 	// or if the authorization service has returned a HTTP 5xx error.
 	// Default is false. For HTTP request, it will be rejected with 403 (HTTP Forbidden). For TCP connection, it will be closed immediately.
 	FailOpen *bool `json:"failOpen,omitempty"`
+	// If true, clears route cache in order to allow the external authorization service to correctly affect routing decisions.
+	// If true, recalculate routes with the new ExtAuthZ added/removed headers.
+	// Default is false
+	ClearRouteCache *bool `json:"clearRouteCache,omitempty"`
 	// Sets the HTTP status that is returned to the client when there is a network error to the authorization service.
 	// The default status is "403" (HTTP Forbidden).
 	StatusOnError *string `json:"statusOnError,omitempty"`
@@ -2334,7 +2341,7 @@ type MeshConfigExtensionProviderGrpcService struct {
 	// Optional. Specifies the timeout for the GRPC request.
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 	// Optional. Additional metadata to include in streams initiated to the GrpcService. This can be used for
-	// scenarios in which additional ad hoc authorization headers (e.g. “x-foo-bar: baz-key“) are to
+	// scenarios in which additional ad hoc authorization headers (e.g. "x-foo-bar: baz-key") are to
 	// be injected.
 	InitialMetadata []*MeshConfigExtensionProviderHttpHeader `json:"initialMetadata,omitempty"`
 }
@@ -2546,7 +2553,7 @@ type NetworkNetworkEndpoints struct {
 // use mTLS.
 // +kubebuilder:validation:XValidation:message="At most one of [registryServiceName address] should be set",rule="(has(self.registryServiceName)?1:0) + (has(self.address)?1:0) <= 1"
 type NetworkIstioNetworkGateway struct {
-	// A fully qualified domain name of the gateway service.  Pilot will
+	// A fully qualified domain name of the gateway service.  istiod will
 	// lookup the service from the service registries in the network and
 	// obtain the endpoint IPs of the gateway from the service
 	// registry. Note that while the service name is a fully qualified
@@ -2686,15 +2693,18 @@ type Tracing struct {
 	// Use a Lightstep tracer.
 	// NOTE: For Istio 1.15+, this configuration option will result
 	// in using OpenTelemetry-based Lightstep integration.
+	// +hidefromdoc
 	Lightstep *TracingLightstep `json:"lightstep,omitempty"`
 
 	// Use a Datadog tracer.
 	Datadog *TracingDatadog `json:"datadog,omitempty"`
 
 	// Use a Stackdriver tracer.
+	// +hidefromdoc
 	Stackdriver *TracingStackdriver `json:"stackdriver,omitempty"`
 
 	// Use an OpenCensus tracer exporting to an OpenCensus agent.
+	// +hidefromdoc
 	OpenCensusAgent *TracingOpenCensusAgent `json:"openCensusAgent,omitempty"` // Configures the custom tags to be added to active span by all proxies (i.e. sidecars
 	// and gateways).
 	// The key represents the name of the tag.
@@ -2719,9 +2729,12 @@ type Tracing struct {
 	// if not requested by the client or not forced. Default is 1.0.
 	Sampling *float64 `json:"sampling,omitempty"`
 	// Use the tlsSettings to specify the tls mode to use. If the remote tracing service
-	// uses Istio mutual TLS and shares the root CA with Pilot, specify the TLS
+	// uses Istio mutual TLS and shares the root CA with istiod, specify the TLS
 	// mode as `ISTIO_MUTUAL`.
 	TlsSettings *ClientTLSSettings `json:"tlsSettings,omitempty"`
+	// Determines whether or not trace spans generated by Envoy will include Istio specific tags.
+	// By default Istio specific tags are included in the trace spans.
+	EnableIstioTags *bool `json:"enableIstioTags,omitempty"`
 }
 
 // SDS defines secret discovery service(SDS) configuration to be used by the proxy.
@@ -2764,7 +2777,7 @@ type Topology struct {
 }
 
 // PrivateKeyProvider defines private key configuration for gateways and sidecars. This can be configured
-// mesh wide or individual per-workload basis.
+// mesh-wide or individual per-workload basis.
 // +kubebuilder:validation:XValidation:message="At most one of [cryptomb qat] should be set",rule="(has(self.cryptomb)?1:0) + (has(self.qat)?1:0) <= 1"
 type PrivateKeyProvider struct {
 	// Use CryptoMb private key provider
@@ -2776,7 +2789,7 @@ type PrivateKeyProvider struct {
 
 // ProxyConfig defines variables for individual Envoy instances. This can be configured on a per-workload basis
 // as well as by the mesh-wide defaults.
-// To set the mesh wide defaults, configure the `defaultConfig` section of `meshConfig`. For example:
+// To set the mesh-wide defaults, configure the `defaultConfig` section of `meshConfig`. For example:
 //
 // ```
 // meshConfig:
@@ -2860,7 +2873,7 @@ type MeshConfigProxyConfig struct {
 	// Default is set to `MUTUAL_TLS`.
 	ControlPlaneAuthPolicy AuthenticationPolicy `json:"controlPlaneAuthPolicy,omitempty"`
 	// File path of custom proxy configuration, currently used by proxies
-	// in front of Mixer and Pilot.
+	// in front of istiod.
 	CustomConfigFile *string `json:"customConfigFile,omitempty"`
 	// Maximum length of name field in Envoy's metrics. The length of the name field
 	// is determined by the length of a name field in a service and the set of labels that
@@ -2980,9 +2993,20 @@ type MeshConfigProxyConfig struct {
 	//
 	//	server:
 	//	  value: "my-custom-server"
-	//	requestId: {} // Explicitly enable Request IDs. As this is the default, this has no effect.
+	//	# Explicitly enable Request IDs.
+	//	# As this is the default, this has no effect.
+	//	requestId: {}
 	//	attemptCount:
 	//	  disabled: true
+	//
+	// ```
+	//
+	// # Below shows an example of preserving the header case for HTTP 1.x requests
+	//
+	// ```yaml
+	// proxyHeaders:
+	//
+	//	perserveHttp1HeaderCase: true
 	//
 	// ```
 	//
@@ -3013,7 +3037,7 @@ type RemoteService struct {
 	// qualified DNS name.
 	Address *string `json:"address,omitempty"`
 	// Use the `tlsSettings` to specify the tls mode to use. If the remote service
-	// uses Istio mutual TLS and shares the root CA with Pilot, specify the TLS
+	// uses Istio mutual TLS and shares the root CA with istiod, specify the TLS
 	// mode as `ISTIO_MUTUAL`.
 	TlsSettings *ClientTLSSettings `json:"tlsSettings,omitempty"`
 	// If set then set `SO_KEEPALIVE` on the socket to enable TCP Keepalives.
@@ -3205,6 +3229,16 @@ type ProxyConfigProxyHeaders struct {
 	// By default, the behavior is unspecified.
 	// If IN_MESH, these headers will not be appended to outbound requests from sidecars to services not in-mesh.
 	MetadataExchangeHeaders *ProxyConfigProxyHeadersMetadataExchangeHeaders `json:"metadataExchangeHeaders,omitempty"`
+	// When true, the original case of HTTP/1.x headers will be preserved
+	// as they pass through the proxy, rather than normalizing them to lowercase.
+	// This field is particularly useful for applications that require case-sensitive
+	// headers for interoperability with downstream systems or APIs that expect specific
+	// casing.
+	// The preserve_http1_header_case option only applies to HTTP/1.x traffic, as HTTP/2 requires all headers
+	// to be lowercase per the protocol specification. Envoy will ignore this field for HTTP/2
+	// requests and automatically normalize headers to lowercase, ensuring compliance with HTTP/2
+	// standards.
+	PreserveHttp1HeaderCase *bool `json:"preserveHttp1HeaderCase,omitempty"`
 }
 
 type ProxyConfigProxyHeadersServer struct {
@@ -3493,8 +3527,8 @@ type ClientTLSSettings struct {
 	// A list of alternate names to verify the subject identity in the
 	// certificate. If specified, the proxy will verify that the server
 	// certificate's subject alt name matches one of the specified values.
-	// If specified, this list overrides the value of subject_alt_names
-	// from the ServiceEntry. If unspecified, automatic validation of upstream
+	// If specified, this list overrides the value of `subjectAltNames`
+	// from the `ServiceEntry`. If unspecified, automatic validation of upstream
 	// presented certificate for new upstream connections will be done based on the
 	// downstream HTTP host/authority header.
 	SubjectAltNames []string `json:"subjectAltNames,omitempty"`
@@ -3523,13 +3557,13 @@ type ClientTLSSettings struct {
 // [Locality Weight](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/locality_weight)
 // The following example shows how to setup locality weights mesh-wide.
 //
-// Given a mesh with workloads and their service deployed to "us-west/zone1/*"
-// and "us-west/zone2/*". This example specifies that when traffic accessing a
-// service originates from workloads in "us-west/zone1/*", 80% of the traffic
-// will be sent to endpoints in "us-west/zone1/*", i.e the same zone, and the
-// remaining 20% will go to endpoints in "us-west/zone2/*". This setup is
+// Given a mesh with workloads and their service deployed to "us-west/zone1/\*"
+// and "us-west/zone2/\*". This example specifies that when traffic accessing a
+// service originates from workloads in "us-west/zone1/\*", 80% of the traffic
+// will be sent to endpoints in "us-west/zone1/\*", i.e the same zone, and the
+// remaining 20% will go to endpoints in "us-west/zone2/\*". This setup is
 // intended to favor routing traffic to endpoints in the same locality.
-// A similar setting is specified for traffic originating in "us-west/zone2/*".
+// A similar setting is specified for traffic originating in "us-west/zone2/\*".
 //
 // ```yaml
 //
@@ -3565,7 +3599,6 @@ type ClientTLSSettings struct {
 //	    to: us-east
 //
 // ```
-// Locality load balancing settings.
 type LocalityLoadBalancerSetting struct {
 	// Optional: only one of distribute, failover or failoverPriority can be set.
 	// Explicitly specify loadbalancing weight across different zones and geographical locations.
@@ -3639,8 +3672,8 @@ type LocalityLoadBalancerSetting struct {
 	// Optional: only one of distribute, failover or failoverPriority can be set.
 	// And it should be used together with `OutlierDetection` to detect unhealthy endpoints, otherwise has no effect.
 	FailoverPriority []string `json:"failoverPriority,omitempty"`
-	// enable locality load balancing, this is DestinationRule-level and will override mesh wide settings in entirety.
-	// e.g. true means that turn on locality load balancing for this DestinationRule no matter what mesh wide settings is.
+	// Enable locality load balancing. This is DestinationRule-level and will override mesh-wide settings in entirety.
+	// e.g. true means that turn on locality load balancing for this DestinationRule no matter what mesh-wide settings is.
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
@@ -3727,10 +3760,10 @@ type HTTPRetry struct {
 	// between retries will be determined automatically (25ms+). When request
 	// `timeout` of the [HTTP route](https://istio.io/docs/reference/config/networking/virtual-service/#HTTPRoute)
 	// or `per_try_timeout` is configured, the actual number of retries attempted also depends on
-	// the specified request `timeout` and `per_try_timeout` values. MUST BE >= 0. If `0`, retries will be disabled.
+	// the specified request `timeout` and `per_try_timeout` values. MUST be >= 0. If `0`, retries will be disabled.
 	// The maximum possible number of requests made will be 1 + `attempts`.
 	Attempts *int32 `json:"attempts,omitempty"`
-	// Timeout per attempt for a given request, including the initial call and any retries. Format: 1h/1m/1s/1ms. MUST BE >=1ms.
+	// Timeout per attempt for a given request, including the initial call and any retries. Format: 1h/1m/1s/1ms. MUST be >=1ms.
 	// Default is same value as request
 	// `timeout` of the [HTTP route](https://istio.io/docs/reference/config/networking/virtual-service/#HTTPRoute),
 	// which means no timeout.
@@ -3751,4 +3784,3 @@ type HTTPRetry struct {
 	// See the [retry plugin configuration](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_connection_management#retry-plugin-configuration) for more details.
 	RetryRemoteLocalities *bool `json:"retryRemoteLocalities,omitempty"`
 }
-

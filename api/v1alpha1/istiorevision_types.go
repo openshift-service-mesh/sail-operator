@@ -28,16 +28,11 @@ const (
 // IstioRevisionSpec defines the desired state of IstioRevision
 // +kubebuilder:validation:XValidation:rule="self.values.global.istioNamespace == self.__namespace__",message="spec.values.global.istioNamespace must match spec.namespace"
 type IstioRevisionSpec struct {
-	// Type indicates whether this revision represents a local or a remote control plane installation.
-	// +kubebuilder:default=Local
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
-	Type IstioRevisionType `json:"type"`
-
 	// +sail:version
 	// Defines the version of Istio to install.
-	// Must be one of: v1.23.2.
-	// +operator-sdk:csv:customresourcedefinitions:type=spec,order=1,displayName="Istio Version",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:General", "urn:alm:descriptor:com.tectonic.ui:select:v1.23.2"}
-	// +kubebuilder:validation:Enum=v1.23.2
+	// Must be one of: v1.24.2, v1.24.1, v1.24.0, v1.23.4, v1.23.3, v1.23.2, v1.22.7, v1.22.6, v1.22.5, v1.21.6, latest.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,order=1,displayName="Istio Version",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:General", "urn:alm:descriptor:com.tectonic.ui:select:v1.24.2", "urn:alm:descriptor:com.tectonic.ui:select:v1.24.1", "urn:alm:descriptor:com.tectonic.ui:select:v1.24.0", "urn:alm:descriptor:com.tectonic.ui:select:v1.23.4", "urn:alm:descriptor:com.tectonic.ui:select:v1.23.3", "urn:alm:descriptor:com.tectonic.ui:select:v1.23.2", "urn:alm:descriptor:com.tectonic.ui:select:v1.22.7", "urn:alm:descriptor:com.tectonic.ui:select:v1.22.6", "urn:alm:descriptor:com.tectonic.ui:select:v1.22.5", "urn:alm:descriptor:com.tectonic.ui:select:v1.21.6", "urn:alm:descriptor:com.tectonic.ui:select:latest"}
+	// +kubebuilder:validation:Enum=v1.24.2;v1.24.1;v1.24.0;v1.23.4;v1.23.3;v1.23.2;v1.22.7;v1.22.6;v1.22.5;v1.21.6;latest
 	Version string `json:"version"`
 
 	// Namespace to which the Istio components should be installed.
@@ -176,16 +171,6 @@ const (
 const (
 	// IstioRevisionReasonHealthy indicates that the control plane is fully reconciled and that all components are ready.
 	IstioRevisionReasonHealthy IstioRevisionConditionReason = "Healthy"
-)
-
-type IstioRevisionType string
-
-const (
-	// IstioRevisionTypeLocal indicates that the revision represents a local control plane installation.
-	IstioRevisionTypeLocal IstioRevisionType = "Local"
-
-	// IstioRevisionTypeRemote indicates that the revision represents a remote control plane installation.
-	IstioRevisionTypeRemote IstioRevisionType = "Remote"
 )
 
 // +kubebuilder:object:root=true
