@@ -86,12 +86,13 @@ spec:
                 description: |-
                   The built-in installation configuration profile to use.
                   The 'default' profile is always applied. On OpenShift, the 'openshift' profile is also applied on top of 'default'.
-                  Must be one of: ambient, default, demo, empty, openshift-ambient, openshift, preview, stable.
+                  Must be one of: ambient, default, demo, empty, external, openshift-ambient, openshift, preview, stable.
                 enum:
                 - ambient
                 - default
                 - demo
                 - empty
+                - external
                 - openshift-ambient
                 - openshift
                 - preview
@@ -9431,9 +9432,12 @@ spec:
                 default: v1.23.2
                 description: |-
                   Defines the version of Istio to install.
-                  Must be one of: v1.23.2.
+                  Must be one of: v1.23.2, v1.22.5, v1.21.6, latest.
                 enum:
                 - v1.23.2
+                - v1.22.5
+                - v1.21.6
+                - latest
                 type: string
             required:
             - namespace
