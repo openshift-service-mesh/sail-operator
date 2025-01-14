@@ -38,21 +38,20 @@ Apart from the conditions above, it's necessary to decide which injection labels
 
 Once it's clear how the `istio.io/rev` and `istio-injection` labels work in OpenShift Service Mesh 3, it's also necessary to revisit your OpenShift Service Mesh 2.6 installation and understand consequences of different injection configurations. Typically, following configurations might be used:
 
-- by default the `spec.memberSelectors` in your `ServiceMeshMemberRoll` is configured to match `istio-injection=enabled` label and all of your 2.6 data plane namespaces are already labeled with `istio-injection=enabled`
+- by default the `spec.memberSelectors` in your `ServiceMeshMemberRoll` is configured to match `istio-injection=enabled` label so all of your 2.6 data plane namespaces are already labeled with `istio-injection=enabled`
 
-    With this configuration, you will be able to keep the `istio-injection=enabled` on your data plane namespaces during the migration.
-- `spec.memberSelectors` in your `ServiceMeshMemberRoll` is not configured to match `istio-injection=enabled` and your 2.6 data plane namespaces are using some other label
+    With this configuration, you can choose if you want to keep using the `istio-injection=enabled` label or switch to using `istio.io/rev` label.
+- `spec.memberSelectors` in your `ServiceMeshMemberRoll` is __not__ configured to match `istio-injection=enabled` and your 2.6 data plane namespaces are using some other label
 
     With this configuration, it will be necessary to add either the `istio.io/rev` or `istio-injection` label during the migration. The label defined in the `spec.memberSelectors` in your `ServiceMeshMemberRoll` will have no effect on injection in OpenShift Service Mesh 3
 - [adding projects using label selectors](https://docs.openshift.com/container-platform/4.16/service_mesh/v2x/ossm-create-mesh.html#ossm-about-adding-projects-using-label-selectors_ossm-create-mesh) feature is not used at all and all projects were added to the mesh manually by creating `ServiceMeshMember`
 
     With this configuration, it will be necessary to add either the `istio.io/rev` or `istio-injection` label during the migration.
 
-Based on your 2.6 configuration listed above, you should follow one of the procedures bellow.
+Procedures below show different approaches for migration. Only first or second procedure should be used for production environments. Read a description of each procedure to pick one which fits your needs.
 
-
-#### Migration of 2.6 installation without istio-injection=enabled label
-In this procedure, we will use a proper canary upgrade with gradual migration of data plane namespaces.
+#### Migration to 3.0 using istio.io/rev label
+In this procedure, we will use a proper canary upgrade with gradual migration of data plane namespaces. This should be followed by users who decided to use `istio.io/rev` label.
 
 ##### Create your Istio resource
 1. Find a namespace with 2.6 control plane:
@@ -96,9 +95,9 @@ This procedure is not using revision tags but it's recommended to use them for b
 
     Here we're adding two and removing one label:
 
-    1. The `istio.io/rev=ossm-3-v1-24-1` label which ensures that any new pods that get created in that namespace will connect to the 3.0 proxy. In our example, the 3.0 revision is named `ossm-3-v1-24-1`
-    1. The `maistra.io/ignore-namespace: "true"` label which will disable sidecar injection for 2.6 proxies in the namespace. This ensures that 2.6 will stop injecting proxies in this namespace and any new proxies will be injected by the 3.0 control plane.
-    1. Even though this procedure expects that the `istio-injection` is not used in any of the migrated namespaces, we are removing it here as precaution because the `istio-injection=enabled` label would prevent proxy injection.
+    1. The `istio.io/rev=ossm-3-v1-24-1` label ensures that 3.0 proxy will be injected to any new or restarted pods in that namespace. In our example, the 3.0 revision is named `ossm-3-v1-24-1`
+    1. The `maistra.io/ignore-namespace: "true"` label ensures that 2.6 control plane will stop injecting proxies in this namespace to avoid conflicts between 2.6 and 3.0 side car injectors.
+    1. `istio-injection` label takes precedence over `istio.io/rev` label so it must be removed if it exists. Otherwise the `istio-injection=enabled` label would prevent proxy injection.
 
     ```sh
     oc label ns bookinfo istio.io/rev=ossm-3-v1-24-1 maistra.io/ignore-namespace="true" istio-injection- --overwrite=true
@@ -142,8 +141,11 @@ This procedure is not using revision tags but it's recommended to use them for b
 
 Now you can proceed with the migration of next namespaces.
 
-#### Migration of 2.6 installation with istio-injection=enabled label
-This procedure should be used by users seeking full control at any given time during the migration process when using `istio-injection=enabled` label on 2.6 data plane namespaces and planning to use that label even in OpenShift Service Mesh 3.0. Compared to the simple Migration of 2.6 installation with istio-injection=enabled label below, it is safe to restart any workloads at any given time during the migration. To achieve this, it requires more manual steps and re-labeling.
+> [!CAUTION]
+> Do not remove `maistra.io/ignore-namespace="true"` label until the 2.6 control plane is uninstalled.
+
+#### Migration to 3.0 using istio-injection=enabled label
+In this procedure, we will use a proper canary upgrade with gradual migration of data plane namespaces. This should be followed by users who decided to use `istio-injection=enabled` label or are already using this label on 2.6 data plane namespaces. Compared to the simple Migration of 2.6 installation with istio-injection=enabled label below, it is safe to restart any workloads at any given time during the migration. To achieve this, it requires more manual steps and re-labeling.
 
 ##### Create your Istio resource
 1. Find a namespace with 2.6 control plane:
@@ -186,9 +188,9 @@ This procedure should be used by users seeking full control at any given time du
 
     Here we're adding two and removing one label:
 
-    1. The `istio.io/rev=ossm-3-v1-24-1` label which ensures that any new pods that get created in that namespace will connect to the 3.0 proxy. In our example, the 3.0 revision is named `ossm-3-v1-24-1`
-    1. The `maistra.io/ignore-namespace: "true"` label which will disable sidecar injection for 2.6 proxies in the namespace. This ensures that 2.6 will stop injecting proxies in this namespace and any new proxies will be injected by the 3.0 control plane.
-    1. It's necessary to temporarily remove the `istio-injection=enabled` as it would prevent the proxy injection by 3.0 control plane.
+    1. The `istio.io/rev=ossm-3-v1-24-1` label ensures that 3.0 proxy will be injected to any new or restarted pods in that namespace. In our example, the 3.0 revision is named `ossm-3-v1-24-1`
+    1. The `maistra.io/ignore-namespace: "true"` label ensures that 2.6 control plane will stop injecting proxies in this namespace to avoid conflicts between 2.6 and 3.0 side car injectors.
+    1. Because we can't create the `default` `IstioRevisionTag` yet. It's necessary to temporarily remove the `istio-injection=enabled` as it would prevent the proxy injection by 3.0 control plane as the `istio-injection` label takes precedence over `istio.io/rev` label.
 
     ```sh
     oc label ns bookinfo istio.io/rev=ossm-3-v1-24-1 maistra.io/ignore-namespace="true" istio-injection- --overwrite=true
@@ -211,6 +213,8 @@ This procedure should be used by users seeking full control at any given time du
 
 > [!CAUTION]
 > Before proceeding, it's necessary to finish migration of all remaining namespaces.
+
+> **_NOTE:_** Even with different versions of the proxies, the communication between services should work normally.
 
 ##### Create a default revision tag and re-label namespaces
 1. Prepare a default revision tag yaml named `rev-tag.yaml`:
@@ -251,11 +255,14 @@ This procedure should be used by users seeking full control at any given time du
 1. Validation of the workloads can be done the same way as in the previous procedures
 1. Repeat steps 4. and 5. for other namespaces
 
+> [!CAUTION]
+> Do not remove `maistra.io/ignore-namespace="true"` label until the 2.6 control plane is uninstalled.
+
 #### Simple migration of 2.6 installation with istio-injection=enabled label
 It is recommended to use one of the procedures above in production environments.
 In this procedure it's expected that all 2.6 data plane namespaces have `istio-injection=enabled` label.
 > [!CAUTION]
-> This procedure may cause a traffic disruption for workloads which are restarted at unexpected time.
+> This procedure may cause a traffic disruption for workloads which are restarted at unexpected time. See steps below to understand the risk.
 
 ##### Create your Istio resource
 1. Find a namespace with 2.6 control plane:
@@ -284,7 +291,7 @@ In this procedure it's expected that all 2.6 data plane namespaces have `istio-i
    ```
 1. Apply the `Istio` resource yaml:
 
-    > **_NOTE:_** after next step, both 2.6 and 3.0 control planes will try to inject side cars to all pods in namespaces with the `istio-injection=enabled` label and all pods with the `sidecar.istio.io/inject="true"` label after next restart of the workloads. Workloads should be restarted only after the `maistra.io/ignore-namespace: "true"` label is added (see below).
+    > **_NOTE:_** after next step, both 2.6 and 3.0 control planes will try to inject side cars to all pods in namespaces with the `istio-injection=enabled` label and all pods with the `sidecar.istio.io/inject="true"` label if the workloads are restarted. This will cause a traffic disruption. To avoid this problem, workloads should be restarted __only after__ the `maistra.io/ignore-namespace: "true"` label is added (see below).
     ```sh
     oc apply -f ossm-3.yaml
     ```
@@ -297,9 +304,9 @@ In this procedure it's expected that all 2.6 data plane namespaces have `istio-i
 ##### Migrate Workloads
 1. Add `maistra.io/ignore-namespace: "true"` label to the data plane namespace
 
-    The `maistra.io/ignore-namespace: "true"` label will disable sidecar injection for 2.6 proxies in the namespace. This ensures that 2.6 will stop injecting proxies in this namespace and any new proxies will be injected by the 3.0 control plane. Without this, there will be a conflict and the proxy will not start.
+    The `maistra.io/ignore-namespace: "true"` label ensures that 2.6 control plane will stop injecting proxies in this namespace to avoid conflicts between 2.6 and 3.0 side car injectors. Without this, the proxy will not start.
 
-      > **_NOTE:_** that once you apply the `maistra.io/ignore-namespace` label, any new pod that gets created in the namespace will be connected to the 3.0 proxy. Workloads will still be able to communicate with each other though regardless of which control plane they are connected to.
+      > **_NOTE:_** that once you apply the `maistra.io/ignore-namespace` label, any new or restarted pods in the namespace will be connected to the 3.0 proxy. Workloads running 2.6 proxy are still able communicate with workloads running 3.0 proxy.
 
     ```sh
     oc label ns bookinfo maistra.io/ignore-namespace="true"
@@ -354,31 +361,5 @@ You can now proceed with the migration of next namespace.
 
   > **_NOTE:_** Even with different versions of the proxies, the communication between services should work normally.
 
-#### Remove 2.6 control plane
-Once you are done with the migration of all workloads in your mesh, you can remove your 2.6 control plane.
-
 > [!CAUTION]
-> Following steps will remove also all NetworkPolicies created by 2.6 control plane. Please make sure you are done with the [pre-migration checklist](../README.md#pre-migration-checklist)
-
-1. Remove your `ServiceMeshControlPlane`
-    ```sh
-    $ oc delete smcp basic -n istio-system
-    ```
-1. Remove your `ServiceMeshMemberRoll`
-    ```sh
-    $ oc delete smmr default -n istio-system
-    ```
-1. Remove your `ServiceMeshMembers`
-    ```sh
-    $ oc delete smm default -n bookinfo
-    ```
-1. Verify that all `ServiceMeshMembers` and `ServiceMeshMemberRolls` were removed:
-    ```sh
-    $ oc get smm,smmr -A
-    No resources found
-    ```
-
-> **_NOTE:_** that depending on how you created `ServiceMeshMembers` and `ServiceMeshMemberRoll`, those resources might be removed automatically with removal of `ServiceMeshControlPlane` after step 1.
-
-#### Clean 2.6 operator and CRDs
-TODO
+> Do not remove `maistra.io/ignore-namespace="true"` label until the 2.6 control plane is uninstalled.
