@@ -38,7 +38,7 @@ Apart from the conditions above, it's necessary to decide which injection labels
 
 Once it's clear how the `istio.io/rev` and `istio-injection` labels work in OpenShift Service Mesh 3, it's also necessary to revisit your OpenShift Service Mesh 2.6 installation and understand consequences of different injection configurations. Typically, following configurations might be used:
 
-- by default the `spec.memberSelectors` in your `ServiceMeshMemberRoll` is configured to match `istio-injection=enabled` label so all of your 2.6 data plane namespaces are already labeled with `istio-injection=enabled`
+- by default the `spec.memberSelectors` in your `ServiceMeshMemberRoll` is configured to match `istio-injection=enabled` label and all of your 2.6 data plane namespaces are already labeled with `istio-injection=enabled`
 
     With this configuration, you can choose if you want to keep using the `istio-injection=enabled` label or switch to using `istio.io/rev` label.
 - `spec.memberSelectors` in your `ServiceMeshMemberRoll` is __not__ configured to match `istio-injection=enabled` and your 2.6 data plane namespaces are using some other label
