@@ -1756,7 +1756,7 @@ Otherwise, port forward to the kiali pod directly:
 kubectl port-forward -n istio-system svc/kiali 20001:20001
 ```
 
-You can view Kiali dashboard at: http://localhost:20001
+You can view Kiali console at: http://localhost:20001
 
 ## Observability Integrations
 
