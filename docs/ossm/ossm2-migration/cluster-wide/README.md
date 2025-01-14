@@ -20,7 +20,7 @@ There will be two cluster wide Istio control planes running during the migration
 There are a few conditions which must be verified to ensure a successful migration:
 - both control planes must share the same root certificate
 
-  This can be achieved simply by installing the 3.0 control plane to the same namespace as 2.6 control plane. The migration procedure below shows how to verify the root cert is shared.
+  This can be achieved by installing the 3.0 control plane to the same namespace as 2.6 control plane. The migration procedure below shows how to verify the root cert is shared.
 - 3.0 control plane must have access to all namespaces in 2.6 mesh
 
   During the migration, some proxies will be controlled by the 3.0 control plane while others will still be controlled by the 2.6 control plane. To assure the communication still works, both control planes must be aware of the same set of services. You must verify that:
