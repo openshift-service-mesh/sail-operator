@@ -119,7 +119,7 @@ Users requiring custom CA configurations should use Istio's built-in CA configur
 
 ## Proxy Configuration Changes
 
-OpenShift Service Mesh 3 removes several proxy configuration options that were available in OpenShift Service Mesh 2's `ServiceMeshControlPlane` resource to align more closely with upstream Istio. Protocol auto-detection configuration through `proxy.networking.protocol.autoDetect` has been removed, with the service mesh now using Istio's default protocol detection behavior.
+OpenShift Service Mesh 3 removes several proxy configuration options that were available in OpenShift Service Mesh 2's `ServiceMeshControlPlane` resource to align more closely with upstream Istio. Protocol auto-detection configuration through `proxy.networking.protocol.autoDetect` has been removed, with the service mesh now using Istio's default protocol detection behavior. The only remaining protocol detection setting is MeshConfig's `protocolDetectionTimeout`, as all other protocol detection configurations have been removed from upstream Istio.
 
 Proxy initialization configurations and deployment strategy configurations have been streamlined, with some runtime environment variables and initialization types no longer being configurable.
 
