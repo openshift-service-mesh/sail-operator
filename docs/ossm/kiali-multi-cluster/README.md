@@ -54,7 +54,7 @@ In this tutorial, we will deploy Kiali on the `east` cluster and then grant Kial
      auth:
        openshift:
          redirect_uris:
-           - 'https://{your-server}/api/auth/callback/west'
+           - 'https://{east-cluster-url}/api/auth/callback/{west}'
      deployment:
        remote_cluster_resources_only: true
    ```
