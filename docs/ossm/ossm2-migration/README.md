@@ -55,7 +55,7 @@ spec:
     enabled: false
     openshiftRoute:
       enabled: false
-  mode: MultiTenant
+  mode: MultiTenant # or ClusterWide
   tracing: # 3.
     type: None
 ```
