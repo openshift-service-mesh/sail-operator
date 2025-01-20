@@ -63,9 +63,23 @@ Kiali will create the remote CRDs but no deployment will be created.
 
 3. Create a remote cluster secret.
 
+  - Create a Service Account for Kiali in the remote cluster.
+
+    ```sh
+    kubectl --context=west apply -f - <<EOM
+    apiVersion: v1
+    kind: Secret
+    metadata:
+    name: "kiali-service-account"
+    namespace: "istio-system"
+    annotations:
+    kubernetes.io/service-account.name: "kiali-service-account"
+    type: kubernetes.io/service-account-token
+    EOM
+    ```
+    
    In order to access a remote cluster, you must provide a kubeconfig to Kiali via a Kubernetes secret. You can use [this script](https://raw.githubusercontent.com/kiali/kiali/master/hack/istio/multicluster/kiali-prepare-remote-cluster.sh) to simplify this process for you. Running this script will:
 
-   - Create a Service Account for Kiali in the remote cluster.
    - Create RBAC resources for this Service Account in the remote cluster.
    - Create a kubeconfig file and save this as a secret in the namespace where Kiali is deployed on the `east` cluster.
 
@@ -84,7 +98,7 @@ Kiali will create the remote CRDs but no deployment will be created.
    3. Run the script passing your `east` and `west` cluster contexts.
 
       ```sh
-      ./kiali-prepare-remote-cluster.sh --kiali-cluster-context east --remote-cluster-context west --view-only false --kiali-resource-name kiali --remote-cluster-namespace istio-system --process-kiali-secret true --process-remote-resources false --remote-cluster-name west
+      ./kiali-prepare-remote-cluster.sh --kiali-cluster-context east --remote-cluster-context west --view-only false --kiali-resource-name kiali-service-account --remote-cluster-namespace istio-system --process-kiali-secret true --process-remote-resources false --remote-cluster-name west
       ```
    
    **Note:** Use the option `--help` for additional details on how to use the script.
@@ -121,8 +135,14 @@ Kiali will create the remote CRDs but no deployment will be created.
 
    In order to see other clusters in the Kiali UI, you must first login as a user to those clusters through Kiali. Click on the user profile dropdown in the top right hand menu. Then select `Login to west`. You will again be redirected to an OpenShift login page and prompted for credentials but this will be for the `west` cluster.
 
+![Multicluster-login](kiali-multicluster-login.png "Kiali Multi Cluster Login")
+
 7. Verify that Kiali shows information from both clusters.
 
    1. Navigate to the `Overview` page from the left hand nav and verify you can see namespaces from both clusters.
 
-   1. Navigate to the `Mesh` page from the left hand nav and verify you see both clusters on the mesh graph.
+![Multicluster-kiali](kiali-multicluster.png "Kiali Multi Cluster Overview")
+
+   2. Navigate to the `Mesh` page from the left hand nav and verify you see both clusters on the mesh graph.
+
+![Multicluster-login](kiali-multicluster-mesh.png "Kiali Multi Cluster Mesh")
