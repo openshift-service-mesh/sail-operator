@@ -54,6 +54,7 @@ You can install the OpenShift Service Mesh Console (OSSMC) plugin using the Open
 * OpenShift is installed.
 * {KialiProduct} 2.4 is installed.
 * Red Hat OpenShift Service Mesh (OSSM) is installed.
+* `Istio` control plane from OSSM 3.0 is installed.
 
 **Procedure**
 
@@ -79,6 +80,7 @@ You can install the OpenShift Service Mesh Console (OSSMC) plugin using the CLI,
 * OpenShift is installed.
 * {KialiProduct} 2.4 is installed.
 * Red Hat OpenShift Service Mesh (OSSM) is installed.
+* `Istio` control plane from OSSM 3.0 is installed.
 
 **Procedure**
 
