@@ -21,12 +21,14 @@ There are a few conditions which must be verified to ensure a successful migrati
 - both control planes must share the same root certificate
 
   This can be achieved by installing the 3.0 control plane to the same namespace as 2.6 control plane. The migration procedure below shows how to verify the root cert is shared.
-- 3.0 control plane must have access to all namespaces in 2.6 mesh
+- both 3.0 and 2.6 control planes must have access to all namespaces in a mesh
 
-  During the migration, some proxies will be controlled by the 3.0 control plane while others will still be controlled by the 2.6 control plane. To assure the communication still works, both control planes must be aware of the same set of services. You must verify that:
-  1. there are no Network Policies blocking the traffic
+  During the migration, some proxies will be controlled by the 3.0 control plane while others will still be controlled by the 2.6 control plane. To assure the communication still works, both control planes must be aware of the same set of services. Service discovery is done by `istiod` component which is running in your control plane namespace. You must verify that:
+  1. there are no Network Policies blocking the traffic between `istiod` and proxies and vice versa for both control planes
 
-     OpenShift Service Mesh 3.0 is no longer managing Network Policies and it's up to users to assure that existing Network Policies are not blocking the traffic for OpenShift Service Mesh 3.0 components. See Migration of Network Policies documentation for details.
+     OpenShift Service Mesh 2.6 is by default managing Network Policies which would be blocking traffic for 3.0 control plane. In the pre-migration checklist, we instruct users to disable this feature but users can still decide to re-create those Network Policies manually. In that case, newly created Network Policies must allow the traffic for both control planes. One example of problematic Network policy is the usage of `maistra.io/member-of` label which will be removed automatically when a dataplane namespace is migrated to 3.0. See Migration of Network Policies documentation for details.
+
+     > **_NOTE:_** Incorrectly configured Network Policies will cause traffic disruptions and might be difficult to debug. Pay increased attention when creating Network Policies.
      <!--TODO: add a link when the doc is ready https://issues.redhat.com/browse/OSSM-8520-->
   1. Ensure that the `discoverySelectors` defined in your OpenShift Service Mesh 3.0 `Istio` resource will match the namespaces that make up your OpenShift Service Mesh 2.6 mesh. You may need to add additional labels onto your OpenShift Service Mesh 2.6 application namespaces to ensure that they are captured by your OpenShift Service Mesh 3.0 `Istio` `discoverySelectors`. See [Scoping the service mesh with DiscoverySelectors](../../create-mesh/README.md)
 - only one control plane will try to inject a side car
