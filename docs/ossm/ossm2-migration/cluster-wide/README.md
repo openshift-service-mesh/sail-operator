@@ -34,7 +34,7 @@ There are a few conditions which must be verified to ensure a successful migrati
   This can be achieved by correct use of injection labels. Please see [Installing the Sidecar](../../injection/README.md) for details.
   > **_NOTE:_** Due to specific behavior of OpenShift Service Mesh 2.6 it's necessary to disable 2.6 injector when migrating the data plane namespace. We will use `maistra.io/ignore-namespace: "true"` label in this guide.
 
-Apart from the conditions above, it's necessary to decide which injection labels will be used. See [Installing the Sidecar](../../injection/README.md) explaining relation between Istio revisions and injection labels.
+In addition to the conditions above, for OpenShift Service Mesh 3.0, you must decide whether to want to use the `istio.io/rev` or `istio-injection` labels to configure sidecar injection. See [Installing the Sidecar](../../injection/README.md) for a full explanation of the two labels for configuring sidecar injection.
 
 Once it's clear how the `istio.io/rev` and `istio-injection` labels work in OpenShift Service Mesh 3, it's also necessary to revisit your OpenShift Service Mesh 2.6 installation and understand consequences of different injection configurations. Typically, following configurations might be used:
 
