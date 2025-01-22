@@ -36,7 +36,7 @@ There are a few conditions which must be verified to ensure a successful migrati
 
 In addition to the conditions above, for OpenShift Service Mesh 3.0, you must decide whether to want to use the `istio.io/rev` or `istio-injection` labels to configure sidecar injection. See [Installing the Sidecar](../../injection/README.md) for a full explanation of the two labels for configuring sidecar injection.
 
-Once it's clear how the `istio.io/rev` and `istio-injection` labels work in OpenShift Service Mesh 3, it's also necessary to revisit your OpenShift Service Mesh 2.6 installation and understand consequences of different injection configurations. Typically, following configurations might be used:
+Going back to your OpenShift Service Mesh 2.6 installation, the way member selection was configured in the `ServiceMeshMemberRoll` may also impact the choice of injection labels used with OpenShift Service Mesh 3.0:
 
 - by default the `spec.memberSelectors` in your `ServiceMeshMemberRoll` is configured to match `istio-injection=enabled` label and all of your 2.6 data plane namespaces are already labeled with `istio-injection=enabled`
 
