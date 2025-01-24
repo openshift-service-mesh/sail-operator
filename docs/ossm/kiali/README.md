@@ -52,7 +52,7 @@ Kiali can be installed in two different ways: via the OpenShift web console or t
 
 ### Via the OpenShift web console
 
-The following steps show how to install the Kiali via the OpenShift web console.
+The following steps show how to install Kiali via the OpenShift web console.
 
 [!WARNING]
 Do not install the Community version of the Operator. The Community version is not supported.
