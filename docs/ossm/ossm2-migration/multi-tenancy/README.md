@@ -119,12 +119,19 @@ oc create ns istio-system-tenant-a
      name: istio-tenant-a
    spec:
      namespace: istio-system-tenant-a
+     version: v1.23.0
      values:
        meshConfig:
          discoverySelectors:
            - matchLabels:
                tenant: tenant-a
-     version: v1.23.0
+   #     extensionProviders:  # uncomment and update according to your tracing/matrix configuration if used
+   #       - name: prometheus
+   #         prometheus: {}
+   #       - name: otel
+   #         opentelemetry:
+   #           port: 4317
+   #           service: otel-collector.opentelemetrycollector-3.svc.cluster.local
    ```
 
 > [!WARNING]
