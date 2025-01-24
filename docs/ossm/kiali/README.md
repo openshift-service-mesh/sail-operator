@@ -337,7 +337,7 @@ You can integrate OpenShift distributed tracing platform with Kiali, which enabl
 
 ## Viewing service mesh data in the Kiali console
 
-The Kiali Graph offers a powerful visualization of your mesh traffic. The topology combines real-time request traffic with your Istio configuration information to present immediate insight into the behavior of your service mesh, letting you quickly pinpoint issues. Multiple Graph Types let you visualize traffic as a high-level service topology, a low-level workload topology, or as an application-level topology.
+The Kiali Graph offers a powerful visualization of your mesh traffic. The topology combines request traffic with your Istio configuration information to present immediate insight into the behavior of your service mesh, letting you quickly pinpoint issues. Multiple Graph Types let you visualize traffic as a high-level service topology, a low-level workload topology, or as an application-level topology.
 
 There are several graphs to choose from:
 
