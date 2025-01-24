@@ -70,25 +70,25 @@ In this procedure, we will use a proper canary upgrade with gradual migration of
     > **_NOTE:_** For simplicity, we are using a minimal example for Istio resource. Read [SMCP to Istio mapping](#TODO) to see how to transform fields used in SMCP resource to fields in Istio resource.
 
     ```yaml
-   apiVersion: sailoperator.io/v1alpha1
-   kind: Istio
-   metadata:
-     name: ossm-3 # the name, updateStrategy and version are significant for injection labels
-   spec:
-     updateStrategy:
-       type: RevisionBased
-     namespace: istio-system # 3.0 and 2.6 control planes must run in the same namespace
-     version: v1.24.1
-   # values:  # uncomment and update according to your tracing/matrix configuration if used
-   #   meshConfig:
-   #   extensionProviders:
-   #     - name: prometheus
-   #       prometheus: {}
-   #     - name: otel
-   #       opentelemetry:
-   #         port: 4317
-   #         service: otel-collector.opentelemetrycollector-3.svc.cluster.local
-   ```
+    apiVersion: sailoperator.io/v1alpha1
+    kind: Istio
+    metadata:
+      name: ossm-3 # the name, updateStrategy and version are significant for injection labels
+    spec:
+      updateStrategy:
+        type: RevisionBased
+      namespace: istio-system # 3.0 and 2.6 control planes must run in the same namespace
+      version: v1.24.1
+    # values:  # uncomment and update according to your tracing/matrix configuration if used
+    #   meshConfig:
+    #   extensionProviders:
+    #     - name: prometheus
+    #       prometheus: {}
+    #     - name: otel
+    #       opentelemetry:
+    #         port: 4317
+    #         service: otel-collector.opentelemetrycollector-3.svc.cluster.local
+    ```
 1. Apply the `Istio` resource yaml:
 
     ```sh
