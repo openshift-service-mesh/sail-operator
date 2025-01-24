@@ -59,7 +59,7 @@ Do not install the Community version of the Operator. The Community version is n
 
 **Prerequisites**
 
-* Access to the OpenShift web console.
+* Access to the OpenShift web console with administrator access
 
 **Procedure**
 
