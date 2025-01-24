@@ -116,7 +116,7 @@ The following steps show how to install the Kiali via the OpenShift CLI.
 
 **Prerequisites**
 
-* Access to the OpenShift cluster via CLI
+* Access to the OpenShift cluster via CLI with administrator privileges
 
 **Procedure**
 
