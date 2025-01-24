@@ -177,25 +177,25 @@ In this procedure, we will use a proper canary upgrade with gradual migration of
     > **_NOTE:_** For simplicity, we are using a minimal example for Istio resource. Read [SMCP to Istio mapping](#TODO) to see how to transform fields used in SMCP resource to fields in Istio resource.
 
     ```yaml
-   apiVersion: sailoperator.io/v1alpha1
-   kind: Istio
-   metadata:
-     name: ossm-3 # the name, updateStrategy and version are significant for injection labels
-   spec:
-     updateStrategy:
-       type: RevisionBased
-     namespace: istio-system # 3.0 and 2.6 control planes must run in the same namespace
-     version: v1.24.1
-   # values:  # uncomment and update according to your tracing/matrix configuration if used
-   #   meshConfig:
-   #   extensionProviders:
-   #     - name: prometheus
-   #       prometheus: {}
-   #     - name: otel
-   #       opentelemetry:
-   #         port: 4317
-   #         service: otel-collector.opentelemetrycollector-3.svc.cluster.local
-   ```
+    apiVersion: sailoperator.io/v1alpha1
+    kind: Istio
+    metadata:
+      name: ossm-3 # the name, updateStrategy and version are significant for injection labels
+    spec:
+      updateStrategy:
+        type: RevisionBased
+      namespace: istio-system # 3.0 and 2.6 control planes must run in the same namespace
+      version: v1.24.1
+    # values:  # uncomment and update according to your tracing/matrix configuration if used
+    #   meshConfig:
+    #   extensionProviders:
+    #     - name: prometheus
+    #       prometheus: {}
+    #     - name: otel
+    #       opentelemetry:
+    #         port: 4317
+    #         service: otel-collector.opentelemetrycollector-3.svc.cluster.local
+    ```
 1. Apply the `Istio` resource yaml:
 
     ```sh
@@ -305,25 +305,25 @@ In this procedure it's expected that all 2.6 data plane namespaces have `istio-i
     > **_NOTE:_** For simplicity, we are using a minimal example for Istio resource. Read [SMCP to Istio mapping](#TODO) to see how to transform fields used in SMCP resource to fields in Istio resource.
 
     ```yaml
-   apiVersion: sailoperator.io/v1alpha1
-   kind: Istio
-   metadata:
-     name: default # the name and the updateStrategy is significant for injection labels
-   spec:
-     updateStrategy:
-       type: InPlace
-     namespace: istio-system # 3.0 and 2.6 control planes must run in the same namespace
-     version: v1.24.1
-   # values:  # uncomment and update according to your tracing/matrix configuration if used
-   #   meshConfig:
-   #   extensionProviders:
-   #     - name: prometheus
-   #       prometheus: {}
-   #     - name: otel
-   #       opentelemetry:
-   #         port: 4317
-   #         service: otel-collector.opentelemetrycollector-3.svc.cluster.local
-   ```
+    apiVersion: sailoperator.io/v1alpha1
+    kind: Istio
+    metadata:
+      name: default # the name and the updateStrategy is significant for injection labels
+    spec:
+      updateStrategy:
+        type: InPlace
+      namespace: istio-system # 3.0 and 2.6 control planes must run in the same namespace
+      version: v1.24.1
+    # values:  # uncomment and update according to your tracing/matrix configuration if used
+    #   meshConfig:
+    #   extensionProviders:
+    #     - name: prometheus
+    #       prometheus: {}
+    #     - name: otel
+    #       opentelemetry:
+    #         port: 4317
+    #         service: otel-collector.opentelemetrycollector-3.svc.cluster.local
+    ```
 1. Apply the `Istio` resource yaml:
 
     > **_NOTE:_** after next step, both 2.6 and 3.0 control planes will try to inject side cars to all pods in namespaces with the `istio-injection=enabled` label and all pods with the `sidecar.istio.io/inject="true"` label if the workloads are restarted. This will cause a traffic disruption. To avoid this problem, workloads should be restarted __only after__ the `maistra.io/ignore-namespace: "true"` label is added (see below).
