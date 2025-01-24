@@ -45,7 +45,7 @@ When the migration of all workloads is finished, it's possible to remove OpenShi
 
 ## Remove Maistra labels
 Optionally you can remove namespace labels created during the migration.
-1. Make sure there are no Service Mesh 2.6 resources left:
+1. Following resources should be already removed in previous steps but it's important to be sure there are no Service Mesh 2.6 resources left before removing the label:
     ```sh
     oc get smcp,smm,smmr -A
     No resources found
