@@ -211,7 +211,7 @@ The following steps show how to install the Kiali via the OpenShift CLI.
 
 ## Configuring OpenShift Monitoring with Kiali
 
-The following steps show how to integrate the Kiali with user-workload monitoring.
+The following steps show how to integrate Kiali with user-workload monitoring.
 
 **Prerequisites**
 
