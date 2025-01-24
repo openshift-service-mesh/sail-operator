@@ -38,7 +38,7 @@ The Kiali console is integrated with Red Hat Service Mesh and provides the follo
 
 * **Metrics** – Predefined metrics dashboards let you chart service mesh and application performance for Go, Node.js. Quarkus, Spring Boot, Thorntail and Vert.x. You can also create your own custom dashboards.
 
-* **Tracing** – Integration with Jaeger lets you follow the path of a request through various microservices that make up an application.
+* **Tracing** – Integration with Tempo lets you follow the path of a request through various microservices that make up an application.
 
 * **Validations** – Perform advanced validations on the most common Istio objects (Destination Rules, Service Entries, Virtual Services, and so on).
 
