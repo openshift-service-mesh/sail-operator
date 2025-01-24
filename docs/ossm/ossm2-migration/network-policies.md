@@ -1,4 +1,4 @@
-# OpenShift Service Mesh 2.6 migration to 3.0
+# OpenShift Service Mesh 2.6 Network Policy migration to 3.0
 
 In OpenShift Service Mesh 2.6, Network Policies are created by default when `spec.security.manageNetworkPolicy=true` in the ServiceMeshControlPlane config. During migration to Service Mesh 3.0, these Network Policies will be removed and will need to be recreated manually if you wish to maintain identical NetworkPolicies.
 
@@ -25,14 +25,16 @@ metadata:
   annotations:
     "maistra.io/internal": "true"
 spec:
+  ingress:
+    - {}
   podSelector:
     matchLabels:
       app: istiod
       istio.io/rev: default
-  ingress:
-    - ports:
-      port: webhook
+  policyTypes:
+    - Ingress
  ```
+> **_NOTE:_** When recreating this Network Policy, users should take note that the `istio.io/rev:` label value will change during the migration process and should update their `matchLabels` values accordingly.
 
 ### 2. Expose Route Network Policy
 - **Purpose**: Allows traffic from OpenShift ingress namespaces to pods labeled with `maistra.io/expose-route: "true"`
@@ -80,10 +82,12 @@ metadata:
 spec:
   ingress:
   - from:
-    - namespaceSelector:                        # Only allows traffic from mesh members
+    - namespaceSelector:          # Only allows traffic from mesh members
       matchLabels:
-        maistra.io/member-of: istio-system      # Replace with your SMCP namespace
+        maistra.io/member-of: istio-system     
 ```
+
+> **_NOTE:_** When recreating this Network Policy, the label `maistra.io/member-of: $SMCP_NS` must be replaced with a new label in the Network Policy and mesh namespaces labeled with the new label. This is because the aforementioned label was created automatically on namespaces by the SMCP. After migration is complete and the 2.6 mesh is removed, this label will be removed. 
 
 ### 4. Ingress Gateway Network Policy
 - **Purpose**: Allows inbound traffic from any source to ingress gateway pods
