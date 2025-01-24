@@ -79,7 +79,7 @@ In this procedure, we will use a proper canary upgrade with gradual migration of
         type: RevisionBased
       namespace: istio-system # 3.0 and 2.6 control planes must run in the same namespace
       version: v1.24.1
-    # values:  # uncomment and update according to your tracing/matrix configuration if used
+    # values:  # uncomment and update according to your tracing/metrics configuration if used
     #   meshConfig:
     #   extensionProviders:
     #     - name: prometheus
@@ -186,7 +186,7 @@ In this procedure, we will use a proper canary upgrade with gradual migration of
         type: RevisionBased
       namespace: istio-system # 3.0 and 2.6 control planes must run in the same namespace
       version: v1.24.1
-    # values:  # uncomment and update according to your tracing/matrix configuration if used
+    # values:  # uncomment and update according to your tracing/metrics configuration if used
     #   meshConfig:
     #   extensionProviders:
     #     - name: prometheus
@@ -314,7 +314,7 @@ In this procedure it's expected that all 2.6 data plane namespaces have `istio-i
         type: InPlace
       namespace: istio-system # 3.0 and 2.6 control planes must run in the same namespace
       version: v1.24.1
-    # values:  # uncomment and update according to your tracing/matrix configuration if used
+    # values:  # uncomment and update according to your tracing/metrics configuration if used
     #   meshConfig:
     #   extensionProviders:
     #     - name: prometheus
