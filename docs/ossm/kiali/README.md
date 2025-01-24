@@ -1,52 +1,58 @@
-# Kiali
+# Red Hat OpenShift Service Mesh and Kiali
 
-Kiali can be used to view the data flow through your application once it has been added to the service mesh.
+Kiali is based on the open source [Kiali project](https://www.kiali.io/). Kiali provided by Red Hat is composed of three parts:
 
-## About Kiali
+* Kiali Operator provided by Red Hat
+* Kiali Server
+* OpenShift Service Mesh Console (OSSMC) plugin
 
-Kiali provides observability into the service mesh running on OpenShift. Kiali helps you define, validate, and observe your Istio service mesh. It helps you to understand the structure of your service mesh by inferring the topology, and also provides information about the health of your service mesh.
+Working together, they form the user interface (UI) for OpenShift Service Mesh. Kiali provides visibility into your service mesh by showing you the microservices and how they are connected.
 
-Kiali provides an interactive graph view of your namespace in real time that provides visibility into features like circuit breakers, request rates, latency, and even graphs of traffic flows. Kiali offers insights about components at different levels, from Applications to Services and Workloads, and can display the interactions with contextual information and charts on the selected graph node or edge. Kiali also provides the ability to validate your Istio configurations, such as gateways, destination rules, virtual services, mesh policies, and more. Kiali provides detailed metrics, and a basic Grafana integration is available for advanced queries. Distributed tracing is provided by integrating Tempo into the Kiali console.
+Kiali helps you define, validate, and observe your Istio service mesh. It helps you to understand the structure of your service mesh by inferring the topology, and also provides information about the health of your service mesh.
+
+Kiali provides an interactive graph view of your mesh namespaces in near real time that provides visibility into features like circuit breakers, request rates, latency, and even graphs of traffic flows. Kiali offers insights about components at different levels, such as applications, services, workloads, and can display the interactions with contextual information and charts on the selected graph node or edge.
+
+Kiali also provides the ability to validate your Istio configurations, such as gateways, destination rules, virtual services, mesh policies, and so on. Kiali provides detailed metrics, and a basic Grafana integration is available for advanced queries. Distributed tracing is provided by integrating Red Hat OpenShift distributed tracing platform (Tempo) and Red Hat OpenShift distributed tracing data collection into the Kiali console.
 
 ### Kiali Architecture
 
-Kiali is based on the open source [Kiali project](https://www.kiali.io/). Kiali is composed of two components: the Kiali application and the Kiali console.
+Kiali architecture is composed of two components: the Kiali server and the Kiali console.
 
-* **Kiali application (back end)** – This component runs in the container application platform and communicates with the service mesh components, retrieves and processes data, and exposes this data to the console. The Kiali application does not need storage. When deploying the application to a cluster, configurations are set in ConfigMaps and secrets.
+* **Kiali server (back end)** – This component runs in the container application platform and communicates with the service mesh components, retrieves and processes data, and exposes this data to the console. The Kiali server does not need storage. When deploying the Server to a cluster, configurations are set in config maps and secrets.
 
-* **Kiali console (front end)** – The Kiali console is a web application. The Kiali application serves the Kiali console, which then queries the back end for data to present it to the user.
+* **Kiali console (front end)** – The Kiali console is a web application. The console queries the Kiali Server for data to present it to the user.
 
 In addition, Kiali depends on external services and components provided by the container application platform and Istio.
 
-* **Red Hat Service Mesh (Istio)** - Istio is a Kiali requirement. Istio is the component that provides and controls the service mesh. Although Kiali and Istio can be installed separately, Kiali depends on Istio and will not work if it is not present. Kiali needs to retrieve Istio data and configurations, which are exposed through Prometheus and the cluster API.
+* **Red Hat Service Mesh (Istio)** - Istio is a Kiali requirement. Istio is the component that provides and controls the service mesh. Although Kiali and Istio can be installed separately, Kiali depends on Istio and will not work if it is not present. Kiali needs to retrieve Istio data and configurations, which are exposed through Prometheus and the Red Hat OpenShift Service Mesh cluster API.
 
-* **Prometheus** - When Istio telemetry is enabled, metrics data are stored in Prometheus. Kiali uses this Prometheus data to determine the mesh topology, display metrics, calculate health, show possible problems, and so on. Kiali communicates directly with Prometheus and assumes the data schema used by Istio Telemetry. Prometheus is an Istio optional dependency, but a hard dependency for Kiali, and many of Kiali's features will not work without Prometheus.
+* **Prometheus** - A dedicated Prometheus instance is optional. When Istio telemetry is enabled, metrics data are stored in Prometheus. Kiali uses this Prometheus data to determine the mesh topology, display metrics, calculate health, show possible problems, and so on. Kiali communicates directly with Prometheus and assumes the data schema used by Istio Telemetry. Prometheus is an Istio optional dependency, but a hard dependency for Kiali, and many of Kiali’s features will not work without Prometheus.
 
-* **Cluster API** - Kiali uses the API of the OpenShift (cluster API) to fetch and resolve service mesh configurations. Kiali queries the cluster API to retrieve, for example, definitions for namespaces, services, deployments, pods, and other entities. Kiali also makes queries to resolve relationships between the different cluster entities. The cluster API is also queried to retrieve Istio configurations like virtual services, destination rules, route rules, gateways, quotas, and so on.
+* **OpenShift Container Platform API** - Kiali uses the OpenShift Container Platform API to fetch and resolve service mesh configurations. For example, Kiali queries the cluster API to retrieve definitions for namespaces, services, deployments, pods, and other entities. Kiali also makes queries to resolve relationships between the different cluster entities. The cluster API is also queried to retrieve Istio configurations like virtual services, destination rules, route rules, gateways, quotas, and so on.
 
-* **Tempo (optional)** - When you install Tempo, the Kiali console includes a tab to display distributed tracing data. Note that tracing data will not be available if you disable Istio's distributed tracing feature. Also note that user must have access to the namespace where the Istio control plane is installed to view tracing data.
+* **Tracing** - Tracing is optional, but when you install Red Hat OpenShift distributed tracing platform and Kiali is configured, the Kiali console includes a tab to display distributed tracing data, and tracing integration on the graph itself. Note that tracing data will not be available if you disable Istio’s distributed tracing feature. Also note that the user must have access to the namespace where the user needs to see tracing data.
 
-* **Grafana (optional)** - When available, the metrics pages of Kiali display links to direct the user to the same metric in Grafana. Note that user must have access to the namespace where the Istio control plane is installed to view links to the Grafana dashboard and view Grafana data.
+* **Grafana** - Grafana is optional. When available, the metrics pages of Kiali display links to direct the user to the same metric in Grafana. Note that Grafana is not supported as part of OpenShift Container Platform or OpenShift Service Mesh.
 
 ### Kiali Features
 
-The Kiali console is integrated with Red Hat Service Mesh and provides the following capabilities:
+The Kiali console is integrated with OpenShift Service Mesh and provides the following capabilities:
 
 * **Health** – Quickly identify issues with applications, services, or workloads.
 
-* **Traffic** – Visualize how your applications, services, or workloads communicate via the Kiali traffic graph.
+* **Traffic** – Visualize how your applications, services, or workloads communicate through the Kiali graph.
 
 * **Metrics** – Predefined metrics dashboards let you chart service mesh and application performance for Go, Node.js. Quarkus, Spring Boot, Thorntail and Vert.x. You can also create your own custom dashboards.
 
-* **Tracing** – Integration with Tempo lets you follow the path of a request through various microservices that make up an application.
+* **Tracing** – Integration with Red Hat OpenShift distributed tracing platform (Tempo) lets you follow the path of a request through various microservices that make up an application.
 
 * **Validations** – Perform advanced validations on the most common Istio objects (Destination Rules, Service Entries, Virtual Services, and so on).
 
 * **Mesh structure** – Detailed information about the Istio infrastructure status is displayed on the mesh page. It shows an infrastructure topology view with core and add-on components, their health, and how they are connected to each other.
 
-* **Configuration** – Optional ability to create, update and delete Istio routing configuration using wizards or directly in the YAML editor in the Kiali Console.
+* **Configuration** – Optional ability to create, update, and delete Istio routing configuration using wizards or directly in the YAML editor in the Kiali Console.
 
-## Installing the Kiali
+## Installing Kiali
 
 Kiali can be installed in two different ways: via the OpenShift web console or the OpenShift CLI.
 
@@ -59,7 +65,7 @@ Do not install the Community version of the Operator. The Community version is n
 
 **Prerequisites**
 
-* Access to the OpenShift web console with administrator access
+* Access to the OpenShift web console with administrator access.
 
 **Procedure**
 
@@ -67,7 +73,7 @@ Do not install the Community version of the Operator. The Community version is n
 
 2. Navigate to **Operators** -> **OperatorHub**.
 
-3. Type **Kiali** into the filter box to find the Kiali.
+3. Type **Kiali** into the filter box to find the Kiali Operator.
 
 4. Click **Kiali** to display information about the Operator.
 
@@ -106,17 +112,17 @@ Do not install the Community version of the Operator. The Community version is n
 
 4. Click **Log In With OpenShift**.
 
-    When you first log in to the Kiali Console, you see the **Overview** page which displays all the namespaces in your service mesh that you have permission to view. When there are multiple namespaces shown on the **Overview** page, Kiali shows namespaces with health or validation problems first.
+    When you first log in to the Kiali console, you see the **Overview** page which displays all the namespaces in your service mesh that you have permission to view. When there are multiple namespaces shown on the **Overview** page, Kiali shows namespaces with health or validation problems first.
 
     The tile for each namespace displays the number of labels, the **Istio Config** health, the number of and **Applications** health, and **Traffic** for the namespace. If you are validating the console installation and namespaces have not yet been added to the mesh, there might not be any data to display other than `istio-system`.
 
 ### Via the OpenShift CLI
 
-The following steps show how to install the Kiali via the OpenShift CLI.
+The following steps show how to install Kiali via the OpenShift CLI.
 
 **Prerequisites**
 
-* Access to the OpenShift cluster via CLI with administrator privileges
+* Access to the OpenShift cluster via CLI with administrator privileges.
 
 **Procedure**
 
@@ -144,7 +150,7 @@ The following steps show how to install the Kiali via the OpenShift CLI.
     oc wait deployment/kiali-operator -n openshift-operators --for=condition=available --timeout=600s
     ```
 
-3. Once the Kiali operator is installed, create a Kiali custom resource to install the Kiali server.
+3. Once the Kiali Operator is installed, create a Kiali custom resource to install the Kiali server.
 
     ```yaml
     cat <<EOM | oc apply -f -
@@ -159,7 +165,7 @@ The following steps show how to install the Kiali via the OpenShift CLI.
     [!NOTE]
     The `openshift` authentication strategy is the only supported authentication configuration when Kiali is deployed with OpenShift Service Mesh (OSSM). The `openshift` strategy controls access based on the individual’s role-based access control (RBAC) roles of the OpenShift.
 
-    By default, the Kiali Operator will install the Kiali Server whose version is the same as the operator itself. You can ask the operator to install an earlier version of the Kiali Server by specifying the “spec.version” field to indicate which version of the Kiali Server to install (check the documentation for the valid versions that are supported by the operator and which Istio versions work with which Kiali versions):
+    By default, the Kiali Operator will install the Kiali Server whose version is the same as the operator itself. You can ask the operator to install an earlier version of the Kiali Server by specifying the `spec.version` field to indicate which version of the Kiali Server to install (check the documentation for the valid versions that are supported by the operator and which Istio versions work with which Kiali versions):
 
     ```yaml
     cat <<EOM | oc apply -f -
@@ -221,7 +227,7 @@ The following steps show how to integrate Kiali with user-workload monitoring.
 
 * OpenShift Monitoring has been configured with Service Mesh. See "Configuring OpenShift Monitoring with Service Mesh".
 
-* Kiali 2.4 is installed.
+* Kiali Operator 2.4 is installed.
 
 **Procedure**
 
@@ -244,7 +250,7 @@ The following steps show how to integrate Kiali with user-workload monitoring.
       namespace: istio-system
     ```
 
-2. Create a Kiali resource and point it to your Istio instance:
+2. Create a Kiali custom resource and point it to your Istio instance:
 
     **Example Kiali resource configuration**
 
