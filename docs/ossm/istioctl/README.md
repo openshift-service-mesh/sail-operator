@@ -27,7 +27,7 @@ operators to debug and diagnose Istio service mesh deployments.
 1. Add `istioctl` client to your path.
 
     ```bash
-    export PATH=$PATH:$PWD
+    export PATH=$PWD:$PATH
     ```
 
 1. Confirm that the `istioctl` client version and the Istio control plane 
