@@ -67,6 +67,8 @@ In this procedure, we will use a proper canary upgrade with gradual migration of
 
     Here we are not using any `discoverySelectors` so the control plane will have access to all namespaces. In case you want to define `discoverySelectors`, keep in mind that all data plane namespaces you are planning to migrate from 2.6 must be matched.
 
+    > **_NOTE:_** For simplicity, we are using a minimal example for Istio resource. Read [SMCP to Istio mapping](#TODO) to see how to transform fields used in SMCP resource to fields in Istio resource.
+
     ```yaml
    apiVersion: sailoperator.io/v1alpha1
    kind: Istio
@@ -162,6 +164,8 @@ In this procedure, we will use a proper canary upgrade with gradual migration of
     Here we are not using any `discoverySelectors` so the control plane will have access to all namespaces. In case you want to define `discoverySelectors`, keep in mind that all data plane namespaces you are planning to migrate from 2.6 must be matched.
 
     We don't want the new control plane to inject proxies to workloads in namespaces with `istio-injection=enabled` label at this point so we can't use `default` name and we can't create `default` revision tag at this point.
+
+    > **_NOTE:_** For simplicity, we are using a minimal example for Istio resource. Read [SMCP to Istio mapping](#TODO) to see how to transform fields used in SMCP resource to fields in Istio resource.
 
     ```yaml
    apiVersion: sailoperator.io/v1alpha1
@@ -279,6 +283,8 @@ In this procedure it's expected that all 2.6 data plane namespaces have `istio-i
     Here we are not using any `discoverySelectors` so the control plane will have access to all namespaces. In case you want to define `discoverySelectors`, keep in mind that all data plane namespaces you are planning to migrate from 2.6 must be matched.
 
     Also note that `default` name with `InPlace` update strategy is used which allows usage of the `istio-injection=enabled` label without a need for a `default` `IstioRevisionTag`. In case you want to use different name or `RevisionBased` update strategy, you will have to configure `default` `IstioRevisionTag`. See procedures above.
+
+    > **_NOTE:_** For simplicity, we are using a minimal example for Istio resource. Read [SMCP to Istio mapping](#TODO) to see how to transform fields used in SMCP resource to fields in Istio resource.
 
     ```yaml
    apiVersion: sailoperator.io/v1alpha1
