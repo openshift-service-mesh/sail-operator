@@ -125,7 +125,7 @@ oc create ns istio-system-tenant-a
          discoverySelectors:
            - matchLabels:
                tenant: tenant-a
-   #     extensionProviders:  # uncomment and update according to your tracing/matrix configuration if used
+   #     extensionProviders:  # uncomment and update according to your tracing/metrics configuration if used
    #       - name: prometheus
    #         prometheus: {}
    #       - name: otel
