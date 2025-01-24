@@ -65,5 +65,5 @@ at the terminal:
 | upgrade                       | Upgrade Istio control plane in-place                                                   | :x:                | see [Upgrade](../../README.md#update-strategy)                             |
 | validate, v                   | Validate Istio policy and rules files                                                  | :white_check_mark: |                                                                            |
 | version                       | Prints out build version information                                                   | :white_check_mark: |                                                                            |
-| waypoint                      | Manage waypoint configuration                                                          | :x:                | None                                                                       |
-| ztunnel-config                | Update or retrieve current Ztunnel configuration.                                      | :x:                | None                                                                       |
+| waypoint                      | Manage waypoint configuration                                                          | :white_check_mark: |                                                                            |
+| ztunnel-config                | Update or retrieve current Ztunnel configuration.                                      | :white_check_mark: |                                                                            |
