@@ -23,7 +23,7 @@ The following menu options are available under **Service Mesh** category:
 * **Istio config** for a list of all Istio configuration files in your mesh, with a column that provides a quick way to know if the configuration for each resource is valid.
 * **Mesh** for detailed information about the Istio infrastructure status. It shows an infrastructure topology view with core and add-on components, their health, and how they are connected to each other.
 
-Under OpenShift **Workloads** details page, the OSSMC plugin adds a **Service Mesh** tab that contains the following subtabs:
+Under the OpenShift **Workloads** details page, the OSSMC plugin adds a **Service Mesh** tab that contains the following subtabs:
 
 * **Overview** subtab provides a summary of the selected workload including a localized topology graph showing the workload with all inbound and outbound edges and nodes
 * **Traffic** subtab displays information about all inbound and outbound traffic to the workload.
