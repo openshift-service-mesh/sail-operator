@@ -66,8 +66,11 @@ The following steps show how to install the OSSMC plugin via the OpenShift web c
 **Procedure**
 
 1. Navigate to **Installed Operators**.
-2. Click **Kiali Operator**.
+
+2. Click the **Kiali Operator** item to access to the operator details page.
+
 3. Click **Create instance** on the **Red Hat OpenShift Service Mesh Console** tile. Another way is to click **Create OSSMConsole** button under the **OpenShift Service Mesh Console** tab.
+
 4. Use the **Create OSSMConsole** form to create an instance of the `OSSMConsole` custom resource (CR).
 
     * **Name** and **Version** are required fields.
@@ -76,6 +79,7 @@ The following steps show how to install the OSSMC plugin via the OpenShift web c
     The **Version** field must match the `spec.version` field in your Kiali CR. If the versions do not match, OSSMC will not work properly. In case the **Version** value is the string "default", the Kiali Operator will install OSSMC whose version is the same as the operator itself.
 
 5. Click **Create**.
+
 6. Once the OpenShift Console UI detects the availability of the OSSM Console plugin, a message will appear in the OpenShift Console asking you to refresh it. You can use OSSMC once you refresh the OpenShift Console UI.
 
 ### Install via the OpenShift CLI
@@ -128,6 +132,7 @@ The following steps show how to install the OSSM plugin via the OpenShift CLI.
     ```
 
 2. Go to the OpenShift web console.
+
 3. If the OSSMC plugin is not availble yet, a message will appear in the OpenShift Console asking to refresh once the OSSM Console plugin is ready. You can use OSSMC once you refresh the OpenShift Console UI.
 
 ## Uninstalling the OpenShift Service Mesh Console plugin
@@ -144,9 +149,13 @@ The following steps show how to uninstall the OSSMC plugin via the OpenShift web
 **Procedure**
 
 1. Navigate to **Installed Operators**.
-2. Click **Kiali Operator**.
+
+2. Click the **Kiali Operator** item to access to the operator details page.
+
 3. Select the **OpenShift Service Mesh Console** tab.
+
 4. Click **Delete OSSMConsole** option from the ossmconsole entry menu.
+
 5. Confirm the delete in the modal confirmation message.
 
 ### Uninstall via the OpenShift CLI
