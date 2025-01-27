@@ -25,7 +25,7 @@ The following menu options are available under **Service Mesh** category:
 
 Under the OpenShift **Workloads** details page, the OSSMC plugin adds a **Service Mesh** tab that contains the following subtabs:
 
-* **Overview** subtab provides a summary of the selected workload including a localized topology graph showing the workload with all inbound and outbound edges and nodes
+* **Overview** subtab provides a summary of the selected workload, including a localized topology graph showing the workload with all inbound and outbound edges and nodes.
 * **Traffic** subtab displays information about all inbound and outbound traffic to the workload.
 * **Logs** subtab shows the logs for the workload's containers
 
