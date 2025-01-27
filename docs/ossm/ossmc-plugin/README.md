@@ -84,7 +84,7 @@ The following steps show how to install the OSSMC plugin via the OpenShift web c
 
 ### Install via the OpenShift CLI
 
-The following steps show how to install the OSSM plugin via the OpenShift CLI.
+The following steps show how to install the OSSMC plugin via the OpenShift CLI.
 
 **Prerequisites**
 
