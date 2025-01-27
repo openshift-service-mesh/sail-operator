@@ -16,7 +16,7 @@ The OSSMC plugin only supports a single Kiali instance. Whether that Kiali insta
 
 The OSSMC plugin provides a new category, **Service Mesh**, in the main OpenShift web console navigation.
 
-Following menu options are available under **Service Mesh** category:
+The following menu options are available under **Service Mesh** category:
 
 * **Overview** for a summary of your mesh displayed as cards that represent the namespaces in the mesh
 * **Traffic Graph** for a full topology view of your mesh represented by nodes and edges, each node representing a component of the mesh and each edge representing traffic flowing through the mesh between components
