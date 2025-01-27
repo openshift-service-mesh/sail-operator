@@ -21,7 +21,7 @@ Following menu options are available under **Service Mesh** category:
 * **Overview** for a summary of your mesh displayed as cards that represent the namespaces in the mesh
 * **Traffic Graph** for a full topology view of your mesh represented by nodes and edges, each node representing a component of the mesh and each edge representing traffic flowing through the mesh between components
 * **Istio config** for a list of all Istio configuration files in your mesh with a column that provides a quick way to know if the configuration for each resource is valid
-* **Mesh** for a detailed information about the Istio infrastructure status. It shows an infrastructure topology view with core and add-on components, their health, and how they are connected to each other.
+* **Mesh** for detailed information about the Istio infrastructure status. It shows an infrastructure topology view with core and add-on components, their health, and how they are connected to each other.
 
 Under OpenShift **Workloads** details page, the OSSMC plugin adds a **Service Mesh** tab that contains the following subtabs:
 
