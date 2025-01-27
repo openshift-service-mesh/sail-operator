@@ -18,7 +18,7 @@ Kiali also provides the ability to validate your Istio configurations, such as g
 
 Kiali architecture is composed of two components: the Kiali server and the Kiali console.
 
-* **Kiali server (back end)** – This component runs in the container application platform and communicates with the service mesh components, retrieves and processes data, and exposes this data to the console. The Kiali server does not need storage. When deploying the Server to a cluster, configurations are set in config maps and secrets.
+* **Kiali server (back end)** – This component runs in the container application platform and communicates with the service mesh components, retrieves and processes data, and exposes this data to the console. The Kiali server does not need storage. When deploying the server to a cluster, configurations are set in config maps and secrets.
 
 * **Kiali console (front end)** – The Kiali console is a web application. The console queries the Kiali Server for data to present it to the user.
 
@@ -54,7 +54,7 @@ The Kiali console is integrated with OpenShift Service Mesh and provides the fol
 
 ## Installing Kiali
 
-Kiali can be installed in two different ways: via the OpenShift web console or the OpenShift CLI.
+Kiali can be installed in two different ways: using the OpenShift web console or the OpenShift CLI.
 
 ### Via the OpenShift web console
 
@@ -66,6 +66,8 @@ Do not install the Community version of the Operator. The Community version is n
 **Prerequisites**
 
 * Access to the OpenShift web console with administrator access.
+* Red Hat OpenShift Service Mesh (OSSM) is installed.
+* `Istio` control plane from OSSM 3.0 is installed.
 
 **Procedure**
 
@@ -92,11 +94,11 @@ Do not install the Community version of the Operator. The Community version is n
 
 10. The **Installed Operators** page displays the Kiali Operator's installation progress.
 
-11. Once the Kiali operator is installed successfully, click the Kiali Operator item to access to the operator details page.
+11. Once the Kiali operator is installed successfully, click the **Kiali Operator** item to access to the operator details page.
 
-12. Select the **Kiali** tab and click **Create Kiali** button.
+12. Click **Create instance** on the **Kiali** tile. Another way is to click **Create Kiali** button under the **Kiali** tab.
 
-13. Change any default Kiali settings in the **Form** or **Yaml** view if needed, and click **Create** button
+13. Change any default Kiali settings in the **Form** or **Yaml** view if needed, and click **Create** button.
 
 14. The new Kiali instance appears in the Kialis list with the installation status. When the Kiali condition status value is running and successful, Kiali application can be accessed.
 
@@ -123,6 +125,8 @@ The following steps show how to install Kiali via the OpenShift CLI.
 **Prerequisites**
 
 * Access to the OpenShift cluster via CLI with administrator privileges.
+* Red Hat OpenShift Service Mesh (OSSM) is installed.
+* `Istio` control plane from OSSM 3.0 is installed.
 
 **Procedure**
 
@@ -339,7 +343,7 @@ You can integrate OpenShift distributed tracing platform with Kiali, which enabl
 
 2. Navigate to the Kiali UI.
 
-3. Navigate to **Workload** → **Traces** tab to see traces in the Kiali UI.
+3. Navigate to **Workload** -> **Traces** tab to see traces in the Kiali UI.
 
 ## Viewing service mesh data in the Kiali console
 
