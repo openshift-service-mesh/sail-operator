@@ -130,5 +130,5 @@ For `MultiTenant` meshes, follow [these instructions](./multi-tenancy/README.md)
 
 ## Post-migration Checklist
 
-After the migration is done, you can visually check whether all data plane namespaces are migrated to the newer version of OSSM by checking it in Kiali Mesh page.
+After the migration is done, you can optionally verify whether all data plane namespaces are migrated to the newer version of OSSM by checking it in Kiali Mesh page.
 More information about the usage of Kiali Mesh page can be found in [this documentation](https://kiali.io/docs/features/istio-component-status/#control-plane-namespace)
