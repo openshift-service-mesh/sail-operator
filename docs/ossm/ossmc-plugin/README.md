@@ -27,7 +27,7 @@ Under the OpenShift **Workloads** details page, the OSSMC plugin adds a **Servic
 
 * **Overview** subtab provides a summary of the selected workload, including a localized topology graph showing the workload with all inbound and outbound edges and nodes.
 * **Traffic** subtab displays information about all inbound and outbound traffic to the workload.
-* **Logs** subtab shows the logs for the workload's containers
+* **Logs** subtab shows the logs for the workload's containers.
 
   * You can view container logs individually or in a unified fashion, ordered by log time. This is especially helpful to see how the Envoy sidecar proxy logs relate to your workload's application logs.
   * You can enable the tracing span integration which then allows you to see which logs correspond to trace spans.
