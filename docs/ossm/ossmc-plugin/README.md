@@ -160,7 +160,7 @@ The following steps show how to uninstall the OSSMC plugin via the OpenShift web
 
 ### Uninstall via the OpenShift CLI
 
-The following steps show how to uninstall the OSSM plugin via the OpenShift CLI.
+The following steps show how to uninstall the OSSMC plugin via the OpenShift CLI.
 
 **Procedure**
 
