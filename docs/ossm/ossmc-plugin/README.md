@@ -140,7 +140,7 @@ The following steps show how to install the OSSMC plugin via the OpenShift CLI.
 The OSSMC plugin can be uninstalled in two ways: using the OpenShift web console or the OpenShift CLI.
 
 [!NOTE]
-If you intend to also uninstall the Kiali Operator provided by Red Hat, you must first uninstall the OSSMC plugin and then uninstall the Operator. If you uninstall the Operator before ensuring the `OSSMConsole` CR is deleted then you may have difficulty removing that CR and its namespace. If this occurs then you must manually remove the finalizer on the CR in order to delete it and its namespace. You can do this using: `$ oc patch ossmconsoles <CR name> -n <CR namespace> -p '{"metadata":{"finalizers": []}}' --type=merge`.
+If you intend to also uninstall the Kiali Operator provided by Red Hat, you must first uninstall the OSSMC plugin, then uninstall Kiali and finally uninstall the Operator. If you uninstall the Operator before ensuring the `OSSMConsole` and `Kiali` CRs are deleted then you may have difficulty removing that CRs and their namespaces. If this occurs then you must manually remove the finalizer on the CR in order to delete it and its namespace. You can do this using: `$ oc patch <CR type> <CR name> -n <CR namespace> -p '{"metadata":{"finalizers": []}}' --type=merge`, where CR type is `kialis` or `ossmconsoles`.
 
 ### Uninstall via the OpenShift web console
 
