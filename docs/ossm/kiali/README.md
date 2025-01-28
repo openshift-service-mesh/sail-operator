@@ -130,7 +130,7 @@ The following steps show how to install Kiali via the OpenShift CLI.
 
 **Procedure**
 
-1. Create a Subscription object in the openshift-operators namespace:
+1. Create a Subscription object in the `openshift-operators` namespace:
 
     ```yaml
     cat <<EOM | oc apply -f -
@@ -471,3 +471,66 @@ Kiali lets you customize the charts by choosing the charted dimensions. Kiali ca
 5. If necessary, use the filter to find the application, workload, or service whose logs you want to view.  Click the **Name**.
 
 6. On the **Application Detail**, **Workload Details**, or **Service Details** page, click either the **Inbound Metrics** or **Outbound Metrics** tab to view the metrics.
+
+## Uninstalling Kialli
+
+Kiali can be uninstalled in two ways: using the OpenShift web console or the OpenShift CLI.
+
+[!NOTE]
+If you intend to also uninstall the Kiali Operator provided by Red Hat, you must first uninstall Kiali and then uninstall the Operator. If you uninstall the Operator before ensuring the `Kiali` CR is deleted then you may have difficulty removing that CR and its namespace. If this occurs then you must manually remove the finalizer on the CR in order to delete it and its namespace. You can do this using: `$ oc patch kialis <CR name> -n <CR namespace> -p '{"metadata":{"finalizers": []}}' --type=merge`.
+
+### Uninstall via the OpenShift web console
+
+The following steps show how to uninstall Kiali via the OpenShift web console.
+
+**Procedure**
+
+1. Navigate to **Installed Operators**.
+
+2. Click the **Kiali Operator** item to access to the operator details page.
+
+3. Select the **Kiali** tab.
+
+4. Click **Delete Kiali** option from the kiali entry menu.
+
+5. Confirm the delete in the modal confirmation message.
+
+(Optional) To uninstall the Kiali Operator:
+
+1. Navigate to **Installed Operators**.
+
+2. Click **Uninstall Operator** option from the kiali operator entry menu.
+
+3. Confirm the delete in the modal confirmation message.
+
+### Uninstall via the OpenShift CLI
+
+The following steps show how to uninstall Kiali via the OpenShift CLI.
+
+**Procedure**
+
+1. Remove the `Kiali` custom resource (CR) by running the following command:
+
+    ```console
+    oc delete kialis <custom_resource_name> -n <custom_resource_namespace>
+    ```
+
+2. Verify all CRs are deleted from all namespaces by running the following command:
+
+    ```console
+    for r in $(oc get kialis --ignore-not-found=true --all-namespaces -o custom-columns=NS:.metadata.namespace,N:.metadata.name --no-headers | sed 's/  */:/g'); do oc delete kialis -n $(echo $r|cut -d: -f1) $(echo $r|cut -d: -f2); done
+    ```
+
+(Optional) To uninstall the Kiali Operator:
+
+1. Remove the `kiali-ossm` subscription from the `openshift-operators` namespace by running the following command:
+
+    ```console
+    oc delete subscription kiali-ossm -n openshift-operators
+    ```
+
+2. Remove the `kiali-operator` clusterserviceversion from the `openshift-operators` namespace by running the following command:
+
+    ```console
+    oc delete clusterserviceversion kiali-operator.v<kiali_operator_version> -n openshift-operators
+    ```
