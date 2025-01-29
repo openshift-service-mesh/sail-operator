@@ -26,8 +26,11 @@ BLANK='\033[0m'
 WARNING_EMOJI='\u2757'
 SPACER="-----------------------"
 
+# TODO: autodetect latest versions
 LATEST_VERSION=v2.6
 LATEST_CHART_VERSION=2.6.4
+LATEST_KIALI_VERSION=2.4.0
+
 TOTAL_WARNINGS=0
 
 SKIP_PROXY_CHECK=false
@@ -56,12 +59,39 @@ HELPMSG
   esac
 done
 
+print_section() {
+    cat <<EOM
+****************************************************
+*
+* $1
+*
+****************************************************
+EOM
+}
+
 warning() {
   echo -e "${YELLOW}${WARNING_EMOJI}$1${BLANK}"
 }
 
 success() {
   echo -e "${GREEN}$1${BLANK}"
+}
+
+add_warning() {
+    ((TOTAL_WARNINGS+=1))
+    warning "$1"
+}
+
+check_for_new_warnings() {
+    local previous_warnings=$1
+    local success_message=$2
+
+    local new_warnings=$((TOTAL_WARNINGS - previous_warnings))
+    if [ "$new_warnings" -ne 0 ]; then
+        echo -e "\n${YELLOW}$new_warnings warnings${BLANK}"
+    else
+        success "$success_message"
+    fi
 }
 
 if ! command -v jq > /dev/null 2>&1
@@ -86,56 +116,48 @@ check_smcp() {
     local name=$1
     local namespace=$2
 
-    local num_warnings=0
+    local num_warnings=$TOTAL_WARNINGS
 
-    echo -e "$SPACER\nServiceMeshControlPlane\nName: ${BLUE}$name${BLANK}\nNamespace: ${BLUE}$namespace${BLANK}\n"
+    echo -e "ServiceMeshControlPlane\nName: ${BLUE}$name${BLANK}\nNamespace: ${BLUE}$namespace${BLANK}\n"
 
     local smcp
     smcp=$(oc get smcp "$name" -n "$namespace" -o json)
 
     if [ "$(echo "$smcp" | jq -r '.spec.security.manageNetworkPolicy')" != "false" ]; then
-        warning "Network Policy is still enabled. Please set '.spec.security.manageNetworkPolicy' = false"
-        ((num_warnings+=1))
+        add_warning "Network Policy is still enabled. Please set '.spec.security.manageNetworkPolicy' = false"
     fi
 
     local current_version
     current_version=$(echo "$smcp" | jq -r '.spec.version')
     if [ "$current_version" != "$LATEST_VERSION" ]; then
-        warning "Your ServiceMeshControlPlane is not on the latest version. Current version: '$current_version'. Latest version: '$LATEST_VERSION'. Please upgrade your ServiceMeshControlPlane to the latest version."
-        ((num_warnings+=1))
+        add_warning "Your ServiceMeshControlPlane is not on the latest version. Current version: '$current_version'. Latest version: '$LATEST_VERSION'. Please upgrade your ServiceMeshControlPlane to the latest version."
     fi
 
     local current_chart_version
     current_chart_version=$(echo "$smcp" | jq -r '.status.chartVersion')
     if [ "$current_chart_version" != "$LATEST_CHART_VERSION" ]; then
-        warning "Your ServiceMeshControlPlane does not have the latest z-stream release. If your ServiceMeshControlPlane is already on the latest version, please ensure your Service Mesh operator is also updated to the latest version. Current version: '$current_chart_version'. Latest version: '$LATEST_CHART_VERSION'."
-        ((num_warnings+=1))
+        add_warning "Your ServiceMeshControlPlane does not have the latest z-stream release. If your ServiceMeshControlPlane is already on the latest version, please ensure your Service Mesh operator is also updated to the latest version. Current version: '$current_chart_version'. Latest version: '$LATEST_CHART_VERSION'."
     fi
 
     # Addons
     if [ "$(echo "$smcp" | jq -r '.spec.addons.prometheus.enabled')" != "false" ]; then
-        warning "Prometheus addon is still enabled. Please disable the addon by setting '.spec.addons.prometheus.enabled' = false"
-        ((num_warnings+=1))
+        add_warning "Prometheus addon is still enabled. Please disable the addon by setting '.spec.addons.prometheus.enabled' = false"
     fi
     
     if [ "$(echo "$smcp" | jq -r '.spec.addons.kiali.enabled')" != "false" ]; then
-        warning "Kiali addon is still enabled. Please disable the addon by setting '.spec.addons.kiali.enabled' = false"
-        ((num_warnings+=1))
+        add_warning "Kiali addon is still enabled. Please disable the addon by setting '.spec.addons.kiali.enabled' = false"
     fi
     
     if [ "$(echo "$smcp" | jq -r '.spec.addons.grafana.enabled')" != "false" ]; then
-        warning "Grafana addon is enabled. Grafana is no longer supported with Service Mesh 3.x."
-        ((num_warnings+=1))
+        add_warning "Grafana addon is enabled. Grafana is no longer supported with Service Mesh 3.x."
     fi
 
     if [ "$(echo "$smcp" | jq -r '.spec.tracing.type')" != "None" ]; then
-        warning "Tracing addon is still enabled. Please disable the addon by setting '.spec.tracing.type' = None"
-        ((num_warnings+=1))
+        add_warning "Tracing addon is still enabled. Please disable the addon by setting '.spec.tracing.type' = None"
     fi
 
     if [ "$(echo "$smcp" | jq -r '.spec.gateways.enabled')" != "false" ]; then
-        warning "Gateways are still enabled. Please disable gateways by setting '.spec.gateways.enabled' = false"
-        ((num_warnings+=1))
+        add_warning "Gateways are still enabled. Please disable gateways by setting '.spec.gateways.enabled' = false"
     fi
 
     # IOR is included in the above check since if this top level gateways field
@@ -143,44 +165,32 @@ check_smcp() {
     # we're checking it here to remind users to disable it.
     # Default is 'false' so only log a warning if someone has set it to 'true'.
     if [ "$(echo "$smcp" | jq -r '.spec.gateways.openshiftRoute.enabled')" == "true" ]; then
-        warning "IOR is still enabled. Please disable IOR gateways by setting '.spec.gateways.openshiftRoute.enabled' = false"
-        ((num_warnings+=1))
+        add_warning "IOR is still enabled. Please disable IOR gateways by setting '.spec.gateways.openshiftRoute.enabled' = false"
     fi
 
-    if [ "$num_warnings" -gt 0 ]; then
-        ((TOTAL_WARNINGS += num_warnings))
-        echo -e "\n${YELLOW}$num_warnings warnings${BLANK}"
-    else
-        success "No issues detected with the ServiceMeshControlPlane $name/$namespace."
-    fi
-}
-
-check_federation() {
-    echo -e "Checking for federation resources...\n"
-    local num_warnings=0
-
-    if [ "$(oc get exportedservicesets.federation.maistra.io -A -o jsonpath='{.items}' | jq 'length')" != 0 ]; then
-        warning "Detected federation resources 'exportedservicesets'. Migrating federation to 3.0 is not supported. Please remove your federation resources."
-        ((num_warnings+=1))
-    fi
-
-    if [ "$(oc get importedservicesets.federation.maistra.io -A -o jsonpath='{.items}' | jq 'length')" != 0 ]; then
-        warning "Detected federation resources 'importedservicesets'. Migrating federation to 3.0 is not supported. Please remove your federation resources."
-        ((num_warnings+=1))
-    fi
-
-    if [ "$num_warnings" -gt 0 ]; then
-        ((TOTAL_WARNINGS += num_warnings))
-    else
-        success "No federation resources found in the cluster."
-    fi
-
+    check_for_new_warnings $num_warnings "No issues detected with the ServiceMeshControlPlane $name/$namespace."
     echo -e "$SPACER"
 }
 
+check_federation() {
+    print_section "Federation"
+    local num_warnings=$TOTAL_WARNINGS
+
+    if [ "$(oc get exportedservicesets.federation.maistra.io -A -o jsonpath='{.items}' | jq 'length')" != 0 ]; then
+        add_warning "Detected federation resources 'exportedservicesets'. Migrating federation to 3.0 is not supported. Please remove your federation resources."
+    fi
+
+    if [ "$(oc get importedservicesets.federation.maistra.io -A -o jsonpath='{.items}' | jq 'length')" != 0 ]; then
+        add_warning "Detected federation resources 'importedservicesets'. Migrating federation to 3.0 is not supported. Please remove your federation resources."
+    fi
+
+    check_for_new_warnings $num_warnings "No federation resources found in the cluster."
+}
+
 check_proxies_updated() {
+    print_section "Proxies"
     echo -e "Checking proxies are up to date...\n"
-    local num_warnings=0
+    local num_warnings=$TOTAL_WARNINGS
     # Find pods and check each one.
     # Format is name/namespace/version.
     for pod in $(oc get pods -A -l maistra-version -o jsonpath='{range .items[*]}{.metadata.name}/{.metadata.namespace}/{.metadata.labels.maistra-version}{" "}{end}'); do
@@ -192,30 +202,82 @@ check_proxies_updated() {
         local sanitized_latest_version
         sanitized_latest_version=$(cut -c2- <<< "$LATEST_VERSION")
         if [ "$sanitized_version" != "$sanitized_latest_version" ]; then
-            warning "pod: $name/$namespace is running a proxy at an older version: $sanitized_version Please update your ServiceMeshControlPlane to the latest version: ${LATEST_VERSION} and then restart this workload."
-            ((num_warnings+=1))
+            add_warning "pod: $name/$namespace is running a proxy at an older version: $sanitized_version Please update your ServiceMeshControlPlane to the latest version: ${LATEST_VERSION} and then restart this workload."
         fi
     done
 
-    if [ "$num_warnings" -gt 0 ]; then
-        ((TOTAL_WARNINGS += num_warnings))
-    else
-        success "All proxies are on the latest version."
-    fi
-
-    echo -e "$SPACER"
+    check_for_new_warnings $num_warnings "All proxies are on the latest version."
 }
 
 check_smcps() {
-    echo -e "Checking ServiceMeshControlPlanes...\n"
+    print_section "ServiceMeshControlPlanes"
     # Find smcps and check each one.
     # Format is name/namespace.
     for smcp in $(oc get smcp -A -o jsonpath='{range .items[*]}{.metadata.name}/{.metadata.namespace}{" "}{end}'); do
         IFS="/" read -r name namespace <<< "$smcp"
         check_smcp "$name" "$namespace"
     done
+}
 
+check_kiali() {
+    local name=$1
+    local namespace=$2
+
+    local num_warnings=$TOTAL_WARNINGS
+
+    echo -e "Kiali\nName: ${BLUE}$name${BLANK}\nNamespace: ${BLUE}$namespace${BLANK}\n"
+
+    local kiali
+    kiali=$(oc get kiali "$name" -n "$namespace" -o json)
+
+    local current_version
+    current_version=$(echo "$kiali" | jq -r '.spec.version')
+    if [[ "$current_version" != "$LATEST_KIALI_VERSION" && "$current_version" != "default" ]]; then
+        add_warning "Your Kiali is not on the latest version. Current version: '$current_version'. Latest version: '$LATEST_KIALI_VERSION'. Please upgrade your Kiali to the latest version."
+    fi
+
+    check_for_new_warnings $num_warnings "Kiali $name/$namespace is on the latest version."
     echo -e "$SPACER"
+}
+
+check_kialis() {
+    print_section "Kiali"
+
+    if ! oc get crds kialis.kiali.io > /dev/null 2>&1
+    then
+        echo "Kiali CRD is not detected. Skipping Kiali checks..."
+        return
+    fi
+    # Find smcps and check each one.
+    # Format is name/namespace.
+    for smcp in $(oc get kiali -A -o jsonpath='{range .items[*]}{.metadata.name}/{.metadata.namespace}{" "}{end}'); do
+        IFS="/" read -r name namespace <<< "$smcp"
+        check_kiali "$name" "$namespace"
+    done
+
+    local num_warnings=$TOTAL_WARNINGS
+
+    # Check Kiali operator
+    # Find kiali-ossm subscription and then use that to find the operator/csv namespace
+    local operator_namespace
+    operator_namespace=$(kubectl get subscriptions.operators.coreos.com -A -o jsonpath='{.items[?(@.metadata.name=="kiali-ossm")].metadata.namespace}')
+    local operator_name
+    operator_name=$(kubectl get csv -n "$operator_namespace" -o jsonpath='{.items[*].metadata.name}' | awk '{ if (index($1, "kiali-operator") != 0) print $1 }')
+    local operator_version
+    operator_version=$(kubectl get csv -n "$operator_namespace" "$operator_name" -o jsonpath='{.spec.version}')
+    if [ "$operator_version" != "$LATEST_KIALI_VERSION" ]; then
+        add_warning "Your Kiali operator is not on the latest version. Current version: '$operator_version'. Latest version: '$LATEST_KIALI_VERSION'. Please upgrade your Kiali operator to the latest version."
+    fi
+
+    check_for_new_warnings $num_warnings "Kiali operator is up to date"
+}
+
+check_istio_crds() {
+    print_section "Istio CRDs"
+    # Assumes that if any one of the CRDs has a v1 then the rest do.
+    if [ "$(kubectl get crds -l chart=istio -o json | jq '.items[] | select(.spec.versions[].name == "v1") | .metadata.name')" == "" ]; then
+        add_warning "v1 istio CRDs not found. Ensure you have installed the OpenShift Service Mesh 3 operator."
+    fi
 }
 
 check_smcps
@@ -223,8 +285,10 @@ check_federation
 if [ "$SKIP_PROXY_CHECK" != "true" ]; then
     check_proxies_updated
 fi
+check_kialis
+check_istio_crds
 
-echo -e "Summary\n"
+print_section "Summary"
 if [ "$TOTAL_WARNINGS" -eq 0 ]; then
     success "No issues detected. Proceed with the 2.6 --> 3.0 migration."
 else
