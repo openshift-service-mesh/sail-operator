@@ -248,10 +248,11 @@ check_kialis() {
         echo "Kiali CRD is not detected. Skipping Kiali checks..."
         return
     fi
-    # Find smcps and check each one.
+
+    # Find kialis and check each one.
     # Format is name/namespace.
-    for smcp in $(oc get kiali -A -o jsonpath='{range .items[*]}{.metadata.name}/{.metadata.namespace}{" "}{end}'); do
-        IFS="/" read -r name namespace <<< "$smcp"
+    for kiali in $(oc get kiali -A -o jsonpath='{range .items[*]}{.metadata.name}/{.metadata.namespace}{" "}{end}'); do
+        IFS="/" read -r name namespace <<< "$kiali"
         check_kiali "$name" "$namespace"
     done
 
