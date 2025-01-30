@@ -260,11 +260,11 @@ check_kialis() {
     # Check Kiali operator
     # Find kiali-ossm subscription and then use that to find the operator/csv namespace
     local operator_namespace
-    operator_namespace=$(kubectl get subscriptions.operators.coreos.com -A -o jsonpath='{.items[?(@.metadata.name=="kiali-ossm")].metadata.namespace}')
+    operator_namespace=$(oc get subscriptions.operators.coreos.com -A -o jsonpath='{.items[?(@.metadata.name=="kiali-ossm")].metadata.namespace}')
     local operator_name
-    operator_name=$(kubectl get csv -n "$operator_namespace" -o jsonpath='{.items[*].metadata.name}' | awk '{ if (index($1, "kiali-operator") != 0) print $1 }')
+    operator_name=$(oc get csv -n "$operator_namespace" -o jsonpath='{.items[*].metadata.name}' | awk '{ if (index($1, "kiali-operator") != 0) print $1 }')
     local operator_version
-    operator_version=$(kubectl get csv -n "$operator_namespace" "$operator_name" -o jsonpath='{.spec.version}')
+    operator_version=$(oc get csv -n "$operator_namespace" "$operator_name" -o jsonpath='{.spec.version}')
     if [ "$operator_version" != "$LATEST_KIALI_VERSION" ]; then
         add_warning "Your Kiali operator is not on the latest version. Current version: '$operator_version'. Latest version: '$LATEST_KIALI_VERSION'. Please upgrade your Kiali operator to the latest version."
     fi
@@ -275,7 +275,7 @@ check_kialis() {
 check_istio_crds() {
     print_section "Istio CRDs"
     # Assumes that if any one of the CRDs has a v1 then the rest do.
-    if [ "$(kubectl get crds -l chart=istio -o json | jq '.items[] | select(.spec.versions[].name == "v1") | .metadata.name')" == "" ]; then
+    if [ "$(oc get crds -l chart=istio -o json | jq '.items[] | select(.spec.versions[].name == "v1") | .metadata.name')" == "" ]; then
         add_warning "v1 istio CRDs not found. Ensure you have installed the OpenShift Service Mesh 3 operator."
     fi
 }
