@@ -14,13 +14,13 @@ When `spec.security.manageNetworkPolicy=true`, the following Network Policies ar
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: istio-istiod-default    # Name format: istio-istiod-<revision>
+  name: istio-istiod-basic      # Name format: istio-istiod-<revision>
   namespace: istio-system       # Your SMCP namespace
   labels:
     maistra-version: "2.6.5"    # Version label
     app: istiod                 # Identifies istiod component
     istio: pilot                # Identifies as Istio pilot component
-    istio.io/rev: default       # Revision identifier
+    istio.io/rev: basic         # Revision identifier
     release: istio              
   annotations:
     "maistra.io/internal": "true"
@@ -30,7 +30,7 @@ spec:
   podSelector:
     matchLabels:
       app: istiod
-      istio.io/rev: default
+      istio.io/rev: basic
   policyTypes:
     - Ingress
  ```
@@ -46,7 +46,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: istio-expose-route-default   # Name format: istio-expose-route-<revision>
+  name: istio-expose-route-basic     # Name format: istio-expose-route-<revision>
   namespace: istio-system            # Your SMCP or member namespace
   labels:
     maistra-version: "2.6.5"
@@ -61,6 +61,8 @@ spec:
     - namespaceSelector:    # Allows traffic from OpenShift ingress
         matchLabels:
           network.openshift.io/policy-group: ingress
+  policyTypes:
+    - Ingress
 ```
 
 ### 3. Default Mesh Network Policy
@@ -73,7 +75,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: istio-mesh-default        # Name format: istio-mesh-<revision>
+  name: istio-mesh-basic          # Name format: istio-mesh-<revision>
   namespace: istio-system         # Your SMCP or member namespace
   labels:
     maistra-version: "2.6.5"
@@ -84,7 +86,11 @@ spec:
   - from:
     - namespaceSelector:          # Only allows traffic from mesh members
       matchLabels:
-        maistra.io/member-of: istio-system     
+        maistra.io/member-of: istio-system
+  podSelector: {}
+  policyTypes:
+    - Ingress
+
 ```
 
 > **_NOTE:_** When recreating this Network Policy, the label `maistra.io/member-of: $SMCP_NS` must be replaced with a new label in the Network Policy and mesh namespaces labeled with the new label. This is because the aforementioned label was created automatically on namespaces by the SMCP. After migration is complete and the 2.6 mesh is removed, this label will be removed. 
@@ -114,6 +120,8 @@ spec:
       istio: ingressgateway
   ingress:
     - {}                                 # Empty rule allows all ingress traffic
+  policyTypes:
+    - Ingress
 ```
 
 ## How to Migrate Network Policies to 3.0
@@ -154,7 +162,7 @@ This can be tricky, as during the migration both control planes must have access
 
 To assist users in this situation, here is an example scenario with example Network Policies. 
 
-A user has a 2.6 control plane with the name `default` in the namespace `istio-system` and workloads in namespaces `httpbin-2` and `httbin-3`. They need to ensure Network Policies remain active to fulfill security obligations. 
+A user has a 2.6 control plane with the name `basic` in the namespace `istio-system` and workloads in namespaces `httpbin-2` and `httbin-3`. They need to ensure Network Policies remain active to fulfill security obligations. 
 In order to keep Network Policies, before they disable `manageNetworkPolicy` they create Policies:
 
 Istiod Network Policy in Mesh namespace
@@ -162,7 +170,7 @@ Istiod Network Policy in Mesh namespace
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: istiod-default
+  name: istiod-basic
   namespace: istio-system
 spec:
   ingress:
@@ -170,7 +178,7 @@ spec:
   podSelector:
     matchLabels:
       app: istiod
-      istio.io/rev: default
+      istio.io/rev: basic
   policyTypes:
     - Ingress
 ```
@@ -181,7 +189,7 @@ Expose Route Policy in Mesh namespace
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: expose-route-default
+  name: expose-route-basic
   namespace: istio-system
 spec:
   podSelector:
@@ -192,14 +200,17 @@ spec:
         - namespaceSelector:
             matchLabels:
               network.openshift.io/policy-group: ingress
+  policyTypes:
+    - Ingress
 ```
 
 Default Mesh Network Policy in Mesh namespace
+
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: istio-mesh-default
+  name: istio-mesh-basic
   namespace: istio-system
 spec:
   ingress:
@@ -207,6 +218,9 @@ spec:
         - namespaceSelector:
             matchLabels:
               service-mesh: "true"
+  podSelector: {}
+  policyTypes:
+    - Ingress
 ```
 
 Expose Route Network Policy for httpbin-2 namespace
@@ -214,7 +228,7 @@ Expose Route Network Policy for httpbin-2 namespace
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: istio-expose-route-default
+  name: istio-expose-route-basic
   namespace: httpbin-2
 spec:
   podSelector:
@@ -225,6 +239,8 @@ spec:
         - namespaceSelector:
             matchLabels:
               network.openshift.io/policy-group: ingress
+  policyTypes:
+    - Ingress
 ```
 
 Mesh Network Policy for httpbin-2 namespace
@@ -232,7 +248,7 @@ Mesh Network Policy for httpbin-2 namespace
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: istio-mesh-default
+  name: istio-mesh-basic
   namespace: httpbin-2
 spec:
   ingress:
@@ -240,6 +256,9 @@ spec:
         - namespaceSelector:
             matchLabels:
               service-mesh: "true"
+  podSelector: {}
+  policyTypes:
+    - Ingress
 ```
 
 Expose Route Network Policy for httpbin-3 namespace
@@ -258,6 +277,8 @@ spec:
         - namespaceSelector:
             matchLabels:
               network.openshift.io/policy-group: ingress
+  policyTypes:
+    - Ingress
 ```
 
 Mesh Network Policy for httpbin-3 namespace
@@ -273,6 +294,9 @@ spec:
         - namespaceSelector:
             matchLabels:
               service-mesh: "true"
+  podSelector: {}
+  policyTypes:
+    - Ingress
 ```
 
 Note that the user re-labeled the namespaces in the mesh with label `service-mesh: "true"` and included that in the network policies accordingly, because the label `maistra.io/member-of: istio-system` will be removed from the namespaces during migration.
