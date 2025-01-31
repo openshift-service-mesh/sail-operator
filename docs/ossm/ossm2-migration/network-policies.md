@@ -217,7 +217,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              service-mesh: "true"
+              service-mesh: enabled
   podSelector: {}
   policyTypes:
     - Ingress
@@ -255,7 +255,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              service-mesh: "true"
+              service-mesh: enabled
   podSelector: {}
   policyTypes:
     - Ingress
@@ -293,13 +293,13 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              service-mesh: "true"
+              service-mesh: enabled
   podSelector: {}
   policyTypes:
     - Ingress
 ```
 
-Note that the user re-labeled the namespaces in the mesh with label `service-mesh: "true"` and included that in the network policies accordingly, because the label `maistra.io/member-of: istio-system` will be removed from the namespaces during migration.
+Note that the user re-labeled the namespaces in the mesh with label `service-mesh: enabled` and included that in the network policies accordingly, because the label `maistra.io/member-of: istio-system` will be removed from the namespaces during migration.
 
 Now the user has disabled the `manageNetworkPolicy` setting while following along the pre-migration steps and is about to create the 3.0 mesh which will be named `v3` and created in `istio-system`.
 
