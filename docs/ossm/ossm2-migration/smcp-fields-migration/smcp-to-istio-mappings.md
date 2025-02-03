@@ -15,6 +15,8 @@ To help with migration, here is a table of where the fields of the `servicemeshc
 | spec.addons.prometheus | Not directly available |
 | spec.addons.stackdriver | Not directly available |
 
+Addons are no longer configured through the SMCP and instead should be configured separately, see [Istio Addons Integrations](./../../../common/istio-addons-integrations.md)
+
 ## Cluster Configuration
 
 | SMCP 2.6 | Istio 3.0 |
@@ -34,7 +36,7 @@ To help with migration, here is a table of where the fields of the `servicemeshc
 | cluster.network | spec.values.global.network |
 
 ## Gateways Configuration
-Entire section is no longer directly available.
+Entire section is no longer directly available, see [Independently Managed Gateways](../../ossm2-vs-ossm3.md#independently-managed-gateways) in the ossm2 vs ossm3 documentation for details.
 
 ## General Configuration
 
@@ -56,7 +58,7 @@ In SMCP, takes "multitenant", "clusterwide", "federation". There is no direct ma
 
 - Clusterwide is default in 3.0
 - Federation setup is TBD
-- Multitenancy can be configured through discoverySelectors
+- Multitenancy can be configured through discoverySelectors, see [here](./../../create-mesh/README.md) for more details
 
 ## Policy Configuration
 
