@@ -15,7 +15,9 @@ To help with migration, here is a table of where the fields of the `servicemeshc
 | spec.addons.prometheus | Not directly available |
 | spec.addons.stackdriver | Not directly available |
 
-Addons are no longer configured through the SMCP and instead should be configured separately, see [Istio Addons Integrations](./../../../common/istio-addons-integrations.md)
+Addons are no longer configured through the SMCP and instead should be configured separately. 
+
+For details on how to enable addon integrations, see [Observability Integration](https://docs.redhat.com/en/documentation/red_hat_openshift_service_mesh/3.0.0tp1/html/observability/index).
 
 ## Cluster Configuration
 
