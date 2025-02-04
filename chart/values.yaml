@@ -24,11 +24,12 @@ csv:
     - v1.23.4
     - v1.23.3
     - v1.23.2
+    - v1.22.8
     - v1.22.7
     - v1.22.6
     - v1.22.5
     - v1.21.6
-    - latest (f5e8aceb)
+    - latest (9e4718a7)
 
     [See this page](https://github.com/istio-ecosystem/sail-operator/blob/main/bundle/README.md) for instructions on how to use it.
   support: Community based
@@ -54,17 +55,6 @@ csv:
 image: quay.io/maistra-dev/sail-operator:3.0-latest
 # We're commenting out the imagePullPolicy to use k8s defaults
 # imagePullPolicy: Always
-proxy:
-  image: gcr.io/kubebuilder/kube-rbac-proxy:v0.16.0
-  # We're commenting out the imagePullPolicy to use k8s defaults
-  # imagePullPolicy: IfNotPresent
-  resources:
-    limits:
-      cpu: 500m
-      memory: 128Mi
-    requests:
-      cpu: 5m
-      memory: 64Mi
 operator:
   resources:
     limits:

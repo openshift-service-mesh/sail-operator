@@ -126,4 +126,9 @@ Now you are ready to migrate. Check the `spec.mode` field on your `ServiceMeshCo
 oc get smcp <smcp-name> -n <smcp-namespace> -o jsonpath='{.spec.mode}'
 ```
 
-For `MultiTenant` meshes, follow [these instructions](./multi-tenancy/README.md). For `ClusterWide` meshes, follow [these instructions](#TODO).
+For `MultiTenant` meshes, follow [these instructions](./multi-tenancy/README.md). For `ClusterWide` meshes, follow [these instructions](./cluster-wide/README.md). When the migration is finished, follow [these instructions](./cleaning-2.6/README.md) to remove OpenShift Service Mesh 2.6.
+
+## Post-migration Checklist
+
+After the migration is done, you can optionally verify whether all data plane namespaces are migrated to the newer version of OSSM by checking it in Kiali Mesh page.
+More information about the usage of Kiali Mesh page can be found in [this documentation](https://kiali.io/docs/features/istio-component-status/#control-plane-namespace)

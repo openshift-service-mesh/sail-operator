@@ -502,7 +502,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `attempts` _integer_ | Number of retries to be allowed for a given request. The interval between retries will be determined automatically (25ms+). When request `timeout` of the [HTTP route](https://istio.io/docs/reference/config/networking/virtual-service/#HTTPRoute) or `per_try_timeout` is configured, the actual number of retries attempted also depends on the specified request `timeout` and `per_try_timeout` values. MUST be >= 0. If `0`, retries will be disabled. The maximum possible number of requests made will be 1 + `attempts`. |  |  |
 | `perTryTimeout` _[Duration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.25/#duration-v1-meta)_ | Timeout per attempt for a given request, including the initial call and any retries. Format: 1h/1m/1s/1ms. MUST be >=1ms. Default is same value as request `timeout` of the [HTTP route](https://istio.io/docs/reference/config/networking/virtual-service/#HTTPRoute), which means no timeout. |  |  |
-| `retryOn` _string_ | Specifies the conditions under which retry takes place. One or more policies can be specified using a ‘,’ delimited list. See the [retry policies](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/router_filter#x-envoy-retry-on) and [gRPC retry policies](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/router_filter#x-envoy-retry-grpc-on) for more details.  In addition to the policies specified above, a list of HTTP status codes can be passed, such as `retryOn: "503,reset"`. Note these status codes refer to the actual responses received from the destination. For example, if a connection is reset, Istio will translate this to 503 for it's response. However, the destination did not return a 503 error, so this would not match `"503"` (it would, however, match `"reset"`).  If not specified, this defaults to `connect-failure,refused-stream,unavailable,cancelled,503`. |  |  |
+| `retryOn` _string_ | Specifies the conditions under which retry takes place. One or more policies can be specified using a ‘,’ delimited list. See the [retry policies](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/router_filter#x-envoy-retry-on) and [gRPC retry policies](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/router_filter#x-envoy-retry-grpc-on) for more details.  In addition to the policies specified above, a list of HTTP status codes can be passed, such as `retryOn: "503,reset"`. Note these status codes refer to the actual responses received from the destination. For example, if a connection is reset, Istio will translate this to 503 for it's response. However, the destination did not return a 503 error, so this would not match `"503"` (it would, however, match `"reset"`).  If not specified, this defaults to `connect-failure,refused-stream,unavailable,cancelled`. |  |  |
 | `retryRemoteLocalities` _boolean_ | Flag to specify whether the retries should retry to other localities. See the [retry plugin configuration](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_connection_management#retry-plugin-configuration) for more details. |  |  |
 
 
@@ -905,7 +905,7 @@ _Appears in:_
 
 
 
-IstioRevisionTag references a Istio or IstioRevision object and serves as an alias for sidecar injection.
+IstioRevisionTag references an Istio or IstioRevision object and serves as an alias for sidecar injection. It can be used to manage stable revision tags without having to use istioctl or helm directly. See https://istio.io/latest/docs/setup/upgrade/canary/#stable-revision-labels for more information on the concept.
 
 
 
@@ -989,7 +989,7 @@ _Appears in:_
 
 
 
-IstioRevisionList contains a list of IstioRevision
+IstioRevisionTagList contains a list of IstioRevisionTags
 
 
 
@@ -1045,7 +1045,7 @@ _Appears in:_
 
 
 
-IstioRevisionTagTargetReference can reference either Istio or IstioRevision objects in the cluster.
+IstioRevisionTagTargetReference can reference either Istio or IstioRevision objects in the cluster. In the case of referencing an Istio object, the Sail Operator will automatically update the reference to the Istio object's Active Revision.
 
 
 

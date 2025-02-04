@@ -80,9 +80,6 @@ GINKGO_FLAGS := $(if $(VERBOSE),-v) $(if $(CI),--no-color) $(if $(COVERAGE),-cov
 # - use the CHANNELS as arg of the bundle target (e.g make bundle CHANNELS=candidate,fast,stable)
 # - use environment variables to overwrite this value (e.g export CHANNELS="candidate,fast,stable")
 CHANNEL_PREFIX := dev
-ifneq (,$(findstring release-,$(shell git rev-parse --abbrev-ref HEAD)))
-CHANNEL_PREFIX = stable
-endif
 
 CHANNELS ?= $(CHANNEL_PREFIX)-$(MINOR_VERSION)
 ifneq ($(origin CHANNELS), undefined)
@@ -483,7 +480,7 @@ HELM_VERSION ?= v3.17.0
 CONTROLLER_TOOLS_VERSION ?= v0.17.1
 OPM_VERSION ?= v1.50.0
 OLM_VERSION ?= v0.31.0
-GITLEAKS_VERSION ?= v8.23.1
+GITLEAKS_VERSION ?= v8.23.2
 ISTIOCTL_VERSION ?= 1.23.0
 
 # GENERATE_RELATED_IMAGES defines whether `spec.relatedImages` is going to be generated or not
