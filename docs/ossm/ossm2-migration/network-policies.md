@@ -160,170 +160,190 @@ For each namespace that was part of the 2.6 mesh:
 Some users may not be able to go without Network Policies during the migration process due to security concerns. 
 This can be tricky, as during the migration both control planes must have access to all workloads and vice versa. Created Network Policies must not block traffic for either control plane.
 
-To assist users in this situation, here is an example scenario with example Network Policies. 
+To assist users in this situation, here is an example scenario with example Network Policies.
 
-A user has a 2.6 control plane with the name `basic` in the namespace `istio-system` and workloads in namespaces `httpbin-2` and `httbin-3`. They need to ensure Network Policies remain active to fulfill security obligations. 
-In order to keep Network Policies, before they disable `manageNetworkPolicy` they create Policies:
+1. **Label  Namespaces**
 
-Istiod Network Policy in Mesh namespace
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: istiod-basic
-  namespace: istio-system
-spec:
-  ingress:
-    - {}
-  podSelector:
-    matchLabels:
-      app: istiod
-      istio.io/rev: basic
-  policyTypes:
-    - Ingress
-```
+    Before creating Network Policies, you need to choose and apply appropriate namespace labels. While you could use a generic label like `service-mesh: enabled`, we recommend using a label scoped specifically to your mesh that can be reused for discovery selectors. 
+    
+    This approach:
+    
+    - Avoids additional namespace labeling requirements
+    - Provides better isolation between different service meshes
+    - Can be reused in discovery selectors
+    
+    This step is necessary because the label `maistra.io/member-of: istio-system` will be removed from the namespaces during migration.
+    For more details on label selection, see the [discoverySelector documentation](./../create-mesh/README.md).
 
-Expose Route Policy in Mesh namespace
+    For simplicity, in our scenario the user labels the mesh namespaces with `service-mesh: enabled`.
 
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: expose-route-basic
-  namespace: istio-system
-spec:
-  podSelector:
-    matchLabels:
-      maistra.io/expose-route: "true"
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              network.openshift.io/policy-group: ingress
-  policyTypes:
-    - Ingress
-```
+2. **Create Network Policies**
 
-Default Mesh Network Policy in Mesh namespace
+    A user has a 2.6 control plane with the name `basic` in the namespace `istio-system` and workloads in namespaces `httpbin-2` and `httbin-3`. They need to ensure Network Policies remain active to fulfill security obligations. 
+    
+   In order to keep Network Policies, before they disable `manageNetworkPolicy` they create Policies:
+    
+    Istiod Network Policy in Mesh namespace
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: istiod-basic
+      namespace: istio-system
+    spec:
+      ingress:
+        - {}
+      podSelector:
+        matchLabels:
+          app: istiod
+          istio.io/rev: basic
+      policyTypes:
+        - Ingress
+    ```
+    
+    Expose Route Policy in Mesh namespace
+    
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: expose-route-basic
+      namespace: istio-system
+    spec:
+      podSelector:
+        matchLabels:
+          maistra.io/expose-route: "true"
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  network.openshift.io/policy-group: ingress
+      policyTypes:
+        - Ingress
+    ```
+    
+    Default Mesh Network Policy in Mesh namespace
+    
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: istio-mesh-basic
+      namespace: istio-system
+    spec:
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  service-mesh: enabled
+      podSelector: {}
+      policyTypes:
+        - Ingress
+    ```
+    
+    Expose Route Network Policy for httpbin-2 namespace
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: istio-expose-route-basic
+      namespace: httpbin-2
+    spec:
+      podSelector:
+        matchLabels:
+          maistra.io/expose-route: "true"
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  network.openshift.io/policy-group: ingress
+      policyTypes:
+        - Ingress
+    ```
+    
+    Mesh Network Policy for httpbin-2 namespace
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: istio-mesh-basic
+      namespace: httpbin-2
+    spec:
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  service-mesh: enabled
+      podSelector: {}
+      policyTypes:
+        - Ingress
+    ```
+    
+    Expose Route Network Policy for httpbin-3 namespace
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: istio-expose-route-v3
+      namespace: httpbin-3
+    spec:
+      podSelector:
+        matchLabels:
+          maistra.io/expose-route: "true"
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  network.openshift.io/policy-group: ingress
+      policyTypes:
+        - Ingress
+    ```
+    
+    Mesh Network Policy for httpbin-3 namespace
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: istio-mesh-v3
+      namespace: httpbin-3
+    spec:
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  service-mesh: enabled
+      podSelector: {}
+      policyTypes:
+        - Ingress
+    ```
 
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: istio-mesh-basic
-  namespace: istio-system
-spec:
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              service-mesh: enabled
-  podSelector: {}
-  policyTypes:
-    - Ingress
-```
+3. **Disable manageNetworkPolicy**
 
-Expose Route Network Policy for httpbin-2 namespace
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: istio-expose-route-basic
-  namespace: httpbin-2
-spec:
-  podSelector:
-    matchLabels:
-      maistra.io/expose-route: "true"
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              network.openshift.io/policy-group: ingress
-  policyTypes:
-    - Ingress
-```
+   After creating these policies, the user can safely disable the SMCP `manageNetworkPolicy`.
 
-Mesh Network Policy for httpbin-2 namespace
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: istio-mesh-basic
-  namespace: httpbin-2
-spec:
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              service-mesh: enabled
-  podSelector: {}
-  policyTypes:
-    - Ingress
-```
+4. **Prepare for 3.0 Mesh Creation**
 
-Expose Route Network Policy for httpbin-3 namespace
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: istio-expose-route-v3
-  namespace: httpbin-3
-spec:
-  podSelector:
-    matchLabels:
-      maistra.io/expose-route: "true"
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              network.openshift.io/policy-group: ingress
-  policyTypes:
-    - Ingress
-```
-
-Mesh Network Policy for httpbin-3 namespace
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: istio-mesh-v3
-  namespace: httpbin-3
-spec:
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              service-mesh: enabled
-  podSelector: {}
-  policyTypes:
-    - Ingress
-```
-
-Note that the user re-labeled the namespaces in the mesh with label `service-mesh: enabled` and included that in the network policies accordingly, because the label `maistra.io/member-of: istio-system` will be removed from the namespaces during migration.
-
-> **_NOTE:_** We recommend that rather than use a "one size fits all" label like `service-mesh=enabled`, you use a label scoped only to this mesh that can be reused for discovery selectors. This avoids additional namespace labeling. See [discoverySelector documentation](./../create-mesh/README.md) for more details.
-
-Now the user has disabled the `manageNetworkPolicy` setting while following along the pre-migration steps and is about to create the 3.0 mesh which will be named `v3` and created in `istio-system`.
-
-Before creating the `istio` resource and the istiod pod, the user makes:
-
-Istiod Network Policy for 3.0:
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: istio-istiod-v3
-  namespace: istio-system
-spec:
-  ingress:
-    - {}
-  podSelector:
-    matchLabels:
-      app: istiod
-      istio.io/rev: v3
-  policyTypes:
-    - Ingress
-```
-
-to ensure that they are consistent in Network Policies with the 3.0 mesh before continuing on with the migration steps. 
+    Now the user is about to create the 3.0 mesh which will be named `v3` and created in `istio-system`.
+    
+    Before creating the `istio` resource and the istiod pod, the user makes:
+    
+    Istiod Network Policy for 3.0:
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: istio-istiod-v3
+      namespace: istio-system
+    spec:
+      ingress:
+        - {}
+      podSelector:
+        matchLabels:
+          app: istiod
+          istio.io/rev: v3
+      policyTypes:
+        - Ingress
+    ```
+    
+    to ensure that they are consistent in Network Policies with the 3.0 mesh before continuing on with the migration steps. 
 
