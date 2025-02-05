@@ -228,7 +228,7 @@ To assist users in this situation, here is an example scenario with example Netw
     apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
-      name: istio-mesh-basic
+      name: istio-mesh
       namespace: istio-system
     spec:
       ingress:
@@ -246,7 +246,7 @@ To assist users in this situation, here is an example scenario with example Netw
     apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
-      name: istio-expose-route-basic
+      name: istio-expose-route
       namespace: httpbin-2
     spec:
       podSelector:
@@ -266,7 +266,7 @@ To assist users in this situation, here is an example scenario with example Netw
     apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
-      name: istio-mesh-basic
+      name: istio-mesh
       namespace: httpbin-2
     spec:
       ingress:
@@ -284,7 +284,7 @@ To assist users in this situation, here is an example scenario with example Netw
     apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
-      name: istio-expose-route-v3
+      name: istio-expose-route
       namespace: httpbin-3
     spec:
       podSelector:
@@ -304,7 +304,7 @@ To assist users in this situation, here is an example scenario with example Netw
     apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
-      name: istio-mesh-v3
+      name: istio-mesh
       namespace: httpbin-3
     spec:
       ingress:
