@@ -13,4 +13,4 @@ Following are recommendations to keep the risk of misconfigurations or possible 
     > **_NOTE:_** If it's necessary to add a new workload namespace during the migration, it should be managed by 3.0 control plane and it MUST be labeled with `maistra.io/ignore-namespace: "true"` to avoid conflicts between 3.0 and 2.6 control planes.
 1. Finish the migration without unnecessary delays
 
-    To easier follow the recommendations above, when started the migration should be finished as soon as possible without unnecessary delays.
+Once the migration is started, it should be completed as quickly as possible without unnecessary delays.
