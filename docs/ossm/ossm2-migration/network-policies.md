@@ -85,8 +85,8 @@ spec:
   ingress:
   - from:
     - namespaceSelector:          # Only allows traffic from mesh members
-      matchLabels:
-        maistra.io/member-of: istio-system
+        matchLabels:
+          maistra.io/member-of: istio-system
   podSelector: {}
   policyTypes:
     - Ingress
