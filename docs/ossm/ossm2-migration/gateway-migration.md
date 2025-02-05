@@ -6,9 +6,11 @@ Migrating gateways between Istio control planes during a version upgrade from 2.
 
 ### Gateway Canary Migration (Recommended)
 
-For gradual rollout using multiple gateway versions (avoiding any downtime):
+For gradual rollout using multiple gateway versions with maximum control over gateway rollout:
 
 1. Label the gateway namespace to ensure injection from the new mesh is enabled for the namespace (this differs between multitenancy and cluster-wide meshes), ensuring to add the `maistra.io/ignore-namespace: "true"` label as well as remove `istio-injection=enabled` if needed.
+
+> **_NOTE:_** Look back at the migrating workloads step in your migration guide to understand which labels you should use in your specific migration case and understand why the `maistra.io/ignore-namespace: "true"` label is needed. 
 
 2. Deploy a canary gateway (example):
    ```yaml
@@ -36,7 +38,7 @@ For gradual rollout using multiple gateway versions (avoiding any downtime):
 
 3. Ensure that the new gateway deployment is running with new revision and is handling requests.
    - Check that pods are running and ready
-   - `oc get pod -o yaml | grep istio.io/rev` to check its running new revision
+   - Try `istioctl ps -n istio-ingress` to check that the gateway is running the new revision
    - Test a sample route through the gateway
 
 4. Gradually shift traffic between deployments:
@@ -52,9 +54,9 @@ For gradual rollout using multiple gateway versions (avoiding any downtime):
 
 Note that this process is near identical to migrating from SMCP-Defined gateways to gateway injection, if the user migrated previously using [this guide](https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/service_mesh/service-mesh-2-x#ossm-migrating-from-smcp-defined-gateways-to-gateway-injection_gateway-migration), this process should be familiar.
 
-### Dedicated Application Gateway Migration (simple)
+### Dedicated Application Gateway Migration (In Place)
 
-If downtime is acceptable, a migrating user can simply restart the gateway.
+If less fine grained control is needed over the gateway migration, the user can do the gateway migration in place.
 
 For namespaces with dedicated gateways:
 
@@ -62,6 +64,8 @@ For namespaces with dedicated gateways:
    ```bash
    oc label namespace ${APP_NAMESPACE} istio.io/rev=${ISTIO_REVISION} maistra.io/ignore-namespace="true"
    ```
+> **_NOTE:_** Look back at the migrating workloads step in your migration guide to understand which labels you should use in your specific migration case and understand why the `maistra.io/ignore-namespace: "true"` label is needed.
+
 
 2. Restart the gateway deployment:
    ```bash
@@ -69,10 +73,10 @@ For namespaces with dedicated gateways:
    ```
 
 3. Validation steps:
-    - Verify gateway pod is running with new revision (`oc get pod -o yaml | grep istio.io/rev`)
-    - Test application-specific routes
+   - Try `istioctl ps -n istio-ingress` to check that the gateway is running the new revision
+   - Test application-specific routes
 
-### Shared Gateway Migration (simple)
+### Shared Gateway Migration (In Place)
 
 For environments using a centralized gateway shared across multiple namespaces (in this example `istio-ingress`):
 
@@ -80,6 +84,8 @@ For environments using a centralized gateway shared across multiple namespaces (
    ```bash
    oc label namespace istio-ingress istio.io/rev=${ISTIO_REVISION} maistra.io/ignore-namespace="true"
    ```
+> **_NOTE:_** Look back at the migrating workloads step in your migration guide to understand which labels you should use in your specific migration case and understand why the `maistra.io/ignore-namespace: "true"` label is needed.
+
 
 2. Restart the gateway deployment:
    ```bash
@@ -87,6 +93,6 @@ For environments using a centralized gateway shared across multiple namespaces (
    ```
    
 3. Validation steps:
-   - Verify gateway pod is running with new revision (`oc get pod -o yaml | grep istio.io/rev`)
+   - Try `istioctl ps -n istio-ingress` to check that the gateway is running the new revision
    - Verify gateway pod is running with new revision
    - Test application-specific routes
