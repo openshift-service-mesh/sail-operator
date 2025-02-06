@@ -9,6 +9,7 @@ Before you begin to migrate your controlplane from OpenShift Service Mesh 2.6 to
 - Read through the key OSSM 2.6 vs 3.0 Differences [document](./../ossm2-vs-ossm3.md) 
 - Upgrade your 2.6 OpenShift Service Mesh Operator to the latest release. See warning below.
 - Upgrade your `ServiceMeshControlPlane` version to the latest OpenShift Service Mesh release.
+- Read through the [recommendations](./possible-problems-list/README.md) before the migration.
 - Install your 3.0 Openshift Service Mesh Operator. See warning below.
 - Upgrade your Kiali operator to the latest release.
 - Disable the following features on your `ServiceMeshControlPlane`. These fields are unsupported in 3.0 and must be disabled prior to migration.
