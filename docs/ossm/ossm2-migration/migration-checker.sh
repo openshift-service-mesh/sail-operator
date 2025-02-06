@@ -24,16 +24,22 @@ YELLOW='\033[1;33m'
 GREEN='\033[1;32m'
 BLANK='\033[0m'
 WARNING_EMOJI='\u2757'
+GREEN_CHECK_MARK_EMOJI='\u2705'
 SPACER="-----------------------"
 
-# TODO: autodetect latest versions
-LATEST_VERSION=v2.6
-LATEST_CHART_VERSION=2.6.4
-LATEST_KIALI_VERSION=2.4.0
+
+KIALI_OPERATOR_NAME="kiali-ossm"
+OSSM2_OPERATOR_NAME="servicemeshoperator"
+LATEST_OSSM2_MINOR_VERSION="v2.6"
 
 TOTAL_WARNINGS=0
 
 SKIP_PROXY_CHECK=false
+
+# Global variables. These will get set by calling 'discover_latest_versions'.
+LATEST_OSSM2_VERSION=""
+LATEST_OSSM2_CSV_VERSION="" # This includes the -0 e.g. 2.6.5-0
+LATEST_KIALI_VERSION=""
 
 # process command line args
 while [[ $# -gt 0 ]]; do
@@ -74,7 +80,7 @@ warning() {
 }
 
 success() {
-  echo -e "${GREEN}$1${BLANK}"
+  echo -e "${GREEN}${GREEN_CHECK_MARK_EMOJI} $1${BLANK}"
 }
 
 add_warning() {
@@ -112,6 +118,30 @@ then
     exit 1
 fi
 
+discover_latest_operator_version() {
+    local operator_name=$1
+
+    local operator_version
+    operator_version=$(oc get packagemanifests.packages.operators.coreos.com -l catalog=redhat-operators -o jsonpath="{.items[?(@.metadata.name==\"$operator_name\")]}" | jq -r '.status.channels[] | select(.name == "stable") | .currentCSVDesc.version')
+
+    if [ "$operator_name" == $KIALI_OPERATOR_NAME ]; then
+        LATEST_KIALI_VERSION=$operator_version
+    elif [ "$operator_name" == $OSSM2_OPERATOR_NAME ]; then
+        LATEST_OSSM2_CSV_VERSION=$operator_version
+        # Sanitize the version. In the case of service mesh the version from the package manifest looks like: "2.6.5-0" but we want "2.6.5"
+        operator_version=$(cut -d "-" -f 1 <<< "$operator_version")
+        LATEST_OSSM2_VERSION=$operator_version
+    fi
+}
+
+discover_latest_versions() {
+    operators=("$KIALI_OPERATOR_NAME" "$OSSM2_OPERATOR_NAME")
+
+    for op in "${operators[@]}"; do
+        discover_latest_operator_version "$op"
+    done
+}
+
 check_smcp() {
     local name=$1
     local namespace=$2
@@ -129,14 +159,16 @@ check_smcp() {
 
     local current_version
     current_version=$(echo "$smcp" | jq -r '.spec.version')
-    if [ "$current_version" != "$LATEST_VERSION" ]; then
-        add_warning "Your ServiceMeshControlPlane is not on the latest version. Current version: '$current_version'. Latest version: '$LATEST_VERSION'. Please upgrade your ServiceMeshControlPlane to the latest version."
-    fi
-
-    local current_chart_version
-    current_chart_version=$(echo "$smcp" | jq -r '.status.chartVersion')
-    if [ "$current_chart_version" != "$LATEST_CHART_VERSION" ]; then
-        add_warning "Your ServiceMeshControlPlane does not have the latest z-stream release. If your ServiceMeshControlPlane is already on the latest version, please ensure your Service Mesh operator is also updated to the latest version. Current version: '$current_chart_version'. Latest version: '$LATEST_CHART_VERSION'."
+    if [ "$current_version" != "$LATEST_OSSM2_MINOR_VERSION" ]; then
+        add_warning "Your ServiceMeshControlPlane is not on the latest version. Current version: '$current_version'. Latest version: '$LATEST_OSSM2_MINOR_VERSION'. Please upgrade your ServiceMeshControlPlane to the latest minor version."
+    else
+        # Even if the minor version is up to date, check the z-stream to ensure it's the latest.
+        # No point in checking the z-stream if the minor is not up to date though.
+        local current_chart_version
+        current_chart_version=$(echo "$smcp" | jq -r '.status.chartVersion')
+        if [ "$current_chart_version" != "$LATEST_OSSM2_VERSION" ]; then
+            add_warning "Your ServiceMeshControlPlane does not have the latest z-stream release. Please ensure your Service Mesh operator is updated to the latest version. Current version: '$current_chart_version'. Latest version: '$LATEST_OSSM2_VERSION'."
+        fi
     fi
 
     # Addons
@@ -197,12 +229,12 @@ check_proxies_updated() {
         IFS="/" read -r name namespace version <<< "$pod"
         # label version format: 2.6.4 --> 2.6
         local sanitized_version
-        sanitized_version=$(cut -c1-3 <<< "$version")
+        sanitized_version=$(cut -d "." -f 1-2 <<< "$version")
         # latest version format: v2.6 --> 2.6
         local sanitized_latest_version
-        sanitized_latest_version=$(cut -c2- <<< "$LATEST_VERSION")
+        sanitized_latest_version=$(cut -c2- <<< "$LATEST_OSSM2_MINOR_VERSION")
         if [ "$sanitized_version" != "$sanitized_latest_version" ]; then
-            add_warning "pod: $name/$namespace is running a proxy at an older version: $sanitized_version Please update your ServiceMeshControlPlane to the latest version: ${LATEST_VERSION} and then restart this workload."
+            add_warning "pod: '$name/$namespace' is running a proxy at an older version: '$sanitized_version'. Please update your ServiceMeshControlPlane to the latest version: '${LATEST_OSSM2_MINOR_VERSION}' and then restart this workload."
         fi
     done
 
@@ -217,6 +249,12 @@ check_smcps() {
         IFS="/" read -r name namespace <<< "$smcp"
         check_smcp "$name" "$namespace"
     done
+
+    local num_warnings=$TOTAL_WARNINGS
+    echo -e "OSSM 2 Operator\n"
+
+    check_operator_version "$OSSM2_OPERATOR_NAME" "$LATEST_OSSM2_CSV_VERSION"
+    check_for_new_warnings $num_warnings "OSSM 2 operator is up to date"
 }
 
 check_kiali() {
@@ -232,8 +270,13 @@ check_kiali() {
 
     local current_version
     current_version=$(echo "$kiali" | jq -r '.spec.version')
-    if [[ "$current_version" != "$LATEST_KIALI_VERSION" && "$current_version" != "default" ]]; then
-        add_warning "Your Kiali is not on the latest version. Current version: '$current_version'. Latest version: '$LATEST_KIALI_VERSION'. Please upgrade your Kiali to the latest version."
+    # Note the 'v' added to the version because the CR spec expects version to be v1.89 whereas the operator version is just 1.89.9 without the 'v'.
+    # We're also trimming the patch version out of the version.
+    # We're going from 1.89.9 --> v1.89.
+    local latest_cr_version
+    latest_cr_version=v$(cut -d "." -f 1-2 <<< "$LATEST_KIALI_VERSION")
+    if [[ "$current_version" != "$latest_cr_version" && "$current_version" != "default" ]]; then
+        add_warning "Your Kiali is not on the latest version. Current version: '$current_version'. Latest version: '$latest_cr_version'. Please upgrade your Kiali to the latest version."
     fi
 
     check_for_new_warnings $num_warnings "Kiali $name/$namespace is on the latest version."
@@ -258,19 +301,27 @@ check_kialis() {
 
     local num_warnings=$TOTAL_WARNINGS
 
-    # Check Kiali operator
-    # Find kiali-ossm subscription and then use that to find the operator/csv namespace
-    local operator_namespace
-    operator_namespace=$(oc get subscriptions.operators.coreos.com -A -o jsonpath='{.items[?(@.metadata.name=="kiali-ossm")].metadata.namespace}')
-    local operator_name
-    operator_name=$(kubectl get csv -n "$operator_namespace" -l "operators.coreos.com/kiali-ossm.$operator_namespace" -o jsonpath='{.items[0].metadata.name}')
-    local operator_version
-    operator_version=$(oc get csv -n "$operator_namespace" "$operator_name" -o jsonpath='{.spec.version}')
-    if [ "$operator_version" != "$LATEST_KIALI_VERSION" ]; then
-        add_warning "Your Kiali operator is not on the latest version. Current version: '$operator_version'. Latest version: '$LATEST_KIALI_VERSION'. Please upgrade your Kiali operator to the latest version."
-    fi
+    echo -e "Kiali Operator\n"
+
+    check_operator_version "$KIALI_OPERATOR_NAME" "$LATEST_KIALI_VERSION"
 
     check_for_new_warnings $num_warnings "Kiali operator is up to date"
+}
+
+check_operator_version() {
+    local operator_name=$1
+    local operator_version=$2
+
+    # Find subscription and then use that to find the operator/csv namespace
+    local csv_namespace
+    csv_namespace=$(oc get subscriptions.operators.coreos.com -A -o jsonpath="{.items[?(@.metadata.name==\"$operator_name\")].metadata.namespace}")
+    local csv_name
+    csv_name=$(oc get csv -n "$csv_namespace" -l "operators.coreos.com/$operator_name.$csv_namespace" -o jsonpath='{.items[0].metadata.name}')
+    local csv_version
+    csv_version=$(oc get csv -n "$csv_namespace" "$csv_name" -o jsonpath='{.spec.version}')
+    if [ "$csv_version" != "$operator_version" ]; then
+        add_warning "Your operator $operator_name is not on the latest version. Current version: '$csv_version'. Latest version: '$operator_version'. Please upgrade your operator to the latest version."
+    fi
 }
 
 check_istio_crds() {
@@ -286,6 +337,7 @@ check_istio_crds() {
     check_for_new_warnings $num_warnings "Istio CRDs are up to date"
 }
 
+discover_latest_versions
 check_smcps
 check_federation
 if [ "$SKIP_PROXY_CHECK" != "true" ]; then
