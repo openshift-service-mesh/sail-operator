@@ -91,7 +91,7 @@ The following steps show how to install the OSSMC plugin via the OpenShift web c
     * **Name** and **Version** are required fields.
 
     [!NOTE]
-    The **Version** field must match the `spec.version` field in your Kiali CR. If the versions do not match, OSSMC will not work properly. In case the **Version** value is the string "default", the Kiali Operator will install OSSMC whose version is the same as the operator itself. Otherwise, the `spec.version` field requires to have the a "v" prefix to the version number, and the version number must only include the major and minor version numbers (patch number must be omitted, for example "v1.73").
+    The **Version** field must match the `spec.version` field in your Kiali CR. If the versions do not match, OSSMC will not work properly. In case the **Version** value is the string "default", the Kiali Operator will install OSSMC whose version is the same as the operator itself. Otherwise, the `spec.version` field requires the "v" prefix to the version number, and the version number must only include the major and minor version numbers (patch number must be omitted); for example: `v1.73`.
 
 5. Click **Create**.
 
@@ -125,7 +125,7 @@ The following steps show how to install the OSSMC plugin via the OpenShift CLI.
     ```
 
     [!NOTE]
-    It is very important that the version of OSSMC be the same version as the Kiali Server that is installed. If the versions do not match, OSSMC will not work properly. If the `spec.version` field is not specified (or if set explicitly to the string “default”), then the Kiali Operator will install OSSMC whose version is the same as the operator itself. Otherwise, the `spec.version` field requires to have the a "v" prefix to the version number, and the version number must only include the major and minor version numbers (patch number must be omitted, for example "v1.73").
+    It is very important that the version of OSSMC be the same version as the Kiali Server that is installed. If the versions do not match, OSSMC will not work properly. If the `spec.version` field is not specified (or if set explicitly to the string “default”), then the Kiali Operator will install OSSMC whose version is the same as the operator itself. Otherwise, the `spec.version` field requires the "v" prefix to the version number, and the version number must only include the major and minor version numbers (patch number must be omitted); for example: `v1.73`.
 
     The plugin resources are deployed in the same namespace where the `OSSMConsole` CR is created.
 
