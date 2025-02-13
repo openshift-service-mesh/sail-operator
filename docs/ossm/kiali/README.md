@@ -204,7 +204,7 @@ The following steps show how to install Kiali via the OpenShift CLI.
     ```
 
     [!NOTE]
-    The `spec.version` field requires to have the a "v" prefix to the version number, and the version number must only include the major and minor version numbers (patch number must be omitted, for example "v1.73").
+    The `spec.version` field requires the "v" prefix to the version number, and the version number must only include the major and minor version numbers (patch number must be omitted); for example: `v1.73`.
 
     The Kiali Server is highly customizable through the Kiali CR configuration. For example, to support Kiali observing only a specific set of namespaces, you can define a list of discovery selectors:
 
