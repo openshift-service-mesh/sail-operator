@@ -116,7 +116,7 @@ Do not install the Community version of the Operator. The Community version is n
 13. Change any default Kiali settings in the **Form** or **Yaml** view if needed. Note that, by default, the Kiali Operator will install the Kiali Server whose version is the same as the operator itself. You can ask the operator to install an earlier version of the Kiali Server by specifying the `Version` field (or `spec.version` field in the **Yaml** view) to indicate which version of the Kiali Server to install (check [here](#ossm-version-compatibility) for the valid versions that are supported by the operator and which OSSM versions work with which Kiali Server versions).
 
     [!NOTE]
-    The `spec.version` field requires to have the a "v" prefix to the version number, and the version number must only include the major and minor version numbers (patch number must be omitted, for example "v1.73").
+    The `spec.version` field requires the "v" prefix to the version number, and the version number must only include the major and minor version numbers (patch number must be omitted); for example: `v1.73`.
 
 14. Click **Create** button.
 
