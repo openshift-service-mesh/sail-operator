@@ -62,11 +62,12 @@ Kiali follows a different versioning scheme than OSSM, so it is necessary to det
 
 | OSSM Version    | Kiali Server Version |
 | --------------- | -------------------- |
-| 3.0             | 2.4                  |
-| 2.6             | 1.73                 |
-| 2.5             | 1.73                 |
+| 3.0             | v2.4                 |
+| 2.6             | v1.73                |
+| 2.5             | v1.73                |
 
-Note that, in most cases, it is recommended to install the latest version of the Kiali Operator, even when installing a previous Kiali version, as it includes the latest z-stream releases for all supported Kiali Server versions.
+[!NOTE]
+In most cases, it is recommended to install the latest version of the Kiali Operator, even when installing a previous Kiali version, as it includes the latest z-stream releases for all supported Kiali Server versions.
 
 Kiali can be installed in two different ways: using the OpenShift web console or the OpenShift CLI.
 
@@ -112,7 +113,10 @@ Do not install the Community version of the Operator. The Community version is n
 
 12. Click **Create instance** on the **Kiali** tile. Another way is to click **Create Kiali** button under the **Kiali** tab.
 
-13. Change any default Kiali settings in the **Form** or **Yaml** view if needed. Note that, by default, the Kiali Operator will install the Kiali Server whose version is the same as the operator itself. You can ask the operator to install an earlier version of the Kiali Server by specifying the `Version` field (or `spec.version` field in the **Yaml** view) to indicate which version of the Kiali Server to install (check [here](#ossm-version-compatibility) for the valid versions that are supported by the operator and which OSSM versions work with which Kiali Server versions). The version to install has to be in the form `vX.Y`.
+13. Change any default Kiali settings in the **Form** or **Yaml** view if needed. Note that, by default, the Kiali Operator will install the Kiali Server whose version is the same as the operator itself. You can ask the operator to install an earlier version of the Kiali Server by specifying the `Version` field (or `spec.version` field in the **Yaml** view) to indicate which version of the Kiali Server to install (check [here](#ossm-version-compatibility) for the valid versions that are supported by the operator and which OSSM versions work with which Kiali Server versions).
+
+    [!NOTE]
+    The `spec.version` field requires to have the a "v" prefix to the version number, and the version number must only include the major and minor version numbers (patch number must be omitted, for example "v1.73").
 
 14. Click **Create** button.
 
@@ -185,7 +189,7 @@ The following steps show how to install Kiali via the OpenShift CLI.
     [!NOTE]
     The `openshift` authentication strategy is the only supported authentication configuration when Kiali is deployed with OpenShift Service Mesh (OSSM). The `openshift` strategy controls access based on the individual’s role-based access control (RBAC) roles of the OpenShift.
 
-    By default, the Kiali Operator will install the Kiali Server whose version is the same as the operator itself. You can ask the operator to install an earlier version of the Kiali Server by specifying the `spec.version` field to indicate which version of the Kiali Server to install (check [here](#ossm-version-compatibility) for the valid versions that are supported by the operator and which OSSM versions work with which Kiali Server versions). The version to install has to be in the form `vX.Y`:
+    By default, the Kiali Operator will install the Kiali Server whose version is the same as the operator itself. You can ask the operator to install an earlier version of the Kiali Server by specifying the `spec.version` field to indicate which version of the Kiali Server to install (check [here](#ossm-version-compatibility) for the valid versions that are supported by the operator and which OSSM versions work with which Kiali Server versions):
 
     ```yaml
     cat <<EOM | oc apply -f -
@@ -198,6 +202,9 @@ The following steps show how to install Kiali via the OpenShift CLI.
       version: v2.4
     EOM
     ```
+
+    [!NOTE]
+    The `spec.version` field requires to have the a "v" prefix to the version number, and the version number must only include the major and minor version numbers (patch number must be omitted, for example "v1.73").
 
     The Kiali Server is highly customizable through the Kiali CR configuration. For example, to support Kiali observing only a specific set of namespaces, you can define a list of discovery selectors:
 
