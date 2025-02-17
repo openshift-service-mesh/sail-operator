@@ -8,3 +8,7 @@
 #       test: "true"
 #
 # These defaults are type-checked at compile time.
+v1.24.2:
+  pilot:
+    env:
+      ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
