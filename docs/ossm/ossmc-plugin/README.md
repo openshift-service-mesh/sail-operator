@@ -4,9 +4,6 @@ The OpenShift Service Mesh Console (OSSMC) plugin is an extension to the OpenShi
 
 The features of the OSSMC plugin are the same as those of the standalone Kiali Console, but the pages are organized differently to better integrate with the OpenShift console. The OSSMC plugin does not replace the Kiali Console, and after installing the OSSMC plugin, you can still access the standalone Kiali Console.
 
-[!IMPORTANT]
-If you are using a certificate that your browser does not initially trust, you must tell your browser to trust the certificate first before you are able to access the OSSMC plugin. To do this, go to the Kiali standalone user interface (UI) and tell the browser to accept its certificate.
-
 ## About the OpenShift Service Mesh Console plugin
 
 The OpenShift Service Mesh Console (OSSMC) plugin is an extension to the OpenShift web console that provides visibility into your Service Mesh.
