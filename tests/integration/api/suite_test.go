@@ -29,6 +29,7 @@ import (
 	"github.com/istio-ecosystem/sail-operator/controllers/ztunnel"
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
+	"github.com/istio-ecosystem/sail-operator/pkg/istiovalues"
 	"github.com/istio-ecosystem/sail-operator/pkg/scheme"
 	"github.com/istio-ecosystem/sail-operator/pkg/test"
 	"github.com/istio-ecosystem/sail-operator/pkg/test/project"
@@ -116,6 +117,8 @@ var _ = BeforeSuite(func() {
 			panic(err)
 		}
 	}()
+
+	istiovalues.SetVendorDefaults(nil)
 })
 
 var _ = AfterSuite(func() {
