@@ -153,11 +153,12 @@ subjects:
 			cmd = exec.Command("kubectl", "run", "curl-metrics", "--restart=Never",
 				"--namespace", curlNamespace,
 				"--image=quay.io/curl/curl:8.11.1",
+				`--overrides={"apiVersion": "v1", "spec": {"securityContext": {}}}`,
 				"--", "/bin/sh", "-c", fmt.Sprintf(
 					"curl -v -k -H 'Authorization: Bearer %s' https://%s.%s.svc.cluster.local:8443/metrics",
 					token, metricsServiceName, namespace))
-			err = cmd.Run()
-			Expect(err).NotTo(HaveOccurred(), "Failed to create curl-metrics pod")
+			output, err := cmd.CombinedOutput()
+			Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to create curl-metrics pod:\n%s", string(output)))
 
 			By("waiting for the curl-metrics pod to complete.")
 			verifyCurlUp := func(g Gomega) {
