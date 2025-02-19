@@ -4,9 +4,6 @@ The OpenShift Service Mesh Console (OSSMC) plugin is an extension to the OpenShi
 
 The features of the OSSMC plugin are the same as those of the standalone Kiali Console, but the pages are organized differently to better integrate with the OpenShift console. The OSSMC plugin does not replace the Kiali Console, and after installing the OSSMC plugin, you can still access the standalone Kiali Console.
 
-[!IMPORTANT]
-If you are using a certificate that your browser does not initially trust, you must tell your browser to trust the certificate first before you are able to access the OSSMC plugin. To do this, go to the Kiali standalone user interface (UI) and tell the browser to accept its certificate.
-
 ## About the OpenShift Service Mesh Console plugin
 
 The OpenShift Service Mesh Console (OSSMC) plugin is an extension to the OpenShift web console that provides visibility into your Service Mesh.
@@ -47,10 +44,25 @@ Under OpenShift **Networking** details page, the OSSMC plugin adds a **Service M
 
 ## Installing the OpenShift Service Mesh Console plugin
 
-The OSSMC plugin can be installed in two ways: using the OpenShift web console or the OpenShift CLI.
+The OSSMC plugin is installed through the Kiali Operator by creating a `OSSMConsole` resource with the corresponding plugin settings.
+
+### OSSM version compatibility
+
+The OSSMC plugin follows a different versioning scheme than OSSM, so it is necessary to determine the appropriate OSSMC plugin version to install based on the OSSM version:
+
+| OSSM Version    | Kiali Server Version | OSSMC Plugin Version | OCP Version |
+| --------------- | -------------------- | -------------------- | ----------- |
+| 3.0             | v2.4                 | v2.4                 | 4.15+       |
+| 2.6             | v1.73                | v1.73                | 4.14 - 4.18 |
+| 2.5             | v1.73                | v1.73                | 4.14 - 4.18 |
 
 [!NOTE]
-The OSSMC plugin is only supported on OpenShift 4.15 and above. For OCP 4.14 users, only the standalone Kiali Console will be accessible.
+The OSSMC plugin is only supported on OpenShift 4.15 and above for version v2.4. For OCP 4.14 users, only the standalone Kiali Console will be accessible.
+
+[!NOTE]
+In most cases, it is recommended to install the latest version of the Kiali Operator, even when installing a previous OSSMC plugin version, as it includes the latest z-stream releases for all supported OSSMC plugin versions.
+
+The OSSMC plugin can be installed in two ways: using the OpenShift web console or the OpenShift CLI.
 
 ### Install via the OpenShift web console
 
@@ -76,7 +88,7 @@ The following steps show how to install the OSSMC plugin via the OpenShift web c
     * **Name** and **Version** are required fields.
 
     [!NOTE]
-    The **Version** field must match the `spec.version` field in your Kiali CR. If the versions do not match, OSSMC will not work properly. In case the **Version** value is the string "default", the Kiali Operator will install OSSMC whose version is the same as the operator itself.
+    The **Version** field must match the `spec.version` field in your Kiali CR. If the versions do not match, OSSMC will not work properly. In case the **Version** value is the string "default", the Kiali Operator will install OSSMC whose version is the same as the operator itself. Otherwise, the `spec.version` field requires the "v" prefix to the version number, and the version number must only include the major and minor version numbers (patch number must be omitted); for example: `v1.73`.
 
 5. Click **Create**.
 
@@ -110,7 +122,7 @@ The following steps show how to install the OSSMC plugin via the OpenShift CLI.
     ```
 
     [!NOTE]
-    If the `spec.version` field is not specified (or if set explicitly to the string “default”), then the Kiali Operator will install OSSMC whose version is the same as the operator itself. It is very important that the version of OSSMC be the same version as the Kiali Server that is installed. If the versions do not match, OSSMC will not work properly.
+    It is very important that the version of OSSMC be the same version as the Kiali Server that is installed. If the versions do not match, OSSMC will not work properly. If the `spec.version` field is not specified (or if set explicitly to the string “default”), then the Kiali Operator will install OSSMC whose version is the same as the operator itself. Otherwise, the `spec.version` field requires the "v" prefix to the version number, and the version number must only include the major and minor version numbers (patch number must be omitted); for example: `v1.73`.
 
     The plugin resources are deployed in the same namespace where the `OSSMConsole` CR is created.
 
