@@ -17,6 +17,7 @@ package istioversion
 import (
 	"embed"
 	"fmt"
+	"os"
 
 	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
@@ -28,8 +29,16 @@ var (
 	//go:embed *.yaml
 	versionsFiles embed.FS
 
-	versionsFilename = "versions.yaml"
+	versionsFilename = getenv("VERSIONS_YAML_FILE", "versions.yaml")
 )
+
+func getenv(key string, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
 
 // Versions represents the top-level structure of versions.yaml
 type Versions struct {
