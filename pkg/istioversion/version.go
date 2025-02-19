@@ -17,9 +17,9 @@ package istioversion
 import (
 	"embed"
 	"fmt"
-	"os"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/istio-ecosystem/sail-operator/pkg/env"
 	"gopkg.in/yaml.v3"
 
 	"istio.io/istio/pkg/log"
@@ -29,16 +29,9 @@ var (
 	//go:embed *.yaml
 	versionsFiles embed.FS
 
-	versionsFilename = getenv("VERSIONS_YAML_FILE", "versions.yaml")
+	// versionsFilename is set via ldflags when building the binary and via an environment variable when running tests
+	versionsFilename = env.Get("VERSIONS_YAML_FILE", "versions.yaml")
 )
-
-func getenv(key string, defaultValue string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-	return value
-}
 
 // Versions represents the top-level structure of versions.yaml
 type Versions struct {
