@@ -115,7 +115,7 @@ _internal_defaults_do_not_set:
     hub: gcr.io/istio-release
 
     # Default tag for Istio images.
-    tag: 1.24.2
+    tag: 1.24.3
 
     # Variant of the image to use.
     # Currently supported are: [debug, distroless]
