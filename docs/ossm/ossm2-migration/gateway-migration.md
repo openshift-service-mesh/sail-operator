@@ -105,7 +105,7 @@ If you are migrating a Gateway API `Gateway`, you can only perform an "In Place"
 
 1. Label the `Gateway` resource to ensure injection from the new mesh is enabled (this differs between multitenancy and cluster-wide meshes), ensuring to add the `maistra.io/ignore` label as well as remove `istio-injection=enabled` if needed. For example:
    ```bash
-   oc label gateways.gateway.networking.k8s.io istio-ingress -n ${APP_NAMESPACE} istio.io/rev=${ISTIO_REVISION} maistra.io/ignore=""
+   oc label gateways.gateway.networking.k8s.io istio-ingress -n ${APP_NAMESPACE} istio.io/rev=${ISTIO_REVISION} maistra.io/ignore="true"
    ```
    > **_NOTE:_** We are labeling the `Gateway` resource itself and _not_ the namespace that the `Gateway` resides in. Labeling the namespace will have no effect on a Gateway API `Gateway`.
 
