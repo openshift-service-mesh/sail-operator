@@ -60,7 +60,7 @@ metadata:
     operatorframework.io/arch.arm64: supported
     operatorframework.io/arch.ppc64le: supported
     operatorframework.io/arch.s390x: supported
-  name: servicemeshoperator3.v3.0.0
+  name: servicemeshoperator3.v3.0.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -649,7 +649,7 @@ spec:
               annotations:
                 images.v1_24_3.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9:1.24.3
                 images.v1_24_3.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9:1.24.3
-                images.v1_24_3.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9:3.0.0
+                images.v1_24_3.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9:3.0.1
                 images.v1_24_3.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9:1.24.3
                 images.v1_24_3.ztunnel: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9:1.24.3
                 kubectl.kubernetes.io/default-container: sail-operator
@@ -780,4 +780,4 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat, Inc.
-  version: 3.0.0
+  version: 3.0.1
