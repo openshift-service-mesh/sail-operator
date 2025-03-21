@@ -60,12 +60,12 @@ Once the operator has been successfully updated, the Istio control plane must be
 
 The `Istio` resource configuration includes the following fields that are relevant to the upgrade process:
 - `spec.version`
-The version of Istio to be installed. The value of this field takes the form “vX.Y.Z”, where “X.Y.Z” is the desired Istio release. For example, if Istio “1.24.3” is desired, the field should specify “v1.24.3”. This field can be set to also to an alias, for example, `vX.Y-latest`, to automatically update to the latest supported version of Istio under that minor version, with this the operator will ensure that the control plane is kept up to date with the latest available patch release of Istio.
+The version of Istio to be installed. The value of this field takes the form “vX.Y.Z”, where “X.Y.Z” is the desired Istio release. For example, if Istio “1.24.3” is desired, the field should specify “v1.24.3”. This field can be also set to an alias, for example, `vX.Y-latest`, to automatically update to the latest supported version of Istio under that minor version, with this the operator will ensure that the control plane is kept up to date with the latest available patch release of Istio.
 
 To ensure the operator always has access to the latest available patch releases, its approval strategy should be set to “Automatic”. Once the operator is updated, if a version of the form “vX.Y-latest” is specified, it will initiate an update of the Istio control plane based on the configured `updateStrategy`.
 
 - `spec.updateStrategy`
-The strategy to use when updating the Istio control plane. The available strategies are `InPlace` and `RevisionBased`. The `InPlace` strategy will update the entire control plane at once as soon the new version is being set, while the `RevisionBased` strategy will update the control plane based in the `IstioRevision`, for more information check the next sections.
+The strategy to use when updating the Istio control plane. The available strategies are `InPlace` and `RevisionBased`. The `InPlace` strategy will update the entire control plane at once as soon the new version is being set. The `RevisionBased` strategy will create new `IstioRevision` while keeping old `IstioRevision` in place allowing gradual update for better control. For more information check the next sections.
 
 ### Istio control plane update strategies
 The `Istio` resource configuration includes the `spec.updateStrategy` field, which determines how the Istio control plane will be updated. When the operator observes a change in the Istio `spec.version` field or if a new minor release becomes available and a `vX.Y-latest` version alias is configured, an upgrade procedure will be initiated. The available strategies are `InPlace` and `RevisionBased`.
@@ -156,7 +156,7 @@ spec:
   updateStrategy:
     type: RevisionBased
 ```
-- Application workloads running in the cluster. For this example we are using the `bookinfo` application in the `bookinfo` namespace. For this example the `bookinfo` application is already labeled with the `istio.io/rev` label with the label `istio.io/rev=default-v1-22-5` 
+- Application workloads running in the cluster. For this example we are using the `bookinfo` application in the `bookinfo` namespace. For this example the `bookinfo` application is already labeled with the `istio.io/rev` label with the label `istio.io/rev=default-v1-24-2` 
 - `istioctl` is installed on your local machine. For more information check the [documentation](https://github.com/openshift-service-mesh/sail-operator/blob/fa8134936066e116eccd1b3059fb124c20cdf98a/docs/ossm/istioctl/README.md)
 
 To update the Istio control plane with the `RevisionBased` strategy, follow these steps:
@@ -214,7 +214,7 @@ spec:
     type: RevisionBased
   version: v1.24.2
 ```
-- You have created an `IstioRevision` resource. For this example we are using the `IstioRevision` resource in the with the following configuration:
+- You have created an `IstioRevisionTag` resource. For this example we are using the `IstioRevisionTag` resource in the with the following configuration:
 ```yaml
 kind: IstioRevisionTag
 metadata:
@@ -243,7 +243,7 @@ default-v1-24-3   Local   True    Healthy   True     v1.24.3   66s
 `$ oc get istiorevisiontags`
 ```console
 NAME      STATUS    IN USE   REVISION          AGE
-default   Healthy   True     default-v1-24-1   10m44s
+default   Healthy   True     default-v1-24-3   10m44s
 ```
 Now, both our `IstioRevisions` and the `IstioRevisionTag` are considered in use. The old revision `default-v1-24-2` because it is being used by proxies, the new revision `default-v1-24-3` because it is referenced by the tag, and lastly the `IstioRevisionTag` because it is referenced by the bookinfo namespace.
 - Confirm the proxy sidecar version remains the same:
