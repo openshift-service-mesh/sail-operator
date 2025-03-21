@@ -302,16 +302,3 @@ You should see the new version of the CNI plugin running and ready.
 NAME      READY   STATUS    VERSION   AGE
 default   True    Healthy   v1.24.3   91m
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
