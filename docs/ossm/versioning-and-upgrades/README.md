@@ -7,7 +7,7 @@ This document describes the versioning and upgrade process for the OSSM 3.x oper
 - [Operator Updates & Channels](#operator-updates--channels)
   - [Stable vs Versioned Operator Channels](#stable-vs-versioned-operator-channels)
   - [Operator Update Process](#operator-update-process)
-- [Istio Update Process] (#istio-update-process)
+- [Istio Update Process](#istio-update-process)
   - [Istio control plane update strategies](#istio-control-plane-update-strategies)
     - [About InPlace strategy](#about-inplace-strategy)
       - [Selecting the InPlace strategy](#selecting-the-inplace-strategy)
