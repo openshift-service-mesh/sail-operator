@@ -100,19 +100,34 @@ Prerequisites:
 - `istioctl` is installed on your local machine. For more information check the [documentation](https://github.com/openshift-service-mesh/sail-operator/blob/fa8134936066e116eccd1b3059fb124c20cdf98a/docs/ossm/istioctl/README.md).
 - Running control plane with the `InPlace` strategy running. For this example we are using the `Istio` resource in the `istio-system` namespace with the name `default`:
 ```yaml
+apiVersion: sailoperator.io/v1
 kind: Istio
+metadata:
+  name: default
 spec:
+  namespace: istio-system
   version: v1.24.2
   updateStrategy:
     type: InPlace
 ```
-- Application workloads running in the cluster. For this example we are using the `bookinfo` application in the `bookinfo` namespace.
+- You have installed `IstioCNI` with the desired version. For this example we are using the `IstioCNI` resource in the `istio-cni` namespace with the name `default`:
+```yaml
+apiVersion: sailoperator.io/v1
+kind: IstioCNI
+metadata:
+  name: default
+spec:
+  version: v1.24.2
+  namespace: istio-cni
+```
+- Application workloads running in the cluster. For this example we are using the `bookinfo` application in the `bookinfo` namespace. Note that the `bookinfo` application namespace is labeled with the `istio-injection=enabled` label:
+`$ oc label namespace bookinfo istio-injection=enabled`
 
 To update the Istio control plane with the `InPlace` strategy, follow these steps:
 - Edit the `Istio` resource to the desired version. For example, to update to Istio `1.24.3`, set the `spec.version` field to `v1.24.3`.
 `$ oc patch istio default -n istio-system --type='merge' -p '{"spec":{"version":"v1.24.3"}}'`
 
-The Service Mesh Operator deploys a new version of the control plane that replaces the old version of the control plane. The sidecars automatically reconnect to the new control plane. The update process is complete.
+The Service Mesh Operator deploys a new version of the control plane that replaces the old version of the control plane. The sidecars automatically reconnect to the new control plane.
 - Confirm that the new version of the control plane is running and ready by entering the following command
 `$ oc get istio default`
 You should see the new version of the control plane running and ready.
@@ -132,10 +147,14 @@ The column `VERSION` should match the new control plane version.
 When the RevisionBased strategy is used, a new Istio control plane instance is created for every change to the `Istio` `.spec.version` field. The old control plane remains in place until all workloads have been moved to the new control plane instance, making canary upgrades possible. This needs to be done by the user by updating the namespace label and restarting all the pods. The old control plane will be deleted after the grace period specified in the `Istio` resource field `spec.updateStrategy.inactiveRevisionDeletionGracePeriodSeconds`. The RevisionBased strategy also allows you to update by more than one minor version.
 
 #### Selecting the RevisionBased strategy
-To deploy `Istio` with the `RevisionBased` strategy, create the `Istio` resource with the following s`pec.updateStrategy` value:
+To deploy `Istio` with the `RevisionBased` strategy, create the `Istio` resource with the following `spec.updateStrategy` value:
 ```yaml
+apiVersion: sailoperator.io/v1
 kind: Istio
+metadata:
+  name: default
 spec:
+  namespace: istio-system
   version: v1.24.3
   updateStrategy:
     type: RevisionBased
@@ -150,13 +169,28 @@ Prerequisites:
 - You are logged in to OpenShift Container Platform as `cluster-admin`.
 - You have installed the Red Hat OpenShift Service Mesh Operator 3, and deployed `Istio` with the `RevisionBased` strategy. For this example we are using the `Istio` resource in the `istio-system` namespace with the name `default`:
 ```yaml
+apiVersion: sailoperator.io/v1
 kind: Istio
+metadata:
+  name: default
 spec:
+  namespace: istio-system
   version: v1.24.2
   updateStrategy:
     type: RevisionBased
 ```
-- Application workloads running in the cluster. For this example we are using the `bookinfo` application in the `bookinfo` namespace. For this example the `bookinfo` application is already labeled with the `istio.io/rev` label with the label `istio.io/rev=default-v1-24-2` 
+- You have installed `IstioCNI` with the desired version. For this example we are using the `IstioCNI` resource in the `istio-cni` namespace with the name `default`:
+```yaml
+apiVersion: sailoperator.io/v1
+kind: IstioCNI
+metadata:
+  name: default
+spec:
+  version: v1.24.2
+  namespace: istio-cni
+```
+- Application workloads running in the cluster. For this example we are using the `bookinfo` application in the `bookinfo` namespace. For this example the `bookinfo` application is already labeled with the `istio.io/rev` label with the label `istio.io/rev=default-v1-24-2`
+`$ oc label namespace bookinfo istio.io/rev=default-v1-24-2`
 - `istioctl` is installed on your local machine. For more information check the [documentation](https://github.com/openshift-service-mesh/sail-operator/blob/fa8134936066e116eccd1b3059fb124c20cdf98a/docs/ossm/istioctl/README.md)
 
 To update the Istio control plane with the `RevisionBased` strategy, follow these steps:
@@ -208,14 +242,19 @@ Prerequisites:
 - You are logged in to OpenShift Container Platform as `cluster-admin`.
 - You have installed the Red Hat OpenShift Service Mesh Operator 3, and deployed `Istio` with the `RevisionBased` strategy. For this example we are using the `Istio` resource in the `istio-system` namespace with the name `default`:
 ```yaml
+apiVersion: sailoperator.io/v1
 kind: Istio
+metadata:
+  name: default
 spec:
+  namespace: istio-system
   updateStrategy:
     type: RevisionBased
   version: v1.24.2
 ```
 - You have created an `IstioRevisionTag` resource. For this example we are using the `IstioRevisionTag` resource in the with the following configuration:
 ```yaml
+apiVersion: sailoperator.io/v1
 kind: IstioRevisionTag
 metadata:
   name: default
@@ -225,8 +264,18 @@ spec:
     name: default
 ```
 See that the `targetRef` field is referencing the `Istio` resource that you want to tag. For this example the `IstioRevisionTag` reference to the `Istio` resource with the name `default`.
+- You have installed `IstioCNI` with the desired version. For this example we are using the `IstioCNI` resource in the `istio-cni` namespace with the name `default`:
+```yaml
+apiVersion: sailoperator.io/v1
+kind: IstioCNI
+metadata:
+  name: default
+spec:
+  version: v1.24.2
+  namespace: istio-cni
+```
 - Application workloads running in the cluster. For this example we are using the `bookinfo` application in the `bookinfo` namespace. For this example the `bookinfo` application namespace is labeled with the `istio-injection=enabled` label.
-
+`$ oc label namespace bookinfo istio-injection=enabled`
 To update the Istio control plane with the `RevisionBased` strategy and `IstioRevisionTag`, follow these steps:
 - Update the `Istio` resource to the desired version. For example, to update to Istio `1.24.3`, set the `spec.version` field to `v1.24.3`.
 `$ oc patch istio default -n istio-system --type='merge' -p '{"spec":{"version":"v1.24.3"}}'`
@@ -245,7 +294,10 @@ default-v1-24-3   Local   True    Healthy   True     v1.24.3   66s
 NAME      STATUS    IN USE   REVISION          AGE
 default   Healthy   True     default-v1-24-3   10m44s
 ```
-Now, both our `IstioRevisions` and the `IstioRevisionTag` are considered in use. The old revision `default-v1-24-2` because it is being used by proxies, the new revision `default-v1-24-3` because it is referenced by the tag, and lastly the `IstioRevisionTag` because it is referenced by the bookinfo namespace.
+Now, both our `IstioRevisions` and the `IstioRevisionTag` are considered in use. The old revision `default-v1-24-2` because it is being used by proxies, the new revision `default-v1-24-3` because it is referenced by the tag, and lastly the `IstioRevisionTag` is considered in use because it is referenced by the bookinfo namespace.
+
+When the `IstioRevisionTag` references an `Istio` resource, it automatically tracks the active `IstioRevision` associated with that `Istio` instance. This means whenever the underlying Istio control plane is updated to a new revision, the `IstioRevisionTag` updates automatically to reference this new revision. The Sail Operator manages this synchronization, ensuring that your namespaces and workloads referencing the tag remain up-to-date without manual intervention.
+
 - Confirm the proxy sidecar version remains the same:
 `$ istioctl proxy-status`
 The column `VERSION` should match the old control plane version.
@@ -266,29 +318,27 @@ default-v1-24-3   Local   True    Healthy   True     v1.24.3   5m31s
 The old `IstioRevision` resource and the old control plane will be deleted when the grace period specified in the `Istio` resource field `spec.updateStrategy.inactiveRevisionDeletionGracePeriodSeconds` expires, the default value is 30 seconds.
 
 ## Istio-CNI Update Process
-Updates for the `IstioCNI` resource are `Inplace` updates, this means that the `DaemonSet` will be updated with the new version of the CNI plugin once the resource is updated and the `istio-cni-node` pods are going to be replaced with the new version of the CNI plugin. The `IstioCNI` resource configuration includes the following fields that are relevant to the upgrade process:
+Updates to the `IstioCNI` resource are performed as `Inplace` updates. This means the `DaemonSet` is updated with the new version of the CNI plugin when the resource changes, automatically replacing the existing istio-cni-node pods. The `IstioCNI` resource configuration field relevant to the upgrade process is:
 - `spec.version`: The version of the CNI plugin to be installed. The value of this field takes the form “vX.Y.Z”, where “X.Y.Z” is the desired CNI plugin release. For example, if CNI plugin “1.24.3” is desired, the field should specify “v1.24.3”.
 
 To update the CNI plugin, just change the `spec.version` field to the version you want to install. Just like the `Istio` resource, it also has a `values` field that exposes all of the options provided in the `istio-cni` chart.
 
-### Updating the Istio-CNI control plane
-When updating `IstioCNI`, take into account that CNI plugin at version `1.x` is compatible with `Istio` at version `1.x-1`, `1.x` and `1.x+1`. This means that you can update the CNI plugin to the latest version without updating the `Istio` control plane, but you can't update the `Istio` control plane to a version that is not compatible with the CNI plugin version. For example, if you have the `Istio` control plane at version `1.24.3` and the CNI plugin at version `1.24.2`, you can update the CNI plugin to version `1.24.3` without updating the `Istio` control plane, but you can't update the `Istio` control plane to version `1.24.4` without updating the CNI plugin.
+### Updating the Istio-CNI resource version
+When updating `IstioCNI`, keep in mind that the CNI plugin version `1.x` is compatible with Istio versions `1.x-1`, `1.x`, and `1.x+1`. You can upgrade the CNI plugin independently to the latest version without updating Istio, but you can't upgrade Istio to a version incompatible with the installed CNI plugin.
+
+For example, If your Istio control plane is at `1.24.3` and the CNI plugin is at `1.24.2`, you can safely update the CNI plugin to `1.24.3`. However, you can't upgrade `Istio` to `1.24.4` without first updating the CNI plugin.
 
 Prerequisites:
 - You are logged in to OpenShift Container Platform as `cluster-admin`.
 - You have installed the Red Hat OpenShift Service Mesh Operator 3, and deployed `IstioCNI`. For this example we are using the `IstioCNI` resource in the `istio-cni` namespace with the name `default`:
 ```yaml
-    kind: IstioCNI
-    metadata:
-      name: default
-    spec:
-      version: v1.24.2
-      namespace: istio-cni
-      values:
-        cni:
-          cniConfDir: /etc/cni/net.d
-          excludeNamespaces:
-          - kube-system
+apiVersion: sailoperator.io/v1
+kind: IstioCNI
+metadata:
+  name: default
+spec:
+  version: v1.24.2
+  namespace: istio-cni
 ```
 
 To update the Istio-CNI control plane, follow these steps:
@@ -296,7 +346,7 @@ To update the Istio-CNI control plane, follow these steps:
 `$ oc patch istiocni default -n istio-cni --type='merge' -p '{"spec":{"version":"v1.24.3"}}'` 
 The Service Mesh Operator deploys a new version of the CNI plugin that replaces the old version of the CNI plugin. The `istio-cni-node` pods automatically reconnect to the new CNI plugin. The update process is complete.
 - Confirm that the new version of the CNI plugin is running and ready by entering the following command
-`$ oc get istiocni default -n istio-cni`
+`$ oc get istiocni default`
 You should see the new version of the CNI plugin running and ready.
 ```console
 NAME      READY   STATUS    VERSION   AGE
