@@ -74,7 +74,7 @@ When the `InPlace` strategy is used, the existing Istio control plane is updated
 
 While the `InPlace` strategy is the simpler and more efficient update strategy, there is a small possibility of application traffic interruption in the event that a workload pod is updates, restarts or scales while the Istio control plane is restarting. This can be mitigated by running multiple replicas of the Istio control plane (Istiod).
 
-When the `RevisionBased` strategy is used, a new Istio control plane instance is created for every change to the `.spec.version` field. The old control plane remains in place until all workloads have been moved to the new control plane instance. Workloads are moved to the new control plane by updating either updating `istio.io/rev` labels or using the `IstioRevisionTag` resource, followed by a restart. 
+When the `RevisionBased` strategy is used, a new Istio control plane instance is created for every change to the `.spec.version` field. The old control plane remains in place until all workloads have been moved to the new control plane instance. Workloads are moved to the new control plane by updating either the `istio.io/rev` labels or using the `IstioRevisionTag` resource, followed by a restart. 
 
 While the `RevisionBased` strategy adds additional steps and requires multiple instances of the Istio control plane to run in parallel during the upgrade procedure, it allows a subset of workloads to be migrated to the updated control plane such that they can be validated before migrating the remaining workloads. This is particularly useful for migrating large meshes containing mission critical workloads. 
 
