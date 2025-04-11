@@ -68,6 +68,7 @@ csv:
     * [Bugs](https://issues.redhat.com/projects/OSSM)
   support: Red Hat, Inc.
   version: 3.0.1
+  replacesVersion: 3.0.0
   keywords:
   - istio
   - servicemesh
