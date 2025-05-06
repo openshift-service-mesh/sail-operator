@@ -28,11 +28,11 @@ operators to debug and diagnose Istio service mesh deployments.
     In the OpenShift console, navigate to the Command Line Tools by clicking :grey_question: -> **Command Line Tools** in the upper-right of the header.  
     Then click on **Download istioctl**, choose the correct package according to your system (OS and architecture):
 
-    - [Linux (x86_64, amd64)](https://mirror.openshift.com/pub/cgw/servicemesh/latest/istioctl-1.24.3-linux-amd64.tar.gz)
-    - [Linux on ARM (aarch64, arm64)](https://mirror.openshift.com/pub/cgw/servicemesh/latest/istioctl-1.24.3-linux-arm64.tar.gz)
-    - [MacOS (x86_64, amd64)](https://mirror.openshift.com/pub/cgw/servicemesh/latest/istioctl-1.24.3-darwin-amd64.tar.gz)
-    - [MacOS on ARM (aarch64, arm64)](https://mirror.openshift.com/pub/cgw/servicemesh/latest/istioctl-1.24.3-darwin-arm64.tar.gz)
-    - [Windows (x86_64, amd64)](https://mirror.openshift.com/pub/cgw/servicemesh/latest/istioctl-1.24.3-windows-amd64.zip)
+    - [Linux (x86_64, amd64)](https://mirror.openshift.com/pub/cgw/servicemesh/latest/istioctl-1.24.4-linux-amd64.tar.gz)
+    - [Linux on ARM (aarch64, arm64)](https://mirror.openshift.com/pub/cgw/servicemesh/latest/istioctl-1.24.4-linux-arm64.tar.gz)
+    - [MacOS (x86_64, amd64)](https://mirror.openshift.com/pub/cgw/servicemesh/latest/istioctl-1.24.4-darwin-amd64.tar.gz)
+    - [MacOS on ARM (aarch64, arm64)](https://mirror.openshift.com/pub/cgw/servicemesh/latest/istioctl-1.24.4-darwin-arm64.tar.gz)
+    - [Windows (x86_64, amd64)](https://mirror.openshift.com/pub/cgw/servicemesh/latest/istioctl-1.24.4-windows-amd64.zip)
 
 1. Extract the `istioctl` binary.
 
