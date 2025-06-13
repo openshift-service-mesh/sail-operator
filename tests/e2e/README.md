@@ -170,6 +170,28 @@ var _ = Describe("Operator", func() {
 * Use `Success` helper to print Success message in the test output.
 * Use `kubectl` and `helm` utils to make all the necessary operations in the test that are going to be done by a user. This means that the test should simulate the user behavior when using the operator.
 * Use `client` to interact with the Kubernetes API. This is useful when you need to interact with the Kubernetes API directly and not through `kubectl`. This needs to be used to make all the assertions if is possible. We use the client to make the assertions over `kubectl` because it is more reliable and faster, it will not need any complex parsing of the output.
+* Use `cleaner` to clean up any resources your tests create after they finish. The cleaner records a "snapshot" of the cluster, and removes any resources that weren't recorded. The best way to use it is by adding call in `BeforeAll` and `AfterAll` blocks. For example:
+```go
+import "github.com/istio-ecosystem/sail-operator/tests/e2e/util/cleaner"
+
+var _ = Describe("Testing with cleanup", Ordered, func() {
+    clr := cleaner.New(cl)
+
+    BeforeAll(func(ctx SpecContext) {
+        clr.Record(ctx)
+        // Any additional set up goes here
+    })
+
+    // Tests go here
+
+    AfterAll(func(ctx SpecContext) {
+        // Any finalizing logic goes here
+        clr.Cleanup(ctx)
+    })
+})
+```
+    * You can use multiple cleaners, each with its own state. This is useful if the test does some global set up, e.g. sets up the operator, and then specific tests create further resources which you want cleaned.
+    * To clean resources without waiting, and waiting for them later, use `CleanupNoWait` followed by `WaitForDeletion`. This is particularly useful when working with more than one cluster.
 
 ## Running the test
 The end-to-end test can be run in two different environments: OCP (OpenShift Container Platform) and KinD (Kubernetes in Docker).
@@ -234,6 +256,7 @@ The following environment variables define the behavior of the test run:
 * CONTROL_PLANE_NS=istio-system - The namespace where the control plane will be deployed.
 * DEPLOYMENT_NAME=sail-operator - The name of the operator deployment.
 * EXPECTED_REGISTRY=`^docker\.io|^gcr\.io` - Which image registry should the operand images come from. Useful for downstream tests.
+* KEEP_ON_FAILURE - If set to true, when using a local KIND cluster, don't clean it up when the test fails. This allows to debug the failure.
 
 ### Customizing the test run
 
@@ -251,6 +274,95 @@ Alternatively, set the following environment variables to change these file path
 * HELLOWORLD_YAML_PATH
 
 `TCP_ECHO_*` are used in the `dual-stack` test suite, `SLEEP_YAML_PATH` and `HELLOWORLD_YAML_PATH` are used in both `Multicluster` and default test run.
+
+### Using the e2e framework to test your cluster configuration
+The e2e framework can be used to test your cluster configuration. The framework is designed to be flexible and extensible. It is easy to add new test suites and new tests. The idea is to be able to simulate what a real user scenario looks like when using the operator.
+
+To do this, we have a set of test cases under a test group called `smoke`. This test group will run a set of tests that are designed to test the basic functionality of the operator. The tests in this group are designed to be run against a cluster that is already configured and running. The tests will not modify the cluster configuration or the operator configuration. The tests will only check if the operator is working as expected.
+
+Pre-requisites:
+* The operator is already installed and running in the cluster.
+
+To run the test group, you can use the following command:
+
+* Run the following command to run the smoke tests:
+For running on kind:
+```
+$ SKIP_BUILD=true SKIP_DEPLOY=true GINKGO_FLAGS="-v --label-filter=smoke" make test.e2e.kind
+```
+
+For running on OCP:
+```
+$ SKIP_BUILD=true SKIP_DEPLOY=true GINKGO_FLAGS="-v --label-filter=smoke" make test.e2e.ocp
+```
+
+#### Running with specific configuration for the Istio and IstioCNI resource
+There might be situations where you want to run tests with a specific configuration for the Istio and IstioCNI resource to match some cluster specific needs. For this, you can modify the `pkg/istiovalues/vendor_default.yaml` file to default `spec.values` for the Istio and IstioCNI resources. For more information and an example go to the [file](pkg/istiovalues/vendor_default.yaml)
+
+#### Running the testing framework against specific Istio versions
+By default, the test framework will run the tests against all the latest patch minor version available for the operator. This is useful when you want to test the operator against all the latest patch minor versions available. The test framework will automatically detect the latest patch minor version available for the operator and run the tests against it by reading the versions located in the `pkg/istioversion/versions.yaml` file.
+
+To avoid this and run the tests against a specific Istio versions, you can create your own `versions.yaml` file and set the `VERSIONS_YAML_FILE` environment variable to point to it. The file should have the following structure:
+```yaml
+versions:
+  - name: v1.26-latest
+    ref: v1.26.0
+  - name: v1.26.0
+    version: 1.26.0
+    repo: https://github.com/istio/istio
+    commit: 1.26.0
+    charts:
+      - https://istio-release.storage.googleapis.com/charts/base-1.26.0.tgz
+      - https://istio-release.storage.googleapis.com/charts/istiod-1.26.0.tgz
+      - https://istio-release.storage.googleapis.com/charts/gateway-1.26.0.tgz
+      - https://istio-release.storage.googleapis.com/charts/cni-1.26.0.tgz
+      - https://istio-release.storage.googleapis.com/charts/ztunnel-1.26.0.tgz
+  - name: v1.25-latest
+    ref: v1.25.3
+  - name: v1.25.3
+    version: 1.25.3
+    repo: https://github.com/istio/istio
+    commit: 1.25.3
+    charts:
+      - https://istio-release.storage.googleapis.com/charts/base-1.25.3.tgz
+      - https://istio-release.storage.googleapis.com/charts/istiod-1.25.3.tgz
+      - https://istio-release.storage.googleapis.com/charts/gateway-1.25.3.tgz
+      - https://istio-release.storage.googleapis.com/charts/cni-1.25.3.tgz
+      - https://istio-release.storage.googleapis.com/charts/ztunnel-1.25.3.tgz
+```
+*Important*: avoid adding in the custom file versions that are not available in the `pkg/istioversion/versions.yaml` file. The test framework will not be able to run the tests because the operator does not contains the charts for those versions.
+* To run the test framework against a specific Istio version, you can use the following command:
+```
+$ VERSIONS_YAML_FILE=path/to/your/versions.yaml SKIP_BUILD=true SKIP_DEPLOY=true GINKGO_FLAGS="-v --label-filter=smoke" make test.e2e.kind
+```
+
+### Understanding the test output
+By default, running the test using the make target will generate a report.xml file in the project's root directory. This file contains the test results in JUnit format, for example:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+  <testsuites tests="154" disabled="79" errors="0" failures="0" time="588.636386015">
+      <testsuite name="Ambient Test Suite" package="/work/tests/e2e/ambient" tests="60" disabled="0" skipped="60" errors="0" failures="0" time="0.020193112" timestamp="2025-05-22T13:07:53">
+          <properties>
+```
+As you can see, the test results are grouped by test suite. The `tests` attribute indicates the number of tests that were run, the `disabled` attribute indicates the number of tests that were skipped, and the `errors` and `failures` attributes indicate the number of tests that failed or had errors. The `time` attribute indicates the total time taken to run the tests.
+
+Also, in the terminal you will be able to see the test results in a human readable format. The test results will be printed to the console with the following format:
+```
+Ran 82 of 82 Specs in 224.026 seconds
+SUCCESS! -- 82 Passed | 0 Failed | 0 Pending | 0 Skipped
+PASS
+
+Ginkgo ran 1 suite in 3m46.401610849s
+Test Suite Passed
+```
+
+In case of failure, the test results will be printed to the console with the following format:
+```
+Ran 82 of 82 Specs in 224.026 seconds
+FAIL! -- 81 Passed | 1 Failed | 0 Pending | 0 Skipped
+Ginkgo ran 1 suite in 3m46.401610849s
+Test Suite Failed
+```
 
 ### Get test definitions for the end-to-end test
 
