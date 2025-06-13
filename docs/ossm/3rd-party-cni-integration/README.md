@@ -159,7 +159,7 @@ The `tests` attribute indicates the total number of tests run, `disabled` indica
 #### Manual validation using default settings of Istio and IstioCNI
 Besides the test execution of the e2e framework, you can also do some manual steps validations using bookinfo to ensure that the CNI configuration is correct.
 
-1. Install manually `Istio` and `IstioCNI` resources using the default configuration:
+1. Install manually Istio and IstioCNI resources using the default configuration:
 Please refer to the [documentation](https://docs.redhat.com/en/documentation/red_hat_openshift_service_mesh/3.0/html/installing/ossm-installing-service-mesh#about-istio-deployment_ossm-about-deploying-istio-using-service-mesh-operator) to install the Istio and IstioCNI resources using the default configuration.
 
 2. Install bookinfo application:
@@ -298,24 +298,12 @@ $ ls -l /host/var/lib/cni/bin/ |grep multus
 ```
 As you can see, the CNI configuration file is located in `/run/multus/cni/net.d/10-calico.conflist` and the CNI binaries are located in `/host/var/lib/cni/bin/` in this example.
 
-### Running e2e framework from Sail Operator
-Using the e2e testing framework will run a subset of tests that will install and validate the OSSM configuration over the cluster.
+### Validation steps
+To validate the integration of OpenShift Service Mesh with a third-party CNI you can follow these steps:
 
-*Notes:*
-* For more information about the testing framework please refer to the upstream [documentation](https://github.com/istio-ecosystem/sail-operator/tree/main/tests/e2e).
-* [Here](https://github.com/istio-ecosystem/sail-operator/tree/main/tests/e2e#using-the-e2e-framework-to-test-your-cluster-configuration) you will find specific information about running the framework against your specific cluster configuration.
+1. Install Istio and IstioCNI resources with chained equal true and using provider default:
 
-#### Steps to run the e2e tests
-
-1. Clone the Sail Operator repository:
-
-```console
-git clone https://github.com/istio-ecosystem/sail-operator
-cd sail-operator
-```
-
-2. Add the custom configuration to the vendors file:
-From the information about the CNI configuration that we gather before we now know the specific configuration for the `Istio` and `IstioCNI` resources that we need to use in the e2e tests. The configuration is as follows for our example:
+From the information about the CNI configuration that we gather before we now know the specific configuration for the Istio and IstioCNI resources that we need to use for this validation. The configuration is as follows for our example:
 
 ```yaml
 apiVersion: sailoperator.io/v1
@@ -330,9 +318,9 @@ spec:
       cniConfDir: /run/multus/cni/net.d
       cniConfFileName: 10-calico.conflist
       provider: default
-  version: v1.24.4
+  version: v1.24.5
 ```
-The configuration set for the resource `IstioCNI` is as follows:
+The configuration set for the resource IstioCNI is as follows:
 * *chained*: true
 * *cniBinDir*: "/var/lib/cni/bin". Matching the directory from the previous search
 * *cniConfDir*: "/run/multus/cni/net.d". Matching the directory where the config file from calico is located
@@ -354,57 +342,71 @@ spec:
       cni:
         enabled: true
         provider: default
-  version: v1.24.4
+  version: v1.24.5
 ```
-The configuration set for the resource `Istio` is as follows:
+The configuration set for the resource Istio is as follows:
 * *spec.values.pilot.cni.enabled*: true
 * *spec.values.pilot.cni.provider*: default
 
-To be able to run the test with this specific configuration you will need to add some custom configuration to the `vendor_defaults.yaml` file located in the `pkg/istiovalues/` directory. The resulting files should look like this:
-```yaml
-# This file can be overwritten in vendor distributions of sail-operator to set
-# vendor-specific defaults. You can configure version-specific defaults for
-# every field in `spec.values` for both Istio and IstioCNI resource, 
-# see the following example:
-# 
-# First the Istio version where the default values are going to be set, for our example will be 1.26.0
-# v1.26.0:
-#   istio:
-#     pilot:
-#       cni:
-#         enabled: true
-#         provider: default
-#   istiocni:
-#     cni:
-#       chained: true
-#       cniBinDir: /var/lib/cni/bin
-#       cniConfDir: /run/multus/cni/net.d
-#       cniConfFileName: 10-calico.conflist
-#       provider: default
-#
-# These defaults are type-checked at compile time.
-# Note: After modifying this file, run `make test` to run unit test and ensure that the
-# generated defaults values from this files are valid.
-```
-For more information about How to use the vendors file please check [here](https://github.com/istio-ecosystem/sail-operator/tree/main/tests/e2e#running-with-specific-configuration-for-the-istio-and-istiocni-resource).
-
-Once this files is being set we can run the e2e tests with the custom configuration in the same way as before:
+Once both resources are created you can check that the resource pods are running:
 
 ```console
-SKIP_DEPLOY=true SKIP_BUILD=true DEPLOYMENT_NAME=servicemesh-operator3 NAMESPACE=openshift-operators EXPECTED_REGISTRY="^registry.redhat.io" GINKGO_FLAGS="-v --label-filter=smoke" make test.e2e.ocp
+$ oc get pods -n istio-cni
+NAME                   READY   STATUS    RESTARTS   AGE
+istio-cni-node-kfws7   1/1     Running   0          139m
+istio-cni-node-kgx6s   1/1     Running   0          139m
+istio-cni-node-lz4kk   1/1     Running   0          139m
+istio-cni-node-p4j74   1/1     Running   0          139m
+istio-cni-node-p592d   1/1     Running   0          139m
+istio-cni-node-qzvlh   1/1     Running   0          139m
+$ oc get pods -n istio-system
+NAME                      READY   STATUS    RESTARTS   AGE
+istiod-75fb5f5bc5-w2m2j   1/1     Running   0          134m
 ```
-Note:
-* The above command sets several environment variables to control the behavior of the e2e tests:
-  - `SKIP_DEPLOY`: Skips the deployment of the operator. Your already have the operator running on the cluster.
-  - `SKIP_BUILD`: Skips the build and push of the operator image to the cluster. The test are going to use the running operator from the cluster.
-  - `DEPLOYMENT_NAME`: Matches the default name of the deployment for OSSM3.
-  - `NAMESPACE`: Sets the namespace where the operator is being deployed.
-  - `EXPECTED_REGISTRY`: Sets the expected registry for image validation.
-  - `GINKGO_FLAGS`: Enables verbose output and filters tests by label. For this test we are going to run smoke test suite.
 
-3. Validate the test results:
-If the test run ends successfully, you will see at the end of the test execution: “Test Suite Passed”. For example
+2. Install bookinfo application:
+
 ```console
-Ginkgo ran 6 suites in 5m9.079600163s
-Test Suite Passed
-````
+$ oc create namespace bookinfo
+namespace/bookinfo created
+$ oc label namespace bookinfo istio-injection=enabled
+namespace/bookinfo labeled
+$ oc apply -n bookinfo -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/bookinfo/platform/kube/bookinfo.yaml
+```
+
+3. Validate bookinfo application:
+
+```console
+$ oc get pods -n bookinfo
+NAME                             READY   STATUS    RESTARTS   AGE
+details-v1-696f7cfbcb-xhctt      2/2     Running   0          132m
+productpage-v1-94cdccd8f-qpqtb   2/2     Running   0          132m
+ratings-v1-649c95cf4d-wclnb      2/2     Running   0          132m
+reviews-v1-6469d4f55b-pg6pn      2/2     Running   0          132m
+reviews-v2-56b87cb468-rwzks      2/2     Running   0          132m
+reviews-v3-7bdb75f6fb-wn5f5      2/2     Running   0          132m
+```
+
+4. Validate istio-cni pod logs:
+
+```console
+2025-05-21T14:25:10.778858Z info cni-plugin ============= End iptables configuration for details-v1-696f7cfbcb-xhctt =============
+2025-05-21T14:25:12.832700Z info cni-plugin ============= Start iptables configuration for reviews-v2-56b87cb468-rwzks =============
+2025-05-21T14:25:12.841418Z info cni-plugin Istio iptables environment:
+...
+```
+This confirms that the Istio CNI plugin was invoked and started its setup process for this specific application pods.
+
+5. Validate we can reach the bookinfo application:
+
+You can use the following command to validate that you can reach the bookinfo application from inside the cluster (for example, from the productpage pod):
+```console
+# curl details.bookinfo:9080/details/1
+{"id":1,"author":"William Shakespeare","year":1595,"type":"paperback","pages":200,"publisher":"PublisherA","language":"English","ISBN-10":"1234567890","ISBN-13":"123-1234567890"}
+```
+
+6. Accesing to the application from outside the cluster:
+
+To access the bookinfo application from outside the cluster, you can follow the upstream specific [documentation](https://istio.io/latest/docs/examples/bookinfo/#:~:text=Create%20a%20gateway%20for%20the%20Bookinfo%20application%3A). In this documentation you will find the steps to create a gateway and a virtual service to expose the bookinfo application or use Gateway API to expose the application. 
+
+Note: the e2e testing framework can be run also for custom configuration but to achieve this you will need to follow this [documentation](https://github.com/istio-ecosystem/sail-operator/tree/main/tests/e2e#running-with-specific-configuration-for-the-istio-and-istiocni-resource).
