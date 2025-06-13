@@ -410,3 +410,13 @@ You can use the following command to validate that you can reach the bookinfo ap
 To access the bookinfo application from outside the cluster, you can follow the upstream specific [documentation](https://istio.io/latest/docs/examples/bookinfo/#:~:text=Create%20a%20gateway%20for%20the%20Bookinfo%20application%3A). In this documentation you will find the steps to create a gateway and a virtual service to expose the bookinfo application or use Gateway API to expose the application. 
 
 Note: the e2e testing framework can be run also for custom configuration but to achieve this you will need to follow this [documentation](https://github.com/istio-ecosystem/sail-operator/tree/main/tests/e2e#running-with-specific-configuration-for-the-istio-and-istiocni-resource).
+
+## Chained CNI vs. Standalone CNI
+
+The chained parameter in the Istio CNI configuration dictates how the Istio CNI plugin integrates with other CNI plugins.
+
+* chained: false (Standalone CNI)
+When chained is false (the default), the Istio CNI plugin operates independently for Istio's traffic redirection. It applies iptables rules, but a primary CNI (e.g., Calico) handles core network setup (IP addressing, routing). This mode typically relies on Multus CNI to orchestrate the execution of both the primary CNI and the Istio CNI during pod network setup. The istio-init container then validates that the iptables rules were successfully applied by the CNI plugin.
+
+* chained: true (Chained CNI)
+When chained is true, the Istio CNI plugin is integrated directly into the primary CNI's configuration. After the primary CNI completes its setup, it explicitly chains to the Istio CNI plugin to apply the iptables rules for traffic redirection. This requires modifying the primary CNI's configuration file to include the Istio CNI. The istio-init container's role remains validation.
