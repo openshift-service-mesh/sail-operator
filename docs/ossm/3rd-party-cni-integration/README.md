@@ -128,8 +128,10 @@ cd sail-operator
 
 2. Run the make target to run the e2e tests:
 
+Note: Before running the test please check the current supported versions of the current OSSM version that you want to test, this versions need to be added to a custom versions file following this [documentation](https://github.com/istio-ecosystem/sail-operator/blob/main/tests/e2e/README.md#running-the-testing-framework-against-specific-istio-versions).
+
 ```console
-SKIP_DEPLOY=true SKIP_BUILD=true DEPLOYMENT_NAME=servicemesh-operator3 NAMESPACE=openshift-operators EXPECTED_REGISTRY="^registry.redhat.io" GINKGO_FLAGS="-v --label-filter=smoke" make test.e2e.ocp
+SKIP_DEPLOY=true SKIP_BUILD=true DEPLOYMENT_NAME=servicemesh-operator3 NAMESPACE=openshift-operators EXPECTED_REGISTRY="^registry.redhat.io" GINKGO_FLAGS="-v VERSIONS_YAML_FILE=custom_versions.yaml --label-filter=smoke" make test.e2e.ocp
 ```
 Note:
 * The above command sets several environment variables to control the behavior of the e2e tests:
@@ -139,6 +141,7 @@ Note:
   - `NAMESPACE`: Sets the namespace where the operator is being deployed.
   - `EXPECTED_REGISTRY`: Sets the expected registry for image validation.
   - `GINKGO_FLAGS`: Enables verbose output and filters tests by label. For this test we are going to run smoke test suite.
+  - `VERSIONS_YAML_FILE`: Specifies the custom versions file to use for the test run. This file should contain the versions of Istio and IstioCNI that you want to test against and are available in the current OSSM operator version.
 
 3. Validate the test results:
 If the test run ends successfully, you will see at the end of the test execution: “Test Suite Passed”. For example
