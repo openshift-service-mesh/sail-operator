@@ -294,16 +294,15 @@ func GetVersionFromIstiod() (*semver.Version, error) {
 func CheckPodsReady(ctx SpecContext, cl client.Client, namespace string) (*corev1.PodList, error) {
 	podList := &corev1.PodList{}
 
-	err := cl.List(ctx, podList, client.InNamespace(namespace))
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pods in %s namespace: %w", namespace, err)
-	}
-
-	Expect(podList.Items).ToNot(BeEmpty(), fmt.Sprintf("No pods found in %s namespace", namespace))
-
+	Eventually(func() bool {
+		Expect(cl.List(ctx, podList, client.InNamespace(namespace))).To(Succeed())
+		return len(podList.Items) > 0
+	}).Should(BeTrue(), fmt.Sprintf("No pods found in %s namespace", namespace))
+	
 	for _, pod := range podList.Items {
 		Eventually(GetObject).WithArguments(ctx, cl, kube.Key(pod.Name, namespace), &corev1.Pod{}).
-			Should(HaveConditionStatus(corev1.PodReady, metav1.ConditionTrue), fmt.Sprintf("%q Pod in %q namespace is not Ready", pod.Name, namespace))
+			Should(HaveConditionStatus(corev1.PodReady, metav1.ConditionTrue),
+				fmt.Sprintf("%q Pod in %q namespace is not Ready", pod.Name, namespace))
 	}
 
 	return podList, nil
