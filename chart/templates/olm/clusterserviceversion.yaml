@@ -60,4 +60,5 @@ spec:
   provider:
     name: Red Hat, Inc.
   version: {{ .Values.csv.version }}
+  replaces: {{ .Values.name }}.v{{ .Values.csv.replacesVersion }}
 {{ end }}

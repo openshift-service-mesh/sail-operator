@@ -3,7 +3,7 @@
 # every field in `spec.values` for both Istio and IstioCNI resource, 
 # see the following example:
 # 
-# v1.26.0:
+# v1.26.1:
 #   istio:
 #     pilot:
 #       env:

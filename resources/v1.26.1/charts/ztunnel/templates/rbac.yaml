@@ -28,7 +28,16 @@ metadata:
   name: {{ include "ztunnel.release-name" . }}
   labels:
     app: ztunnel
+<<<<<<< HEAD
     release: {{ include "ztunnel.release-name" . }}
+=======
+<<<<<<<< HEAD:resources/v1.24.1/charts/ztunnel/templates/rbac.yaml
+    release: {{ .Release.Name }}
+========
+    release: {{ include "ztunnel.release-name" . }}
+    install.operator.istio.io/owning-resource: {{ .Values.ownerName | default "unknown" }}
+>>>>>>>> d3c18def (Prepare release-3.1):resources/v1.26.1/charts/ztunnel/templates/rbac.yaml
+>>>>>>> d3c18def (Prepare release-3.1)
     app.kubernetes.io/name: ztunnel
     {{- include "istio.labels" . | nindent 4}}
   annotations:
@@ -50,7 +59,16 @@ metadata:
   name: {{ include "ztunnel.release-name" . }}
   labels:
     app: ztunnel
+<<<<<<< HEAD
     release: {{ include "ztunnel.release-name" . }}
+=======
+<<<<<<<< HEAD:resources/v1.24.1/charts/ztunnel/templates/rbac.yaml
+    release: {{ .Release.Name }}
+========
+    release: {{ include "ztunnel.release-name" . }}
+    install.operator.istio.io/owning-resource: {{ .Values.ownerName | default "unknown" }}
+>>>>>>>> d3c18def (Prepare release-3.1):resources/v1.26.1/charts/ztunnel/templates/rbac.yaml
+>>>>>>> d3c18def (Prepare release-3.1)
     app.kubernetes.io/name: ztunnel
     {{- include "istio.labels" . | nindent 4}}
   annotations:

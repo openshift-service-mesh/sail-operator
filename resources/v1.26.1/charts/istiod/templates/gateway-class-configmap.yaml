@@ -6,6 +6,10 @@ metadata:
   namespace: {{ $.Release.Namespace }}
   labels:
     istio.io/rev: {{ $.Values.revision | default "default" | quote }}
+<<<<<<< HEAD
+=======
+    install.operator.istio.io/owning-resource: {{ $.Values.ownerName | default "unknown" }}
+>>>>>>> d3c18def (Prepare release-3.1)
     operator.istio.io/component: "Pilot"
     release: {{ $.Release.Name }}
     app.kubernetes.io/name: "istiod"
