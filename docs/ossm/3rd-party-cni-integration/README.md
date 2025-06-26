@@ -7,26 +7,10 @@ This document provides guidance on how to deploy and validate OpenShift Service 
 
 *Key Point*: Calico serves as the Container Network Interface (CNI) in the following example. The document presumes a fully configured cluster with an actively running third-party CNI.
 
+## Global Prerequisites
 
-## CNI third-party test with default configuration for OSSM resources.
+These prerequisites apply to **all test scenarios** covered in this document:
 
-The default configuration for Istio and IstioCNI resources are:
-
-```console
-cni:
-  cniBinDir: /var/lib/cni/bin
-  cniConfDir: /etc/cni/multus/net.d
-  chained: false
-  cniConfFileName: "istio-cni.conf"
-  provider: "multus"
-pilot:
-  cni:
-    enabled: true
-    provider: "multus"
-```
-As you can see, the default configuration uses Multus as the CNI provider.
-
-### Prerequisites
 * OCP cluster running with a third-party CNI (e.g., Calico).
 
 ```console
@@ -73,6 +57,36 @@ goldmane-ff655769-jssz9                    1/1     Running   0          85m
 whisker-5f848c455b-fs6j5                   2/2     Running   0          85m
 ```
 
+* OpenShift Service Mesh Operator installed and running on the cluster.
+
+```console
+$ oc get pods -n openshift-operators
+NAME                                     READY   STATUS    RESTARTS   AGE
+servicemesh-operator3-86b7ffc8fb-bcsqh   1/1     Running   0          51m
+```
+
+*Note:* validate the CNI configuration before starting to run the test, for example: be sure that the CNI configuration file is present in the `/etc/cni/multus/net.d` directory.
+
+## CNI third-party test with default configuration for OSSM resources.
+
+The default configuration for Istio and IstioCNI resources are:
+
+```console
+cni:
+  cniBinDir: /var/lib/cni/bin
+  cniConfDir: /etc/cni/multus/net.d
+  chained: false
+  cniConfFileName: "istio-cni.conf"
+  provider: "multus"
+pilot:
+  cni:
+    enabled: true
+    provider: "multus"
+```
+As you can see, the default configuration uses Multus as the CNI provider.
+
+### Prerequisites
+
 * Multus CNI installed and configured on the cluster.
 
 ```console
@@ -99,16 +113,6 @@ network-metrics-daemon-js96f                   2/2     Running   0          85m
 network-metrics-daemon-tqlw8                   2/2     Running   0          76m
 network-metrics-daemon-vggbb                   2/2     Running   0          79m
 ```
-
-* OpenShift Service Mesh Operator installed and running on the cluster.
-
-```console
-$ oc get pods -n openshift-operators
-NAME                                     READY   STATUS    RESTARTS   AGE
-servicemesh-operator3-86b7ffc8fb-bcsqh   1/1     Running   0          51m
-```
-
-*Note:* validate the CNI configuration before starting to run the test, for example: be sure that the CNI configuration file is present in the `/etc/cni/multus/net.d` directory.
 
 ### Running e2e framework from Sail Operator
 Using the e2e testing framework will run a subset of tests that will install and validate the OSSM configuration over the cluster.
@@ -232,59 +236,6 @@ This confirms that the purpose of this init container is to verify the iptables 
 ## CNI third-party test with chained equal true and using provider default
 
 ### Prerequisites
-* OCP cluster running with a third-party CNI (e.g., Calico).
-
-```console
-$ oc get tigerastatus
-NAME        AVAILABLE   PROGRESSING   DEGRADED   SINCE
-apiserver   True        False         False      23m
-calico      True        False         False      14m
-goldmane    True        False         False      23m
-ippools     True        False         False      15m
-whisker     True        False         False      24m
-```
-
-```console
-$ oc get nodes
-NAME                          STATUS   ROLES                  AGE   VERSION
-ip-10-0-25-190.ec2.internal   Ready    control-plane,master   84m   v1.31.8
-ip-10-0-43-214.ec2.internal   Ready    control-plane,master   83m   v1.31.8
-ip-10-0-48-121.ec2.internal   Ready    worker                 77m   v1.31.8
-ip-10-0-85-125.ec2.internal   Ready    worker                 77m   v1.31.8
-ip-10-0-9-228.ec2.internal    Ready    worker                 73m   v1.31.8
-ip-10-0-91-204.ec2.internal   Ready    control-plane,master   83m   v1.31.8
-```
-
-```console
-$ oc get pods -n calico-system
-NAME                                       READY   STATUS    RESTARTS   AGE
-calico-kube-controllers-6968f55b5f-pkrv9   1/1     Running   0          85m
-calico-node-5kwrh                          1/1     Running   0          85m
-calico-node-cxntv                          1/1     Running   0          85m
-calico-node-f4b7l                          1/1     Running   0          79m
-calico-node-hln4k                          1/1     Running   0          76m
-calico-node-rw65s                          1/1     Running   0          85m
-calico-node-trj56                          1/1     Running   0          79m
-calico-typha-6c65ff74f4-r992t              1/1     Running   0          85m
-calico-typha-6c65ff74f4-vsn4v              1/1     Running   0          79m
-calico-typha-6c65ff74f4-wnprq              1/1     Running   0          85m
-csi-node-driver-652qk                      2/2     Running   0          85m
-csi-node-driver-gx8bq                      2/2     Running   0          76m
-csi-node-driver-hrzt4                      2/2     Running   0          85m
-csi-node-driver-kxfhl                      2/2     Running   0          85m
-csi-node-driver-pdp5h                      2/2     Running   0          79m
-csi-node-driver-x82rg                      2/2     Running   0          79m
-goldmane-ff655769-jssz9                    1/1     Running   0          85m
-whisker-5f848c455b-fs6j5                   2/2     Running   0          85m
-```
-
-* OpenShift Service Mesh Operator installed and running on the cluster.
-
-```console
-$ oc get pods -n openshift-operators
-NAME                                     READY   STATUS    RESTARTS   AGE
-servicemesh-operator3-86b7ffc8fb-bcsqh   1/1     Running   0          51m
-```
 
 * Get the directory and path of the CNI configuration. To achieve this, validate where are located the cni binaries and where is located the cni configuration file. This is going to be needed to place the custom configuration in the resources. You can use the following commands from one of cluster nodes to validate the CNI configuration and binaries:
 
