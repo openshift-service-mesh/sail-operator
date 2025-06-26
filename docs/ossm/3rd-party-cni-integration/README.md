@@ -148,7 +148,7 @@ If the test run ends successfully, you will see at the end of the test execution
 ```console
 Ginkgo ran 6 suites in 5m9.079600163s
 Test Suite Passed
-````
+```
 
 Note that if the test run fails, you will see this message: "Test Suite Failed". More information about reading the test results [here](https://github.com/istio-ecosystem/sail-operator/tree/main/tests/e2e#understanding-the-test-output).
 
@@ -216,8 +216,9 @@ INBOUND_PORTS_INCLUDE=*
 INBOUND_PORTS_EXCLUDE=15020,15021,15090
 ```
 
-“============= Start iptables configuration for productpage-v1-94cdccd8f-tk9vv =============:“
-This confirms that the Istio CNI plugin was invoked and started its setup process for this specific productpage pod. Also, checking the init container logs in the productpage pods shows:
+As you can see in the logs:
+`2025-05-20T18:03:03.180714Z info cni-plugin ============= Start iptables configuration for productpage-v1-94cdccd8f-tk9vv =============`
+This line confirms that the Istio CNI plugin was invoked and started its setup process for this specific productpage pod. Also, checking the init container logs in the productpage pods shows:
 ```console
 2025-05-20T18:02:59.773965Z info Starting iptables validation. This check verifies that iptables rules are properly established for the network.
 2025-05-20T18:02:59.774017Z info Listening on 127.0.0.1:15001
