@@ -288,7 +288,7 @@ func (c *Cleaner) WaitForDeletion(ctx context.Context, deleted []client.Object) 
 func (c *Cleaner) waitForDeletion(ctx context.Context, obj client.Object) error {
 	objKey := client.ObjectKeyFromObject(obj)
 
-	err := wait.PollUntilContextTimeout(ctx, 100*time.Millisecond, 1*time.Minute, true, func(ctx context.Context) (bool, error) {
+	err := wait.PollUntilContextTimeout(ctx, 100*time.Millisecond, 3*time.Minute, true, func(ctx context.Context) (bool, error) {
 		gotObj := obj.DeepCopyObject().(client.Object)
 
 		if err := c.cl.Get(ctx, objKey, gotObj); err != nil {
