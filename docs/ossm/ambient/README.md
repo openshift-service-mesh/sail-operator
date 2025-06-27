@@ -98,6 +98,16 @@ $ oc apply -f istio.yaml
 $ oc wait --for=condition=Ready istios/default --timeout=3m
 ```
 
+4. Confirm the installation and version of the control plane.
+
+```bash
+$ oc get istio
+NAME      REVISIONS   READY   IN USE   ACTIVE REVISION   STATUS    VERSION   AGE
+default   1           1       0        default           Healthy   v1.24.5   7h51m
+```
+
+**Note:** `IN USE` field shows as 0, as `Istio` has just been installed and there are no workloads using it.
+
 ### 3.3 Install Istio CNI
 
 #### 3.3.1 Creating the Istio CNI project
@@ -179,6 +189,14 @@ $ oc apply -f ztunnel.yaml
 
 ```bash
 $ oc wait --for=condition=Ready ztunnel/default --timeout=3m
+```
+
+4. Confirm the installation and version of the `ztunnel`.
+
+```bash
+$ oc get ztunnel
+NAME      READY   STATUS    VERSION   AGE
+default   True    Healthy   v1.24.5   7h53m
 ```
 
 ### 3.5 Scoping the Service Mesh with discovery selectors
