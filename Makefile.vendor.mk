@@ -6,6 +6,7 @@ DEFAULT_CHANNEL=stable
 HELM_VALUES_FILE = ossm/values.yaml
 VERSIONS_YAML_FILE ?= versions.ossm.yaml
 GENERATE_RELATED_IMAGES = false
+IMAGE = $$\{OSSM_OPERATOR_3_1\}
 
 .PHONY: build-fips
 build-fips: ## Build sail-operator binary for FIPS mode.
