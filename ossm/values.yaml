@@ -1,5 +1,4 @@
 name: servicemeshoperator3
-image: ${OSSM_OPERATOR_3_1}
 deployment:
   name: servicemesh-operator3
   annotations:
