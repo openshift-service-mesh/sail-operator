@@ -23,6 +23,7 @@ deployment:
     images.v1_24_6.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:2823e8562b11ca0b2ebed4443bc2f9c3ba04e1658173e929e6ce0c7eb791e296
     images.v1_24_6.ztunnel: registry.redhat.io/openshift-service-mesh-dev-preview-beta/istio-ztunnel-rhel9@sha256:b74f037d9e0ee57d669d6860e327340f23a752cbf598cafb7de715464b90e465
     images.v1_24_6.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:52ae43bdf009c522c2b43493977bb7f211d436bd4776f283b34ca7b5c7a87094
+    # for unreleased downstream images, use env variables as placeholders, i.e.: images.v1_26_2.cni: ${ISTIO_CNI_1_26}
 service:
   port: 8443
 serviceAccountName: servicemesh-operator3
