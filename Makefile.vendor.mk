@@ -1,11 +1,12 @@
 VERSION = 3.0.4
 OPERATOR_NAME = servicemeshoperator3
-HUB = quay.io/maistra-dev
 CHANNELS = "stable,stable-3.0"
 DEFAULT_CHANNEL=stable
 HELM_VALUES_FILE = ossm/values.yaml
 VERSIONS_YAML_FILE ?= versions.ossm.yaml
 GENERATE_RELATED_IMAGES = false
+# operator image will be replaced during konflux build
+IMAGE ?= $$\{OSSM_OPERATOR_3_0\}
 
 .PHONY: build-fips
 build-fips: ## Build sail-operator binary for FIPS mode.
