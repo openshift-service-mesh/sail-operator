@@ -154,7 +154,7 @@ When the `RevisionBased` strategy is used, a new Istio control plane instance is
 Prerequisites:
 * Sail Operator is installed.
 * `istioctl` is [installed](../../docs/common/install-istioctl-tool.md).
-
+ 
 Steps:
 
 1. Create the `istio-system` namespace.
