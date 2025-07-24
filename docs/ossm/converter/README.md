@@ -1,23 +1,69 @@
 # Running Istio Integration Tests With Sail Operator
 
-This document explains the changes implemented on upstream Istio to let users execute the integration tests with OSSM 3.x Operator on Openshift or any Kubernetes environment that has installed the Sail Operator.
+As the OpenShift Service Mesh (OSSM) evolves, it's critical to validate that Istio continues to function correctly when deployed using the Sail Operator, which is the default control plane installer for OSSM 3.x. However, upstream Istio integration test framework uses helm to perform Istio deployment. This misalignment creates challenges in testing OSSM features and regressions within the upstream test suites.
 
-**Note:** Currently, the Integration test runner script [integ-suite-ocp.sh](https://github.com/openshift-service-mesh/istio/blob/master/prow/integ-suite-ocp.sh) from the midstream repository is going to be used to execute these tests.
+To bridge this gap, the integration test framework in upstream Istio has been extended to support running tests with Sail Operator. This allows developers and QE teams to confidently run comprehensive upstream test coverage in a Sail managed environment either on OpenShift cluster using the Sail Operator ensuring upstream compatibility, product quality, and future OSSM releases stability.
 
-## Setting Environment Variables
-To set the necessary test parameters and call the converter script, you need to set: ```CONTROL_PLANE_SOURCE=sail``` env var in your environment to let the Istio testing framework know that it is going to use sail as the control plane installer
+**Note:** Currently, the Integration test runner script [integ-suite-ocp.sh](https://github.com/openshift-service-mesh/istio/blob/master/prow/integ-suite-ocp.sh) from the downstream repository is going to be used to execute these tests.
 
-If you want the test runner script to install the sail operator, you need to set the environment variable ```INSTALL_SAIL_OPERATOR=true```. This will set the script to automatically install the control plane using the logic in the runner script.
-
-## Executing Tests:
 ### Prerequisites:
 - To execute integration tests you need to locally clone the [service-mesh-istio](https://github.com/openshift-service-mesh/istio) project from github.
+- OpenShift Service Mesh Operator 3.1 or later
 
+## Getting Environment Ready
+Before running the converter with the Istio testing framework, you must configure your environment.
+You have two options for setting up the sail-operator:
+
+- Use an already installed OSSM
+
+- Deploy the Sail Operator from source during test execution
+
+Each approach requires a different set of environment variables, as explained below.
+
+- ### Using Preinstalled OSSM
+If you already have OSSM (OpenShift Service Mesh) preinstalled, set the following environment variables:
+```sh
+CONTROL_PLANE_SOURCE=sail
+TEST_HUB=docker.io/istio
+TAG=1.26.2 #Modify for desired version
+```
+
+- ### Deploying Sail Operator from Source
+If you want the test runner to install the Sail operator from source, set:
+```sh
+CONTROL_PLANE_SOURCE=sail
+INSTALL_SAIL_OPERATOR=true
+```
+This instructs the test runner script to deploy the Sail operator first and execute tests with supported control plane version.
+
+### Optional Environment Variables (for deployment from source)
+You may also define the following optional variables to control which Istio version is installed via the Sail operator:
+
+- CONVERTER_BRANCH:
+Specifies a Sail operator release branch. The converter will fetch the latest supported Istio version from:
+```sh
+https://raw.githubusercontent.com/istio-ecosystem/sail-operator/$CONVERTER_BRANCH/pkg/istioversion/versions.yaml
+```
+**Note:** Defaults to main
+
+Example:
+```sh
+CONVERTER_BRANCH=release-3.1
+```
+- ISTIO_VERSION:
+Allows you to directly specify the Istio version to install
+
+Example:
+```sh
+ISTIO_VERSION=1.26.2
+```
+
+## Executing Tests:
 ### Command to Execute
 
 - To run pilot test suite execute:
 ```sh
-prow/integ-suite-ocp.sh pilot TestGatewayConformance|TestCNIVersionSkew|TestGateway|TestAuthZCheck|TestKubeInject|TestRevisionTags|TestUninstallByRevision|TestUninstallWithSetFlag|TestUninstallCustomFile|TestUninstallPurge|TestCNIRaceRepair|TestValidation|TestWebhook|TestMultiRevision
+prow/integ-suite-ocp.sh pilot 'TestCNIVersionSkew|TestGateway|TestAuthZCheck|TestKubeInject|TestRevisionTags|TestUninstallByRevision|TestUninstallWithSetFlag|TestUninstallCustomFile|TestUninstallPurge|TestCNIRaceRepair|TestValidation|TestWebhook|TestMultiRevision'
 ```
     Note: As you can see there are some skips that are not working yet over Openshift, this is managed under the Jira ticket https://issues.redhat.com/browse/OSSM-9328 and this documentation is going to be updated as soon the Jira is solved. 
 
