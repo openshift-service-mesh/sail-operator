@@ -37,6 +37,7 @@ csv:
     This version of the operator supports the following Istio versions:
 
     - v1.26-latest
+    - v1.26.3
     - v1.26.2
     - v1.26.1
     - v1.26.0

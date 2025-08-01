@@ -19,7 +19,7 @@ OLD_VARS := $(.VARIABLES)
 # Use `make print-variables` to inspect the values of the variables
 -include Makefile.vendor.mk
 
-VERSION ?= 1.26.2
+VERSION ?= 1.26.3
 MINOR_VERSION := $(shell echo "${VERSION}" | cut -f1,2 -d'.')
 
 # This version will be used to generate the OLM upgrade graph in the FBC as a version to be replaced by the new operator version defined in $VERSION.
@@ -30,7 +30,7 @@ MINOR_VERSION := $(shell echo "${VERSION}" | cut -f1,2 -d'.')
 # There are also GH workflows defined to release nightly and stable operators.
 # There is no need to define `replaces` and `skipRange` fields in the CSV as those fields are defined in the FBC and CSV values are ignored.
 # FBC is source of truth for OLM upgrade graph.
-PREVIOUS_VERSION ?= 1.26.1
+PREVIOUS_VERSION ?= 1.26.2
 
 OPERATOR_NAME ?= sailoperator
 VERSIONS_YAML_DIR ?= pkg/istioversion
@@ -151,6 +151,7 @@ BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 # It also adds .spec.relatedImages field to generated CSV
 # Note that 'operator-sdk generate bundle' always removes spec.relatedImages field when USE_IMAGE_DIGESTS=false, even if the field already exists in the base CSV
 # Make sure to enable this before creating a release as it's a requirement for disconnected environments.
+# Currently we keep this disabled for local development and only enable this in the release GH action.
 USE_IMAGE_DIGESTS ?= false
 ifeq ($(USE_IMAGE_DIGESTS), true)
 	BUNDLE_GEN_FLAGS += --use-image-digests
@@ -547,15 +548,15 @@ ISTIOCTL ?= $(LOCALBIN)/istioctl
 RUNME ?= $(LOCALBIN)/runme
 
 ## Tool Versions
-OPERATOR_SDK_VERSION ?= v1.39.2
-HELM_VERSION ?= v3.18.1
+OPERATOR_SDK_VERSION ?= v1.41.1
+HELM_VERSION ?= v3.18.4
 CONTROLLER_TOOLS_VERSION ?= v0.18.0
 CONTROLLER_RUNTIME_BRANCH ?= release-0.21
-OPM_VERSION ?= v1.55.0
+OPM_VERSION ?= v1.56.0
 OLM_VERSION ?= v0.32.0
-GITLEAKS_VERSION ?= v8.27.0
+GITLEAKS_VERSION ?= v8.28.0
 ISTIOCTL_VERSION ?= 1.26.0
-RUNME_VERSION ?= 3.14.0
+RUNME_VERSION ?= 3.15.0
 
 .PHONY: helm $(HELM)
 helm: $(HELM) ## Download helm to bin directory. If wrong version is installed, it will be overwritten.
