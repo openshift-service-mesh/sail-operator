@@ -19,3 +19,28 @@ v1.24.2:
   pilot:
     env:
       ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
+v1.26.2:
+  istio:
+    pilot:
+      env:
+        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
+v1.24.6:
+  istio:
+    pilot:
+      env:
+        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
+v1.24.5:
+  istio:
+    pilot:
+      env:
+        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
+v1.24.4:
+  istio:
+    pilot:
+      env:
+        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
+v1.24.3:
+  istio:
+    pilot:
+      env:
+        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
