@@ -62,7 +62,7 @@ jobs:
             -e AWS_DEFAULT_REGION \
             -e PULL_SECRET_FILE_PATH="${PULL_SECRET_FILE_PATH}" \
             quay.io/redhat-developer/mapt:v0.9.4 aws openshift-snc create \
-              --backend-url "s3://${{ vars.S3_BUCKET_NAME }}" \
+              --backed-url "s3://${{ vars.S3_BUCKET_NAME }}" \
               --conn-details-output "/workspace" \
               --pull-secret-file "${PULL_SECRET_FILE_PATH}" \
               --project-name "sail-e2e-${{ github.run_id }}" \
