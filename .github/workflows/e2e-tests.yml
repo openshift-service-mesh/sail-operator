@@ -72,6 +72,7 @@ jobs:
               --timeout 60m \
               --cpus 16 \
               --memory 64
+          podman logs -f create-snc
           echo "SNC cluster creation completed"
 
       # Step 5: Install oc CLI
