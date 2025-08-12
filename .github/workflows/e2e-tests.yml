@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   e2e-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     
     steps:
       # Step 1: Checkout the code
@@ -55,7 +55,7 @@ jobs:
           PULL_SECRET_FILE_PATH: "/workspace/pull-secret.json"
         run: |
           echo "Creating OpenShift SNC cluster with mapt..."
-          docker run --name create-snc \
+          podman run --name create-snc \
             -v "${{ github.workspace }}:/workspace:z" \
             -e AWS_ACCESS_KEY_ID \
             -e AWS_SECRET_ACCESS_KEY \
@@ -72,6 +72,7 @@ jobs:
               --timeout 60m \
               --cpus 16 \
               --memory 64
+          podman logs -f create-snc
           echo "SNC cluster creation completed"
 
       # Step 5: Install oc CLI
