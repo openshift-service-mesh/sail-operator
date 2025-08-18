@@ -2,6 +2,10 @@ name: sailoperator
 deployment:
   name: sail-operator
   annotations:
+    images.v1_27_0.ztunnel: gcr.io/istio-release/ztunnel:1.27.0
+    images.v1_27_0.istiod: gcr.io/istio-release/pilot:1.27.0
+    images.v1_27_0.proxy: gcr.io/istio-release/proxyv2:1.27.0
+    images.v1_27_0.cni: gcr.io/istio-release/install-cni:1.27.0
     images.v1_26_3.ztunnel: gcr.io/istio-release/ztunnel:1.26.3
     images.v1_26_3.istiod: gcr.io/istio-release/pilot:1.26.3
     images.v1_26_3.proxy: gcr.io/istio-release/proxyv2:1.26.3
@@ -76,6 +80,8 @@ csv:
 
     This version of the operator supports the following Istio versions:
 
+    - v1.27-latest
+    - v1.27.0
     - v1.26-latest
     - v1.26.3
     - v1.26.2
