@@ -36,6 +36,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      
+      - name: Create S3 bucket
+        run: |
+          echo "Creating S3 bucket for PR ${GITHUB_REF}..."
+          aws s3api create-bucket --bucket sail-${{ github.run_id }} --region ${{ env.AWS_DEFAULT_REGION }} --create-bucket-configuration LocationConstraint=${{ env.AWS_DEFAULT_REGION }}
+          echo "S3 bucket created successfully"
 
       # Step 3: Create pull secret file
       - name: Create pull secret file
