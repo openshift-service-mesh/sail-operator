@@ -22,7 +22,7 @@ deployment:
     images.v1_24_6.istiod: ${ISTIO_PILOT_1_24}
     images.v1_24_6.must-gather: ${OSSM_MUST_GATHER_3_0}
     images.v1_24_6.proxy: ${ISTIO_PROXY_1_24}
-    images.v1_24_6.ztunnel: ${ISTIO_PROXY_1_24}
+    images.v1_24_6.ztunnel: ${ISTIO_ZTUNNEL_1_24}
     # 1.26.2 images are hardcoded to versions released with 3.1.0
     images.v1_26_2.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:14c5a52faf20267baa43d9a72ee6416f56fbc41dd640adc2aba3c4043802a0e9
     images.v1_26_2.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:028e10651db0d1ddb769a27c9483c6d41be6ac597f253afd9d599f395d9c82d8
