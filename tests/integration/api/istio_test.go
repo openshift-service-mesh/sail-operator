@@ -27,10 +27,12 @@ import (
 	. "github.com/istio-ecosystem/sail-operator/tests/e2e/util/gomega"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"helm.sh/helm/v3/pkg/release"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"istio.io/istio/pkg/ptr"
 )
@@ -156,6 +158,46 @@ var _ = Describe("Istio resource", Ordered, func() {
 					DefaultRevision: ptr.Of(""), // set in the default profile
 				},
 			}))
+		})
+
+		When("the underlying IstioRevision is stuck in a pending state", func() {
+			releaseName := istioName + "-istiod"
+			var lockedRelVer int
+
+			BeforeAll(func() {
+				rev := &v1.IstioRevision{}
+				revKey := client.ObjectKey{Name: istioName}
+				Eventually(k8sClient.Get).WithArguments(ctx, revKey, rev).Should(Succeed())
+
+				rel, err := chartManager.GetRelease(ctx, istioNamespace, releaseName)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(rel).NotTo(BeNil())
+
+				rel.SetStatus(release.StatusPendingInstall, "pending-install")
+				Expect(chartManager.UpdateRelease(ctx, istioNamespace, rel)).To(Succeed())
+				lockedRelVer = rel.Version
+
+				// trigger a istiorevision updates
+				_, err = controllerutil.CreateOrPatch(ctx, k8sClient, rev, func() error {
+					rev.Status.SetCondition(v1.IstioRevisionCondition{
+						Type:   "Unlock",
+						Status: "True",
+					})
+					return nil
+				})
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			It("should unlock and remediate", func() {
+				Eventually(func(g Gomega) {
+					rel, err := chartManager.GetRelease(ctx, istioNamespace, releaseName)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(rel).NotTo(BeNil())
+
+					g.Expect(rel.Info.Status).To(Equal(release.StatusDeployed))
+					g.Expect(rel.Version).To(BeNumerically(">", lockedRelVer))
+				}).Should(Succeed())
+			})
 		})
 
 		When("the underlying IstioRevision is deleted", func() {
@@ -474,9 +516,11 @@ var _ = Describe("Istio resource", Ordered, func() {
 	})
 
 	Describe("eol versions", func() {
-		if len(istioversion.EOL) < 1 {
-			Skip("No versions marked as EOL, skipping EOL test")
-		}
+		BeforeAll(func() {
+			if len(istioversion.EOL) < 1 {
+				Skip("No versions marked as EOL, skipping EOL test")
+			}
+		})
 		When("creating Istio resource with spec.version that is past EOL", func() {
 			It("produces a ReconcileError", func() {
 				istio = &v1.Istio{
@@ -505,9 +549,14 @@ func deleteAllIstiosAndRevisions(ctx context.Context) {
 		g.Expect(list.Items).To(BeEmpty())
 	}).Should(Succeed())
 
-	Eventually(k8sClient.DeleteAllOf).WithArguments(ctx, &v1.IstioRevision{}).Should(Succeed())
+	deleteAllIstioRevisions(ctx)
+}
+
+func deleteAllIstioCNIs(ctx context.Context) {
+	Step("Deleting all Istio and IstioRevision resources")
+	Eventually(k8sClient.DeleteAllOf).WithArguments(ctx, &v1.IstioCNI{}).Should(Succeed())
 	Eventually(func(g Gomega) {
-		list := &v1.IstioRevisionList{}
+		list := &v1.IstioCNIList{}
 		g.Expect(k8sClient.List(ctx, list)).To(Succeed())
 		g.Expect(list.Items).To(BeEmpty())
 	}).Should(Succeed())

@@ -142,18 +142,12 @@ func (r *Reconciler) installHelmChart(ctx context.Context, ztunnel *v1alpha1.ZTu
 	}
 	// get userValues from ztunnel.spec.values
 	userValues := ztunnel.Spec.Values
-
-	// apply image digests from configuration, if not already set by user
-	// TODO: Revisit once we support ImageOverrides for ztunnel
-	// userValues = applyImageDigests(ztunnel, userValues, config.Config)
-
 	if userValues == nil {
 		userValues = &v1.ZTunnelValues{}
 	}
 
-	if userValues.ZTunnel == nil {
-		userValues.ZTunnel = &v1.ZTunnelConfig{}
-	}
+	// apply image digests from configuration, if not already set by user
+	userValues = applyImageDigests(version, userValues, config.Config)
 
 	// apply userValues on top of defaultValues from profiles
 	mergedHelmValues, err := istiovalues.ApplyProfilesAndPlatform(
@@ -171,7 +165,7 @@ func (r *Reconciler) installHelmChart(ctx context.Context, ztunnel *v1alpha1.ZTu
 		return fmt.Errorf("failed to apply user overrides: %w", err)
 	}
 
-	_, err = r.ChartManager.UpgradeOrInstallChart(ctx, r.getChartDir(version), finalHelmValues, ztunnel.Spec.Namespace, ztunnelChart, ownerReference)
+	_, err = r.ChartManager.UpgradeOrInstallChart(ctx, r.getChartDir(version), finalHelmValues, ztunnel.Spec.Namespace, ztunnelChart, &ownerReference)
 	if err != nil {
 		return fmt.Errorf("failed to install/update Helm chart %q: %w", ztunnelChart, err)
 	}
@@ -186,6 +180,11 @@ func applyImageDigests(version string, values *v1.ZTunnelValues, config config.O
 	imageDigests, digestsDefined := config.ImageDigests[version]
 	// if we don't have default image digests defined for this version, it's a no-op
 	if !digestsDefined {
+		return values
+	}
+
+	// if a global hub or tag value is configured by the user, don't set image digests
+	if values != nil && values.Global != nil && (values.Global.Hub != nil || values.Global.Tag != nil) {
 		return values
 	}
 

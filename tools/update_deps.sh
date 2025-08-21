@@ -33,6 +33,11 @@ function getReleaseBranch() {
   echo "release-${minor#*v}"
 }
 
+function getLatestVersionFromDockerHub() {
+  # $1 = org/repo
+  curl -sL "https://hub.docker.com/v2/repositories/${1}/tags/?page_size=100" | jq -r '.results[].name' | sort -V | tail -n 1
+}
+
 # Update common files
 make update-common
 
@@ -61,7 +66,9 @@ sed -i "s|CONTROLLER_TOOLS_VERSION ?= .*|CONTROLLER_TOOLS_VERSION ?= ${CONTROLLE
 
 # Update controller-runtime
 CONTROLLER_RUNTIME_LATEST_VERSION=$(getLatestVersion kubernetes-sigs/controller-runtime)
-go get -u "sigs.k8s.io/controller-runtime@${CONTROLLER_RUNTIME_LATEST_VERSION}"
+# FIXME: Do not use `go get -u` until https://github.com/kubernetes/apimachinery/issues/190 is resolved
+# go get -u "sigs.k8s.io/controller-runtime@${CONTROLLER_RUNTIME_LATEST_VERSION}"
+go get "sigs.k8s.io/controller-runtime@${CONTROLLER_RUNTIME_LATEST_VERSION}"
 CONTROLLER_RUNTIME_BRANCH=$(getReleaseBranch "${CONTROLLER_RUNTIME_LATEST_VERSION}")
 sed -i "s|CONTROLLER_RUNTIME_BRANCH ?= .*|CONTROLLER_RUNTIME_BRANCH ?= ${CONTROLLER_RUNTIME_BRANCH}|" "${ROOTDIR}/Makefile.core.mk"
 
@@ -89,6 +96,19 @@ RUNME_LATEST_VERSION=$(getLatestVersion runmedev/runme)
 # Remove the leading "v" from the version string
 RUNME_LATEST_VERSION=${RUNME_LATEST_VERSION#v}
 sed -i "s|RUNME_VERSION ?= .*|RUNME_VERSION ?= ${RUNME_LATEST_VERSION}|" "${ROOTDIR}/Makefile.core.mk"
+
+# Update misspell
+MISSPELL_LATEST_VERSION=$(getLatestVersion client9/misspell)
+sed -i "s|MISSPELL_VERSION ?= .*|MISSPELL_VERSION ?= ${MISSPELL_LATEST_VERSION}|" "${ROOTDIR}/Makefile.core.mk"
+
+# Update KIND_IMAGE. Look for KIND_IMAGE := docker.io in the make file and look on docker.io/kindest/node for the latest version.
+KIND_LATEST_VERSION=$(getLatestVersionFromDockerHub kindest/node)
+if [[ -n "${KIND_LATEST_VERSION}" ]]; then
+  sed -i "s|KIND_IMAGE := docker.io/kindest/node:.*|KIND_IMAGE := docker.io/kindest/node:${KIND_LATEST_VERSION}|" "${ROOTDIR}/Makefile.core.mk"
+else
+  echo "No latest version found for kindest/node on Docker Hub. Keeping the existing KIND_IMAGE."
+fi
+
 
 # Regenerate files
 make update-istio gen

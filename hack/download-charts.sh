@@ -126,6 +126,14 @@ function patchIstioCharts() {
   resourceNames: ["privileged"] \
   verbs: ["use"]/' "${CHARTS_DIR}/cni/templates/clusterrole.yaml"
 
+  # remove CRDs from base chart, since they are installed by OLM, not by the operator
+  rm -f "${CHARTS_DIR}/base/templates/crds.yaml"
+  # <v1.24.0
+  rm -rf "${CHARTS_DIR}/base/crds/"
+  # >=v1.24.0
+  rm -f "${CHARTS_DIR}/base/files/crd-all.gen.yaml"
+
+  # TODO: remove this once we remove support for 1.23
   # remove CRDs from istiod-remote chart, since they are installed by OLM, not by the operator
   rm -f "${CHARTS_DIR}/istiod-remote/templates/crd-all.gen.yaml"
 
@@ -210,7 +218,12 @@ sources:
 version: 0.1.0
 " > "${CHARTS_DIR}/revisiontags/Chart.yaml"
   cp "${CHARTS_DIR}/istiod/values.yaml" "${CHARTS_DIR}/revisiontags/values.yaml"
-  cp "${CHARTS_DIR}/istiod/templates/revision-tags.yaml" "${CHARTS_DIR}/revisiontags/templates/revision-tags.yaml"
+  if [ -e "${CHARTS_DIR}/istiod/templates/revision-tags.yaml" ]; then
+    cp "${CHARTS_DIR}/istiod/templates/revision-tags.yaml" "${CHARTS_DIR}/revisiontags/templates/revision-tags.yaml"
+  else
+    cp "${CHARTS_DIR}/istiod/templates/revision-tags-mwc.yaml" "${CHARTS_DIR}/revisiontags/templates/revision-tags-mwc.yaml"
+    cp "${CHARTS_DIR}/istiod/templates/revision-tags-svc.yaml" "${CHARTS_DIR}/revisiontags/templates/revision-tags-svc.yaml"
+  fi
   cp "${CHARTS_DIR}/istiod/templates/zzz_profile.yaml" "${CHARTS_DIR}/revisiontags/templates/zzz_profile.yaml"
 
   mkdir -p "${CHARTS_DIR}/revisiontags/files"

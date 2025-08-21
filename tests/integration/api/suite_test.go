@@ -25,6 +25,7 @@ import (
 	"github.com/istio-ecosystem/sail-operator/controllers/istiocni"
 	"github.com/istio-ecosystem/sail-operator/controllers/istiorevision"
 	"github.com/istio-ecosystem/sail-operator/controllers/istiorevisiontag"
+	"github.com/istio-ecosystem/sail-operator/controllers/ztunnel"
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
 	"github.com/istio-ecosystem/sail-operator/pkg/scheme"
@@ -49,6 +50,13 @@ var (
 	k8sClient client.Client
 	cfg       *rest.Config
 	cancel    context.CancelFunc
+
+	chartManager               *helm.ChartManager
+	istioReconciler            *istio.Reconciler
+	istioRevisionReconciler    *istiorevision.Reconciler
+	istioRevisionTagReconciler *istiorevisiontag.Reconciler
+	istioCNIReconciler         *istiocni.Reconciler
+	zTunnelReconciler          *ztunnel.Reconciler
 )
 
 const operatorNamespace = "sail-operator"
@@ -72,20 +80,31 @@ var _ = BeforeSuite(func() {
 		panic(err)
 	}
 
-	chartManager := helm.NewChartManager(mgr.GetConfig(), "")
+	chartManager = helm.NewChartManager(mgr.GetConfig(), "")
+
+	operatorNs := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: operatorNamespace}}
+	Expect(k8sClient.Create(context.TODO(), operatorNs)).To(Succeed())
 
 	cfg := config.ReconcilerConfig{
-		ResourceDirectory: path.Join(project.RootDir, "resources"),
-		Platform:          config.PlatformKubernetes,
-		DefaultProfile:    "",
+		ResourceDirectory:       path.Join(project.RootDir, "resources"),
+		Platform:                config.PlatformKubernetes,
+		DefaultProfile:          "",
+		OperatorNamespace:       operatorNs.Name,
+		MaxConcurrentReconciles: 5,
 	}
 
 	cl := mgr.GetClient()
 	scheme := mgr.GetScheme()
-	Expect(istio.NewReconciler(cfg, cl, scheme).SetupWithManager(mgr)).To(Succeed())
-	Expect(istiorevision.NewReconciler(cfg, cl, scheme, chartManager).SetupWithManager(mgr)).To(Succeed())
-	Expect(istiorevisiontag.NewReconciler(cfg, cl, scheme, chartManager).SetupWithManager(mgr)).To(Succeed())
-	Expect(istiocni.NewReconciler(cfg, cl, scheme, chartManager).SetupWithManager(mgr)).To(Succeed())
+	istioReconciler = istio.NewReconciler(cfg, cl, scheme)
+	istioRevisionReconciler = istiorevision.NewReconciler(cfg, cl, scheme, chartManager)
+	istioRevisionTagReconciler = istiorevisiontag.NewReconciler(cfg, cl, scheme, chartManager)
+	istioCNIReconciler = istiocni.NewReconciler(cfg, cl, scheme, chartManager)
+	zTunnelReconciler = ztunnel.NewReconciler(cfg, cl, scheme, chartManager)
+	Expect(istioReconciler.SetupWithManager(mgr)).To(Succeed())
+	Expect(istioRevisionReconciler.SetupWithManager(mgr)).To(Succeed())
+	Expect(istioRevisionTagReconciler.SetupWithManager(mgr)).To(Succeed())
+	Expect(istioCNIReconciler.SetupWithManager(mgr)).To(Succeed())
+	Expect(zTunnelReconciler.SetupWithManager(mgr)).To(Succeed())
 
 	// create new cancellable context
 	var ctx context.Context
@@ -96,9 +115,6 @@ var _ = BeforeSuite(func() {
 			panic(err)
 		}
 	}()
-
-	operatorNs := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: operatorNamespace}}
-	Expect(k8sClient.Create(context.TODO(), operatorNs)).To(Succeed())
 })
 
 var _ = AfterSuite(func() {

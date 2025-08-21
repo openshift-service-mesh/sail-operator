@@ -85,11 +85,11 @@ Repeat the process to create a project named `istio-cni`.
 The `version` field of the `Istio` and `IstioCNI` resource defines which version 
 of each component should be deployed. This can be set using the `Istio Version` 
 drop down menu when creating a new `Istio` with the OpenShift Container Platform 
-web console. For a list of available versions, see the [versions.yaml](/pkg/istioversion/versions.yaml) file
+web console. For a list of available versions, see the [versions.yaml](../pkg/istioversion/versions.yaml) file
 or use the command:
 
 ```sh
-$ kubectl explain istio.spec.version
+kubectl explain istio.spec.version
 ```
 
 ### Customizing Istio configuration
@@ -132,7 +132,7 @@ For a list of available configuration for the `spec.values` field, run the
 following command:
 
 ```sh
-$ kubectl explain istio.spec.values
+kubectl explain istio.spec.values
 ```
 
 For the `IstioCNI` resource, replace `istio` with `istiocni` in the command above.

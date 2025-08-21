@@ -26,11 +26,12 @@ import (
 	"github.com/istio-ecosystem/sail-operator/pkg/istioversion"
 	"github.com/istio-ecosystem/sail-operator/pkg/kube"
 	. "github.com/istio-ecosystem/sail-operator/pkg/test/util/ginkgo"
+	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/cleaner"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/common"
 	. "github.com/istio-ecosystem/sail-operator/tests/e2e/util/gomega"
+	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/istioctl"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/types"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,25 +99,16 @@ metadata:
 	Describe("given Istio version", func() {
 		for _, version := range istioversion.GetLatestPatchVersions() {
 			Context(version.Name, func() {
-				BeforeAll(func() {
+				clr := cleaner.New(cl)
+				BeforeAll(func(ctx SpecContext) {
+					clr.Record(ctx)
 					Expect(k.CreateNamespace(controlPlaneNamespace)).To(Succeed(), "Istio namespace failed to be created")
 					Expect(k.CreateNamespace(istioCniNamespace)).To(Succeed(), "IstioCNI namespace failed to be created")
 				})
 
 				When("the IstioCNI CR is created", func() {
 					BeforeAll(func() {
-						yaml := `
-apiVersion: sailoperator.io/v1
-kind: IstioCNI
-metadata:
-  name: default
-spec:
-  version: %s
-  namespace: %s`
-						yaml = fmt.Sprintf(yaml, version.Name, istioCniNamespace)
-						Log("IstioCNI YAML:", indent(yaml))
-						Expect(k.CreateFromString(yaml)).To(Succeed(), "IstioCNI creation failed")
-						Success("IstioCNI created")
+						common.CreateIstioCNI(k, version.Name)
 					})
 
 					It("deploys the CNI DaemonSet", func(ctx SpecContext) {
@@ -131,7 +123,7 @@ spec:
 
 					It("uses the correct image", func(ctx SpecContext) {
 						Expect(common.GetObject(ctx, cl, kube.Key("istio-cni-node", istioCniNamespace), &appsv1.DaemonSet{})).
-							To(HaveContainersThat(HaveEach(ImageFromRegistry(expectedRegistry))))
+							To(common.HaveContainersThat(HaveEach(common.ImageFromRegistry(expectedRegistry))))
 					})
 
 					It("updates the status to Reconciled", func(ctx SpecContext) {
@@ -155,19 +147,7 @@ spec:
 
 				When("the Istio CR is created", func() {
 					BeforeAll(func() {
-						istioYAML := `
-apiVersion: sailoperator.io/v1
-kind: Istio
-metadata:
-  name: default
-spec:
-  version: %s
-  namespace: %s`
-						istioYAML = fmt.Sprintf(istioYAML, version.Name, controlPlaneNamespace)
-						Log("Istio YAML:", indent(istioYAML))
-						Expect(k.CreateFromString(istioYAML)).
-							To(Succeed(), "Istio CR failed to be created")
-						Success("Istio CR created")
+						common.CreateIstio(k, version.Name)
 					})
 
 					It("updates the Istio CR status to Reconciled", func(ctx SpecContext) {
@@ -191,7 +171,7 @@ spec:
 
 					It("uses the correct image", func(ctx SpecContext) {
 						Expect(common.GetObject(ctx, cl, kube.Key("istiod", controlPlaneNamespace), &appsv1.Deployment{})).
-							To(HaveContainersThat(HaveEach(ImageFromRegistry(expectedRegistry))))
+							To(common.HaveContainersThat(HaveEach(common.ImageFromRegistry(expectedRegistry))))
 					})
 
 					It("doesn't continuously reconcile the Istio CR", func() {
@@ -202,31 +182,20 @@ spec:
 				})
 
 				When("sample pod is deployed", func() {
-					BeforeAll(func() {
+					BeforeAll(func(ctx SpecContext) {
 						Expect(k.CreateNamespace(sampleNamespace)).To(Succeed(), "Sample namespace failed to be created")
 						Expect(k.Label("namespace", sampleNamespace, "istio-injection", "enabled")).To(Succeed(), "Error labeling sample namespace")
 						Expect(k.WithNamespace(sampleNamespace).
-							ApplyWithLabels(common.GetSampleYAML(version, sampleNamespace), "version=v1")).
+							ApplyKustomize("helloworld", "version=v1")).
 							To(Succeed(), "Error deploying sample")
 						Success("sample deployed")
 					})
 
 					samplePods := &corev1.PodList{}
-
 					It("updates the pods status to Running", func(ctx SpecContext) {
-						Eventually(func() bool {
-							// Wait until the sample pod exists. Is wraped inside a function to avoid failure on the first iteration
-							Expect(cl.List(ctx, samplePods, client.InNamespace(sampleNamespace))).To(Succeed())
-							return len(samplePods.Items) > 0
-						}).Should(BeTrue(), "No sample pods found")
+						Eventually(common.CheckPodsReady).WithArguments(ctx, cl, sampleNamespace).Should(Succeed(), "Error checking status of sample pods")
+						Expect(cl.List(ctx, samplePods, client.InNamespace(sampleNamespace))).To(Succeed(), "Error getting the pods in sample namespace")
 
-						Expect(cl.List(ctx, samplePods, client.InNamespace(sampleNamespace))).To(Succeed())
-						Expect(samplePods.Items).ToNot(BeEmpty(), "No pods found in sample namespace")
-
-						for _, pod := range samplePods.Items {
-							Eventually(common.GetObject).WithArguments(ctx, cl, kube.Key(pod.Name, sampleNamespace), &corev1.Pod{}).
-								Should(HaveConditionStatus(corev1.PodReady, metav1.ConditionTrue), "Pod is not Ready")
-						}
 						Success("sample pods are ready")
 					})
 
@@ -237,12 +206,6 @@ spec:
 							Expect(sidecarVersion).To(Equal(version.Version), "Sidecar Istio version does not match the expected version")
 						}
 						Success("Istio sidecar version matches the expected Istio version")
-					})
-
-					AfterAll(func(ctx SpecContext) {
-						By("Deleting sample")
-						Expect(k.DeleteNamespace(sampleNamespace)).To(Succeed(), "sample namespace failed to be deleted")
-						Success("sample deleted")
 					})
 				})
 
@@ -274,6 +237,14 @@ spec:
 						Success("CNI namespace is empty")
 					})
 				})
+
+				AfterAll(func(ctx SpecContext) {
+					if CurrentSpecReport().Failed() && keepOnFailure {
+						return
+					}
+
+					clr.Cleanup(ctx)
+				})
 			})
 		}
 
@@ -282,48 +253,35 @@ spec:
 				common.LogDebugInfo(common.ControlPlane, k)
 				debugInfoLogged = true
 			}
-
-			By("Cleaning up the Istio namespace")
-			Expect(k.DeleteNamespace(controlPlaneNamespace)).To(Succeed(), "Istio Namespace failed to be deleted")
-
-			By("Cleaning up the IstioCNI namespace")
-			Expect(k.DeleteNamespace(istioCniNamespace)).To(Succeed(), "IstioCNI Namespace failed to be deleted")
-
-			Success("Cleanup done")
 		})
 	})
 
 	AfterAll(func() {
-		if CurrentSpecReport().Failed() && !debugInfoLogged {
-			common.LogDebugInfo(common.ControlPlane, k)
-			debugInfoLogged = true
+		if CurrentSpecReport().Failed() {
+			if !debugInfoLogged {
+				common.LogDebugInfo(common.ControlPlane, k)
+				debugInfoLogged = true
+			}
 		}
 	})
 })
 
-func HaveContainersThat(matcher types.GomegaMatcher) types.GomegaMatcher {
-	return HaveField("Spec.Template.Spec.Containers", matcher)
-}
-
-func ImageFromRegistry(regexp string) types.GomegaMatcher {
-	return HaveField("Image", MatchRegexp(regexp))
-}
-
-func indent(str string) string {
-	indent := strings.Repeat(" ", 2)
-	return indent + strings.ReplaceAll(str, "\n", "\n"+indent)
-}
-
 func getProxyVersion(podName, namespace string) (*semver.Version, error) {
-	output, err := k.WithNamespace(namespace).Exec(
-		podName,
-		"istio-proxy",
-		`curl -s http://localhost:15000/server_info | grep "ISTIO_VERSION" | awk -F '"' '{print $4}'`)
+	proxyStatus, err := istioctl.GetProxyStatus("--namespace " + namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error getting sidecar version: %w", err)
 	}
 
-	versionStr := strings.TrimSpace(output)
+	lines := strings.Split(proxyStatus, "\n")
+	var versionStr string
+	for _, line := range lines {
+		if strings.Contains(line, podName+"."+namespace) {
+			values := strings.Fields(line)
+			versionStr = values[len(values)-1]
+			break
+		}
+	}
+
 	version, err := semver.NewVersion(versionStr)
 	if err != nil {
 		return version, fmt.Errorf("error parsing sidecar version %q: %w", versionStr, err)

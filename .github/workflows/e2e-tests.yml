@@ -1,0 +1,152 @@
+name: E2E Tests
+
+# Manual trigger only for now - allows testing and iteration after merge
+on:
+  workflow_dispatch:
+    inputs:
+      test_ref:
+        description: 'Git ref to test (default: main)'
+        required: false
+        default: 'main'
+        type: string
+
+env:
+  AWS_DEFAULT_REGION: us-east-1
+
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-24.04
+    
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.test_ref || 'main' }}
+
+      # Step 2: Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      
+      - name: Create S3 bucket
+        run: |
+          echo "Creating S3 bucket for PR ${GITHUB_REF}..."
+          aws s3api create-bucket --bucket sail-${{ github.run_id }} --region ${{ env.AWS_DEFAULT_REGION }}
+          echo "S3 bucket created successfully"
+
+      # Step 3: Create pull secret file
+      - name: Create pull secret file
+        if: success()
+        env:
+          PULL_SECRET_CONTENT: ${{ secrets.PULL_SECRET_CONTENT }}
+        run: |
+          echo "Creating pull secret file..."
+          echo "$PULL_SECRET_CONTENT" > pull-secret.json
+          echo "Pull secret file created successfully"
+
+      # Step 4: Create SNC cluster using mapt
+      - name: Create OpenShift SNC cluster
+        if: success()
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ env.AWS_DEFAULT_REGION }}
+          PULL_SECRET_FILE_PATH: "/workspace/pull-secret.json"
+        run: |
+          echo "Creating OpenShift SNC cluster with mapt..."
+          podman run --name create-snc \
+            -v "${{ github.workspace }}:/workspace:z" \
+            -e AWS_ACCESS_KEY_ID \
+            -e AWS_SECRET_ACCESS_KEY \
+            -e AWS_DEFAULT_REGION \
+            -e PULL_SECRET_FILE_PATH="${PULL_SECRET_FILE_PATH}" \
+            quay.io/redhat-developer/mapt:v0.9.4 aws openshift-snc create \
+              --backed-url "s3://sail-${{ github.run_id }}" \
+              --conn-details-output "/workspace" \
+              --pull-secret-file "${PULL_SECRET_FILE_PATH}" \
+              --project-name "sail-e2e-${{ github.run_id }}" \
+              --tags project=crc,repo=openshift-service-mesh/sail-operator \
+              --version 4.19.0 \
+              --spot \
+              --timeout 60m \
+              --cpus 16 \
+              --memory 64
+          podman logs -f create-snc
+          echo "SNC cluster creation completed"
+
+      # Step 5: Install oc CLI
+      - name: Install OpenShift CLI (oc)
+        if: success()
+        run: |
+          echo "Installing oc CLI..."
+          curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
+          tar -xzf openshift-client-linux.tar.gz
+          sudo mv oc /usr/local/bin/
+          sudo chmod +x /usr/local/bin/oc
+          oc version --client
+          echo "oc CLI installed successfully"
+
+      # Step 6: Setup kubeconfig and verify cluster connectivity
+      - name: Configure kubeconfig and verify connectivity
+        if: success()
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig
+        run: |
+          echo "Setting up kubeconfig..."
+          if [[ ! -f "$KUBECONFIG" ]]; then
+            echo "ERROR: kubeconfig file not found at $KUBECONFIG"
+            exit 1
+          fi
+          
+          echo "Verifying cluster connectivity with retry logic..."
+          MAX_ATTEMPTS=30
+          SLEEP_INTERVAL=10
+          
+          for ((i=1; i<=MAX_ATTEMPTS; i++)); do
+            echo "Attempt $i/$MAX_ATTEMPTS: Testing cluster connectivity..."
+            if oc get nodes 2>/dev/null; then
+              echo "Cluster is accessible!"
+              oc get nodes -o wide
+              break
+            elif [[ $i -eq $MAX_ATTEMPTS ]]; then
+              echo "ERROR: Failed to connect to cluster after $MAX_ATTEMPTS attempts"
+              exit 1
+            else
+              echo "Cluster not ready yet, waiting ${SLEEP_INTERVAL}s..."
+              sleep $SLEEP_INTERVAL
+            fi
+          done
+
+      # Step 7: Execute E2E tests
+      - name: Run E2E tests
+        if: success()
+        env:
+          KUBECONFIG: ${{ github.workspace }}/kubeconfig
+        run: |
+          echo "Running E2E tests against OpenShift cluster..."
+          make test.e2e.ocp
+          echo "E2E tests completed successfully"
+
+      - name: Delete S3 bucket
+        if: success()
+        run: |
+          echo "Deleting S3 bucket..."
+          aws s3 rb s3://sail-${{ github.run_id }} --force
+          echo "S3 bucket deleted successfully"
+
+      # Step 8: Cleanup temporary files
+      - name: Remove temporary files
+        if: always()
+        run: |
+          echo "Removing temporary files..."
+          rm -f pull-secret.json
+          echo "Temporary files cleaned up"

@@ -56,6 +56,8 @@ func main() {
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&configFile, "config-file", "/etc/sail-operator/config.properties", "Location of the config file, propagated by k8s downward APIs")
 	flag.StringVar(&reconcilerCfg.ResourceDirectory, "resource-directory", "/var/lib/sail-operator/resources", "Where to find resources (e.g. charts)")
+	flag.IntVar(&reconcilerCfg.MaxConcurrentReconciles, "max-concurrent-reconciles", 5,
+		"MaxConcurrentReconciles is the maximum number of concurrent Reconciles which can be run.")
 	flag.BoolVar(&logAPIRequests, "log-api-requests", false, "Whether to log each request sent to the Kubernetes API server")
 	flag.BoolVar(&printVersion, "version", printVersion, "Prints version information and exits")
 	flag.BoolVar(&leaderElectionEnabled, "leader-elect", true,
@@ -76,11 +78,11 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	operatorNamespace := os.Getenv("POD_NAMESPACE")
-	if operatorNamespace == "" {
+	reconcilerCfg.OperatorNamespace = os.Getenv("POD_NAMESPACE")
+	if reconcilerCfg.OperatorNamespace == "" {
 		contents, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-		operatorNamespace = string(contents)
-		if err != nil || operatorNamespace == "" {
+		reconcilerCfg.OperatorNamespace = string(contents)
+		if err != nil || reconcilerCfg.OperatorNamespace == "" {
 			setupLog.Error(err, "can't determine namespace this operator is running in; if running outside of a pod, please set the POD_NAMESPACE environment variable")
 			os.Exit(1)
 		}
@@ -131,7 +133,7 @@ func main() {
 		HealthProbeBindAddress:  probeAddr,
 		LeaderElection:          leaderElectionEnabled,
 		LeaderElectionID:        "sail-operator-lock",
-		LeaderElectionNamespace: operatorNamespace,
+		LeaderElectionNamespace: reconcilerCfg.OperatorNamespace,
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -198,10 +200,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = webhook.NewReconciler(mgr.GetClient(), mgr.GetScheme()).
+	err = webhook.NewReconciler(reconcilerCfg, mgr.GetClient(), mgr.GetScheme()).
 		SetupWithManager(mgr)
 	if err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Endpoints")
+		setupLog.Error(err, "unable to create controller", "controller", "Webhook")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

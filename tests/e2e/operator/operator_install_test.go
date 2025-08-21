@@ -26,6 +26,7 @@ import (
 
 	"github.com/istio-ecosystem/sail-operator/pkg/kube"
 	. "github.com/istio-ecosystem/sail-operator/pkg/test/util/ginkgo"
+	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/cleaner"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/common"
 	. "github.com/istio-ecosystem/sail-operator/tests/e2e/util/gomega"
 	. "github.com/onsi/ginkgo/v2"
@@ -60,15 +61,9 @@ var _ = Describe("Operator", Label("smoke", "operator"), Ordered, func() {
 	SetDefaultEventuallyPollingInterval(time.Second)
 
 	Describe("installation", func() {
-		BeforeAll(func() {
-			Expect(k.CreateNamespace(namespace)).To(Succeed(), "Namespace failed to be created")
-
-			if skipDeploy {
-				Success("Skipping operator installation because it was deployed externally")
-			} else {
-				Expect(common.InstallOperatorViaHelm()).
-					To(Succeed(), "Operator failed to be deployed")
-			}
+		clr := cleaner.New(cl)
+		BeforeAll(func(ctx SpecContext) {
+			clr.Record(ctx)
 		})
 
 		It("deploys all the CRDs", func(ctx SpecContext) {
@@ -185,34 +180,22 @@ spec:
 			))
 		})
 
-		AfterAll(func() {
-			Expect(k.DeleteNamespace(curlNamespace)).To(Succeed(), "failed to delete curl namespace")
-			exec.Command("kubectl", "delete", "--ignore-not-found", "clusterrolebinding", "metrics-reader-rolebinding").Run()
+		AfterAll(func(ctx SpecContext) {
+			if CurrentSpecReport().Failed() && keepOnFailure {
+				return
+			}
 
 			if CurrentSpecReport().Failed() {
 				common.LogDebugInfo(common.Operator, k)
 			}
+			clr.Cleanup(ctx)
 		})
 	})
 
-	AfterAll(func() {
+	AfterAll(func(ctx SpecContext) {
 		if CurrentSpecReport().Failed() {
 			common.LogDebugInfo(common.Operator, k)
 		}
-
-		if skipDeploy {
-			Success("Skipping operator undeploy because it was deployed externally")
-			return
-		}
-
-		By("Uninstalling the operator")
-		Expect(common.UninstallOperator()).
-			To(Succeed(), "Operator failed to be deleted")
-		Success("Operator uninstalled")
-
-		By("Deleting the CRDs")
-		Expect(k.DeleteCRDs(sailCRDs)).To(Succeed(), "CRDs failed to be deleted")
-		Success("CRDs deleted")
 	})
 })
 

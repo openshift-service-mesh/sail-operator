@@ -25,6 +25,7 @@ import (
 	"github.com/istio-ecosystem/sail-operator/pkg/env"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/certs"
 	k8sclient "github.com/istio-ecosystem/sail-operator/tests/e2e/util/client"
+	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/common"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/kubectl"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -35,16 +36,14 @@ var (
 	clPrimary                     client.Client
 	clRemote                      client.Client
 	err                           error
-	namespace                     = env.Get("NAMESPACE", "sail-operator")
-	deploymentName                = env.Get("DEPLOYMENT_NAME", "sail-operator")
+	debugInfoLogged               bool
 	controlPlaneNamespace         = env.Get("CONTROL_PLANE_NS", "istio-system")
 	externalControlPlaneNamespace = env.Get("EXTERNAL_CONTROL_PLANE_NS", "external-istiod")
 	istioName                     = env.Get("ISTIO_NAME", "default")
 	istioCniNamespace             = env.Get("ISTIOCNI_NAMESPACE", "istio-cni")
 	istioCniName                  = env.Get("ISTIOCNI_NAME", "default")
-	image                         = env.Get("IMAGE", "quay.io/maistra-dev/sail-operator:latest")
-	skipDeploy                    = env.GetBool("SKIP_DEPLOY", false)
 	multicluster                  = env.GetBool("MULTICLUSTER", false)
+	keepOnFailure                 = env.GetBool("KEEP_ON_FAILURE", false)
 	kubeconfig                    = env.Get("KUBECONFIG", "")
 	kubeconfig2                   = env.Get("KUBECONFIG2", "")
 	artifacts                     = env.Get("ARTIFACTS", "/tmp/artifacts")
@@ -95,13 +94,19 @@ func setup(t *testing.T) {
 
 	// Set base path
 	baseRepoDir := filepath.Join(workDir, "../../..")
-	controlPlaneGatewayYAML = fmt.Sprintf("%s/docs/multicluster/controlplane-gateway.yaml", baseRepoDir)
-	eastGatewayYAML = fmt.Sprintf("%s/docs/multicluster/east-west-gateway-net1.yaml", baseRepoDir)
-	westGatewayYAML = fmt.Sprintf("%s/docs/multicluster/east-west-gateway-net2.yaml", baseRepoDir)
-	exposeServiceYAML = fmt.Sprintf("%s/docs/multicluster/expose-services.yaml", baseRepoDir)
-	exposeIstiodYAML = fmt.Sprintf("%s/docs/multicluster/expose-istiod.yaml", baseRepoDir)
+	controlPlaneGatewayYAML = fmt.Sprintf("%s/docs/deployment-models/resources/controlplane-gateway.yaml", baseRepoDir)
+	eastGatewayYAML = fmt.Sprintf("%s/docs/deployment-models/resources/east-west-gateway-net1.yaml", baseRepoDir)
+	westGatewayYAML = fmt.Sprintf("%s/docs/deployment-models/resources/east-west-gateway-net2.yaml", baseRepoDir)
+	exposeServiceYAML = fmt.Sprintf("%s/docs/deployment-models/resources/expose-services.yaml", baseRepoDir)
+	exposeIstiodYAML = fmt.Sprintf("%s/docs/deployment-models/resources/expose-istiod.yaml", baseRepoDir)
 
 	// Initialize kubectl utilities, one for each cluster
-	k1 = kubectl.New().WithKubeconfig(kubeconfig)
-	k2 = kubectl.New().WithKubeconfig(kubeconfig2)
+	k1 = kubectl.New().WithKubeconfig(kubeconfig).WithClusterName("primary")
+	k2 = kubectl.New().WithKubeconfig(kubeconfig2).WithClusterName("remote")
 }
+
+var _ = ReportAfterSuite("Conditional cleanup", func(ctx SpecContext, r Report) {
+	if !r.SuiteSucceeded && !debugInfoLogged {
+		common.LogDebugInfo(common.MultiCluster, k1, k2)
+	}
+})

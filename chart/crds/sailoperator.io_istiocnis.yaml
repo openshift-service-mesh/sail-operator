@@ -66,7 +66,7 @@ spec:
           spec:
             default:
               namespace: istio-cni
-              version: v1.26.0
+              version: v1.27.0
             description: IstioCNISpec defines the desired state of IstioCNI
             properties:
               namespace:
@@ -1074,6 +1074,17 @@ spec:
                           The directory path within the cluster node's filesystem where network namespaces are located.
                           Defaults to '/var/run/netns', in minikube/docker/others can be '/var/run/docker/netns'.
                         type: string
+                      daemonSetLabels:
+                        additionalProperties:
+                          type: string
+                        description: Additional labels to apply to the istio-cni DaemonSet.
+                        type: object
+                      env:
+                        additionalProperties:
+                          type: string
+                        description: "Environment variables passed to the CNI container.\n\nExamples:\nenv:\n\n\tENV_VAR_1:
+                          value1\n\tENV_VAR_2: value2"
+                        type: object
                       excludeNamespaces:
                         description: List of namespaces that should be ignored by
                           the CNI plugin.
@@ -1088,6 +1099,12 @@ spec:
                         description: |-
                           Image name to pull from. Image will be `Hub/Image:Tag-Variant`.
                           If Image contains a "/", it will replace the entire `image` in the pod.
+                        type: string
+                      istioOwnedCNIConfig:
+                        description: Specifies if an Istio owned CNI config should
+                          be created.
+                        type: boolean
+                      istioOwnedCNIConfigFileName:
                         type: string
                       logging:
                         description: Same as `global.logging.level`, but will override
@@ -1107,6 +1124,11 @@ spec:
                           Additional annotations to apply to the istio-cni Pods.
 
                           Deprecated: Marked as deprecated in pkg/apis/values_types.proto.
+                        type: object
+                      podLabels:
+                        additionalProperties:
+                          type: string
+                        description: Additional labels to apply to the istio-cni Pods.
                         type: object
                       privileged:
                         description: |-
@@ -1437,14 +1459,19 @@ spec:
                     type: object
                 type: object
               version:
-                default: v1.26.0
+                default: v1.27.0
                 description: |-
                   Defines the version of Istio to install.
-                  Must be one of: v1.26-latest, v1.26.0, v1.25-latest, v1.25.3, v1.25.2, v1.25.1, v1.24-latest, v1.24.6, v1.24.5, v1.24.4, v1.24.3, v1.24.2, v1.24.1, v1.24.0, master, v1.27-alpha.9c6178f5.
+                  Must be one of: v1.27-latest, v1.27.0, v1.26-latest, v1.26.3, v1.26.2, v1.26.0, v1.25-latest, v1.25.4, v1.25.3, v1.25.2, v1.25.1, v1.24-latest, v1.24.6, v1.24.5, v1.24.4, v1.24.3, v1.24.2, v1.24.1, v1.24.0, master, v1.28-alpha.dc26732e.
                 enum:
+                - v1.27-latest
+                - v1.27.0
                 - v1.26-latest
+                - v1.26.3
+                - v1.26.2
                 - v1.26.0
                 - v1.25-latest
+                - v1.25.4
                 - v1.25.3
                 - v1.25.2
                 - v1.25.1
@@ -1469,7 +1496,7 @@ spec:
                 - v1.22.5
                 - v1.21.6
                 - master
-                - v1.27-alpha.9c6178f5
+                - v1.28-alpha.dc26732e
                 type: string
             required:
             - namespace

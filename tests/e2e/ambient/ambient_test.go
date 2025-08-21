@@ -25,14 +25,15 @@ import (
 	"github.com/istio-ecosystem/sail-operator/pkg/istioversion"
 	"github.com/istio-ecosystem/sail-operator/pkg/kube"
 	. "github.com/istio-ecosystem/sail-operator/pkg/test/util/ginkgo"
+	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/cleaner"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/common"
 	. "github.com/istio-ecosystem/sail-operator/tests/e2e/util/gomega"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/types"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -45,21 +46,6 @@ var _ = Describe("Ambient configuration ", Label("smoke", "ambient"), Ordered, f
 
 	debugInfoLogged := false
 
-	BeforeAll(func(ctx SpecContext) {
-		Expect(k.CreateNamespace(operatorNamespace)).To(Succeed(), "Namespace failed to be created")
-
-		if skipDeploy {
-			Success("Skipping operator installation because it was deployed externally")
-		} else {
-			Expect(common.InstallOperatorViaHelm()).
-				To(Succeed(), "Operator failed to be deployed")
-		}
-
-		Eventually(common.GetObject).WithArguments(ctx, cl, kube.Key(deploymentName, operatorNamespace), &appsv1.Deployment{}).
-			Should(HaveConditionStatus(appsv1.DeploymentAvailable, metav1.ConditionTrue), "Error getting Istio CRD")
-		Success("Operator is deployed in the namespace and Running")
-	})
-
 	Describe("for supported versions", func() {
 		for _, version := range istioversion.GetLatestPatchVersions() {
 			// The minimum supported version is 1.24 (and above)
@@ -68,7 +54,9 @@ var _ = Describe("Ambient configuration ", Label("smoke", "ambient"), Ordered, f
 			}
 
 			Context(fmt.Sprintf("Istio version %s", version.Version), func() {
-				BeforeAll(func() {
+				clr := cleaner.New(cl)
+				BeforeAll(func(ctx SpecContext) {
+					clr.Record(ctx)
 					Expect(k.CreateNamespace(controlPlaneNamespace)).To(Succeed(), "Istio namespace failed to be created")
 					Expect(k.CreateNamespace(istioCniNamespace)).To(Succeed(), "IstioCNI namespace failed to be created")
 					Expect(k.CreateNamespace(ztunnelNamespace)).To(Succeed(), "ZTunnel namespace failed to be created")
@@ -123,23 +111,11 @@ spec:
 
 				When("the Istio CR is created with ambient profile", func() {
 					BeforeAll(func() {
-						istioYAML := `
-apiVersion: sailoperator.io/v1
-kind: Istio
-metadata:
-  name: default
-spec:
-  values:
-    pilot:
-      trustedZtunnelNamespace: ztunnel
-  profile: ambient
-  version: %s
-  namespace: %s`
-						istioYAML = fmt.Sprintf(istioYAML, version.Name, controlPlaneNamespace)
-						Log("Istio YAML:", istioYAML)
-						Expect(k.CreateFromString(istioYAML)).
-							To(Succeed(), "Istio CR failed to be created")
-						Success("Istio CR created")
+						common.CreateIstio(k, version.Name, `
+values:
+  pilot:
+    trustedZtunnelNamespace: ztunnel
+profile: ambient`)
 					})
 
 					It("updates the Istio CR status to Reconciled", func(ctx SpecContext) {
@@ -163,7 +139,7 @@ spec:
 
 					It("uses the correct image", func(ctx SpecContext) {
 						Expect(common.GetObject(ctx, cl, kube.Key("istiod", controlPlaneNamespace), &appsv1.Deployment{})).
-							To(HaveContainersThat(HaveEach(ImageFromRegistry(expectedRegistry))))
+							To(common.HaveContainersThat(HaveEach(common.ImageFromRegistry(expectedRegistry))))
 					})
 
 					It("has istiod with appropriate env variables set", func(ctx SpecContext) {
@@ -174,11 +150,11 @@ spec:
 							return err
 						}).Should(Succeed(), "Expected to retrieve the 'istiod' deployment")
 
-						Expect(istiodObj).To(HaveContainersThat(ContainElement(WithTransform(getEnvVars,
+						Expect(istiodObj).To(common.HaveContainersThat(ContainElement(WithTransform(getEnvVars,
 							ContainElement(corev1.EnvVar{Name: "PILOT_ENABLE_AMBIENT", Value: "true"})))),
 							"Expected PILOT_ENABLE_AMBIENT to be set to true, but not found")
 
-						Expect(istiodObj).To(HaveContainersThat(ContainElement(WithTransform(getEnvVars,
+						Expect(istiodObj).To(common.HaveContainersThat(ContainElement(WithTransform(getEnvVars,
 							ContainElement(corev1.EnvVar{Name: "CA_TRUSTED_NODE_ACCOUNTS", Value: "ztunnel/ztunnel"})))),
 							"Expected CA_TRUSTED_NODE_ACCOUNTS to be set to ztunnel/ztunnel, but not found")
 					})
@@ -224,15 +200,15 @@ spec:
 							return err
 						}).Should(Succeed(), "Expected to retrieve the 'ztunnel' daemonSet")
 
-						Expect(ztunnelObj).To(HaveContainersThat(ContainElement(WithTransform(getEnvVars,
+						Expect(ztunnelObj).To(common.HaveContainersThat(ContainElement(WithTransform(getEnvVars,
 							ContainElement(corev1.EnvVar{Name: "XDS_ADDRESS", Value: "istiod.istio-system.svc:15012"})))),
 							"Expected XDS_ADDRESS to be set to istiod.istio-system.svc:15012, but not found")
 
-						Expect(ztunnelObj).To(HaveContainersThat(ContainElement(WithTransform(getEnvVars,
+						Expect(ztunnelObj).To(common.HaveContainersThat(ContainElement(WithTransform(getEnvVars,
 							ContainElement(corev1.EnvVar{Name: "ISTIO_META_ENABLE_HBONE", Value: "true"})))),
 							"Expected ISTIO_META_ENABLE_HBONE to be set to true, but not found")
 
-						Expect(ztunnelObj).To(HaveContainersThat(ContainElement(WithTransform(getEnvVars,
+						Expect(ztunnelObj).To(common.HaveContainersThat(ContainElement(WithTransform(getEnvVars,
 							ContainElement(corev1.EnvVar{Name: "CUSTOM_ENV_VAR", Value: "true"})))),
 							"Expected CUSTOM_ENV_VAR to be set to true, but not found")
 					})
@@ -251,19 +227,17 @@ spec:
 						Expect(k.Label("namespace", common.HttpbinNamespace, "istio.io/dataplane-mode", "ambient")).To(Succeed(), "Error labeling httpbin namespace")
 
 						// Deploy the test pods.
-						Expect(k.WithNamespace(common.SleepNamespace).Apply(common.GetSampleYAML(version, "sleep"))).To(Succeed(), "error deploying sleep pod")
-						Expect(k.WithNamespace(common.HttpbinNamespace).Apply(common.GetSampleYAML(version, "httpbin"))).To(Succeed(), "error deploying httpbin pod")
+						Expect(k.WithNamespace(common.SleepNamespace).ApplyKustomize("sleep")).To(Succeed(), "Error deploying sleep pod")
+						Expect(k.WithNamespace(common.HttpbinNamespace).ApplyKustomize("httpbin")).To(Succeed(), "Error deploying httpbin pod")
 
 						Success("Ambient validation pods deployed")
 					})
 
 					sleepPod := &corev1.PodList{}
 					It("updates the status of pods to Running", func(ctx SpecContext) {
-						sleepPod, err = common.CheckPodsReady(ctx, cl, common.SleepNamespace)
-						Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Error checking status of sleep pod: %v", err))
-
-						_, err = common.CheckPodsReady(ctx, cl, common.HttpbinNamespace)
-						Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Error checking status of httpbin pod: %v", err))
+						Eventually(common.CheckPodsReady).WithArguments(ctx, cl, common.SleepNamespace).Should(Succeed(), "Error checking status of sleep pod")
+						Eventually(common.CheckPodsReady).WithArguments(ctx, cl, common.HttpbinNamespace).Should(Succeed(), "Error checking status of httpbin pod")
+						Expect(cl.List(ctx, sleepPod, client.InNamespace(common.SleepNamespace))).To(Succeed(), "Error getting the pod in sleep namespace")
 
 						Success("Pods are ready")
 					})
@@ -273,14 +247,7 @@ spec:
 					})
 
 					It("can access the httpbin service from the sleep pod", func(ctx SpecContext) {
-						checkPodConnectivity(sleepPod.Items[0].Name, common.SleepNamespace, common.HttpbinNamespace)
-					})
-
-					AfterAll(func(ctx SpecContext) {
-						By("Deleting the pods")
-						Expect(k.DeleteNamespace(common.HttpbinNamespace, common.SleepNamespace)).
-							To(Succeed(), "Failed to delete namespaces")
-						Success("Ambient validation pods deleted")
+						common.CheckPodConnectivity(sleepPod.Items[0].Name, common.SleepNamespace, common.HttpbinNamespace, k)
 					})
 				})
 
@@ -327,6 +294,14 @@ spec:
 						Success("ztunnel namespace is empty")
 					})
 				})
+
+				AfterAll(func(ctx SpecContext) {
+					if CurrentSpecReport().Failed() && keepOnFailure {
+						return
+					}
+
+					clr.Cleanup(ctx)
+				})
 			})
 		}
 
@@ -335,56 +310,19 @@ spec:
 				common.LogDebugInfo(common.Ambient, k)
 				debugInfoLogged = true
 			}
-
-			By("Cleaning up the Istio namespace")
-			Expect(k.DeleteNamespace(controlPlaneNamespace)).To(Succeed(), "Istio Namespace failed to be deleted")
-
-			By("Cleaning up the IstioCNI namespace")
-			Expect(k.DeleteNamespace(istioCniNamespace)).To(Succeed(), "IstioCNI Namespace failed to be deleted")
-
-			By("Cleaning up the ZTunnel namespace")
-			Expect(k.DeleteNamespace(ztunnelNamespace)).To(Succeed(), "ZTunnel Namespace failed to be deleted")
 		})
 	})
 
-	AfterAll(func() {
+	AfterAll(func(ctx SpecContext) {
 		if CurrentSpecReport().Failed() && !debugInfoLogged {
 			common.LogDebugInfo(common.Ambient, k)
 			debugInfoLogged = true
 		}
-
-		if skipDeploy {
-			Success("Skipping operator undeploy because it was deployed externally")
-			return
-		}
-
-		By("Deleting operator deployment")
-		Expect(common.UninstallOperator()).
-			To(Succeed(), "Operator failed to be deleted")
-		GinkgoWriter.Println("Operator uninstalled")
-
-		Expect(k.DeleteNamespace(operatorNamespace)).To(Succeed(), "Namespace failed to be deleted")
-		Success("Namespace deleted")
 	})
 })
 
-func HaveContainersThat(matcher types.GomegaMatcher) types.GomegaMatcher {
-	return HaveField("Spec.Template.Spec.Containers", matcher)
-}
-
-func ImageFromRegistry(regexp string) types.GomegaMatcher {
-	return HaveField("Image", MatchRegexp(regexp))
-}
-
 func getEnvVars(container corev1.Container) []corev1.EnvVar {
 	return container.Env
-}
-
-func checkPodConnectivity(podName, srcNamespace, destNamespace string) {
-	command := fmt.Sprintf(`curl -o /dev/null -s -w "%%{http_code}\n" httpbin.%s.svc.cluster.local:8000/get`, destNamespace)
-	response, err := k.WithNamespace(srcNamespace).Exec(podName, srcNamespace, command)
-	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("error connecting to the %q pod", podName))
-	Expect(response).To(ContainSubstring("200"), fmt.Sprintf("Unexpected response from %s pod", podName))
 }
 
 func checkZtunnelPort(podName, srcNamespace string) {

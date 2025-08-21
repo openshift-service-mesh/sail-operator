@@ -20,25 +20,20 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/istio-ecosystem/sail-operator/pkg/env"
-	"github.com/istio-ecosystem/sail-operator/pkg/istioversion"
-	"github.com/istio-ecosystem/sail-operator/pkg/kube"
-	"github.com/istio-ecosystem/sail-operator/pkg/test/project"
-	. "github.com/istio-ecosystem/sail-operator/tests/e2e/util/gomega"
-	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/helm"
+	. "github.com/istio-ecosystem/sail-operator/pkg/test/util/ginkgo"
+	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/istioctl"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/kubectl"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/types"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"istio.io/istio/pkg/ptr"
@@ -217,6 +212,10 @@ func logIstioDebugInfo(k kubectl.Kubectl) {
 
 	events, err := k.WithNamespace(controlPlaneNamespace).GetEvents()
 	logDebugElement("=====Events in "+controlPlaneNamespace+"=====", events, err)
+
+	// Running istioctl proxy-status to get the status of the proxies.
+	proxyStatus, err := istioctl.GetProxyStatus()
+	logDebugElement("=====Istioctl Proxy Status=====", proxyStatus, err)
 }
 
 func logCNIDebugInfo(k kubectl.Kubectl) {
@@ -264,11 +263,10 @@ func logCertsDebugInfo(k kubectl.Kubectl) {
 
 func logDebugElement(caption string, info string, err error) {
 	GinkgoWriter.Println("\n" + caption + ":")
-	indent := "  "
 	if err != nil {
-		GinkgoWriter.Println(indent + err.Error())
+		GinkgoWriter.Println(Indent(err.Error()))
 	} else {
-		GinkgoWriter.Println(indent + strings.ReplaceAll(strings.TrimSpace(info), "\n", "\n"+indent))
+		GinkgoWriter.Println(Indent(strings.TrimSpace(info)))
 	}
 }
 
@@ -286,94 +284,31 @@ func GetVersionFromIstiod() (*semver.Version, error) {
 	return nil, fmt.Errorf("error getting version from istiod: version not found in output: %s", output)
 }
 
-func CheckPodsReady(ctx SpecContext, cl client.Client, namespace string) (*corev1.PodList, error) {
-	podList := &corev1.PodList{}
-
-	err := cl.List(ctx, podList, client.InNamespace(namespace))
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pods in %s namespace: %w", namespace, err)
+func isPodReady(pod *corev1.Pod) bool {
+	for _, cond := range pod.Status.Conditions {
+		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+			return true
+		}
 	}
+	return false
+}
 
-	Expect(podList.Items).ToNot(BeEmpty(), fmt.Sprintf("No pods found in %s namespace", namespace))
+func CheckPodsReady(ctx context.Context, cl client.Client, namespace string) error {
+	podList := &corev1.PodList{}
+	if err := cl.List(ctx, podList, client.InNamespace(namespace)); err != nil {
+		return fmt.Errorf("Failed to list pods: %w", err)
+	}
+	if len(podList.Items) == 0 {
+		return fmt.Errorf("No pods found in namespace %q", namespace)
+	}
 
 	for _, pod := range podList.Items {
-		Eventually(GetObject).WithArguments(ctx, cl, kube.Key(pod.Name, namespace), &corev1.Pod{}).
-			Should(HaveConditionStatus(corev1.PodReady, metav1.ConditionTrue), fmt.Sprintf("%q Pod in %q namespace is not Ready", pod.Name, namespace))
-	}
-
-	return podList, nil
-}
-
-func InstallOperatorViaHelm(extraArgs ...string) error {
-	args := []string{
-		"--namespace " + OperatorNamespace,
-		"--set image=" + OperatorImage,
-		"--set operatorLogLevel=3",
-	}
-	args = append(args, extraArgs...)
-
-	return helm.Install("sail-operator", filepath.Join(project.RootDir, "chart"), args...)
-}
-
-func UninstallOperator() error {
-	return helm.Uninstall("sail-operator", "--namespace", OperatorNamespace)
-}
-
-// GetSampleYAML returns the URL of the yaml file for the testing app.
-// args:
-// version: the version of the Istio to get the yaml file from.
-// appName: the name of the testing app. Example: helloworld, sleep, tcp-echo.
-func GetSampleYAML(version istioversion.VersionInfo, appName string) string {
-	// This func will be used to get URLs for the yaml files of the testing apps. Example: helloworld, sleep, tcp-echo.
-	// Default values points to upstream Istio sample yaml files. Custom paths can be provided using environment variables.
-
-	// Define environment variables for specific apps
-	envVarMap := map[string]string{
-		"tcp-echo-dual-stack": "TCP_ECHO_DUAL_STACK_YAML_PATH",
-		"tcp-echo-ipv4":       "TCP_ECHO_IPV4_YAML_PATH",
-		"tcp-echo":            "TCP_ECHO_IPV4_YAML_PATH",
-		"tcp-echo-ipv6":       "TCP_ECHO_IPV6_YAML_PATH",
-		"sleep":               "SLEEP_YAML_PATH",
-		"helloworld":          "HELLOWORLD_YAML_PATH",
-		"sample":              "HELLOWORLD_YAML_PATH",
-		"httpbin":             "HTTPBIN_YAML_PATH",
-	}
-
-	// Check if there's a custom path for the given appName
-	if envVar, exists := envVarMap[appName]; exists {
-		customPath := os.Getenv(envVar)
-		if customPath != "" {
-			return customPath
+		if !isPodReady(&pod) {
+			return fmt.Errorf("pod %q in namespace %q is not ready", pod.Name, namespace)
 		}
 	}
 
-	// Default paths if no custom path is provided
-	var path string
-	switch appName {
-	case "tcp-echo-dual-stack":
-		path = "samples/tcp-echo/tcp-echo-dual-stack.yaml"
-	case "tcp-echo-ipv4", "tcp-echo":
-		path = "samples/tcp-echo/tcp-echo-ipv4.yaml"
-	case "tcp-echo-ipv6":
-		path = "samples/tcp-echo/tcp-echo-ipv6.yaml"
-	case "sleep":
-		path = "samples/sleep/sleep.yaml"
-	case "helloworld", "sample":
-		path = "samples/helloworld/helloworld.yaml"
-	case "httpbin":
-		path = "samples/httpbin/httpbin.yaml"
-	default:
-		return ""
-	}
-
-	// Base URL logic
-	baseURL := os.Getenv("SAMPLE_YAML_BASE_URL")
-	if baseURL == "" {
-		// use local files by default
-		return filepath.Join(project.RootDir, path)
-	}
-
-	return fmt.Sprintf("%s/%s/%s", baseURL, version.Commit, path)
+	return nil
 }
 
 // Resolve domain name and return ip address.
@@ -407,4 +342,70 @@ func ResolveHostDomainToIP(hostDomain string) (string, error) {
 	}
 
 	return "", fmt.Errorf("failed to resolve hostname %s after %d retries: %w", hostDomain, maxRetries, lastErr)
+}
+
+// CreateIstio custom resource using a given `kubectl` client and with the specified version.
+// An optional spec list can be given to inject into the CR's spec.
+func CreateIstio(k kubectl.Kubectl, version string, specs ...string) {
+	yaml := `
+apiVersion: sailoperator.io/v1
+kind: Istio
+metadata:
+  name: %s
+spec:
+  version: %s
+  namespace: %s`
+	yaml = fmt.Sprintf(yaml, istioName, version, controlPlaneNamespace)
+	for _, spec := range specs {
+		yaml += Indent(spec)
+	}
+
+	Log("Istio YAML:", Indent(yaml))
+	Expect(k.CreateFromString(yaml)).
+		To(Succeed(), withClusterName("Istio CR failed to be created", k))
+	Success(withClusterName("Istio CR created", k))
+}
+
+// CreateIstioCNI custom resource using a given `kubectl` client and with the specified version.
+func CreateIstioCNI(k kubectl.Kubectl, version string) {
+	yaml := `
+apiVersion: sailoperator.io/v1
+kind: IstioCNI
+metadata:
+  name: %s
+spec:
+  version: %s
+  namespace: %s`
+	yaml = fmt.Sprintf(yaml, istioCniName, version, istioCniNamespace)
+	Log("IstioCNI YAML:", Indent(yaml))
+	Expect(k.CreateFromString(yaml)).To(Succeed(), withClusterName("IstioCNI creation failed", k))
+	Success(withClusterName("IstioCNI created", k))
+}
+
+func Indent(str string) string {
+	indent := "  "
+	return indent + strings.ReplaceAll(str, "\n", "\n"+indent)
+}
+
+func withClusterName(m string, k kubectl.Kubectl) string {
+	if k.ClusterName == "" {
+		return m
+	}
+
+	return m + " on " + k.ClusterName
+}
+
+func CheckPodConnectivity(podName, srcNamespace, destNamespace string, k kubectl.Kubectl) {
+	command := fmt.Sprintf(`curl -o /dev/null -s -w "%%{http_code}\n" httpbin.%s.svc.cluster.local:8000/get`, destNamespace)
+	response, err := k.WithNamespace(srcNamespace).Exec(podName, srcNamespace, command)
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("error connecting to the %q pod", podName))
+	Expect(response).To(ContainSubstring("200"), fmt.Sprintf("Unexpected response from %s pod", podName))
+}
+
+func HaveContainersThat(matcher types.GomegaMatcher) types.GomegaMatcher {
+	return HaveField("Spec.Template.Spec.Containers", matcher)
+}
+
+func ImageFromRegistry(regexp string) types.GomegaMatcher {
+	return HaveField("Image", MatchRegexp(regexp))
 }

@@ -339,8 +339,6 @@ func TestDetermineReadyCondition(t *testing.T) {
 }
 
 func TestApplyImageDigests(t *testing.T) {
-	t.Skip("https://github.com/istio-ecosystem/sail-operator/issues/581")
-
 	testCases := []struct {
 		name         string
 		config       config.OperatorConfig
@@ -438,6 +436,56 @@ func TestApplyImageDigests(t *testing.T) {
 				ZTunnel: &v1.ZTunnelConfig{
 					Hub: ptr.Of("docker.io/istio"),
 					Tag: ptr.Of("1.24.0"),
+				},
+			},
+		},
+		{
+			name: "user-supplied-global-hub",
+			config: config.OperatorConfig{
+				ImageDigests: map[string]config.IstioImageConfig{
+					"v1.24.0": {
+						ZTunnelImage: "ztunnel-test",
+					},
+				},
+			},
+			input: &v1alpha1.ZTunnel{
+				Spec: v1alpha1.ZTunnelSpec{
+					Version: "v1.24.0",
+					Values: &v1.ZTunnelValues{
+						Global: &v1.ZTunnelGlobalConfig{
+							Hub: ptr.Of("docker.io/istio"),
+						},
+					},
+				},
+			},
+			expectValues: &v1.ZTunnelValues{
+				Global: &v1.ZTunnelGlobalConfig{
+					Hub: ptr.Of("docker.io/istio"),
+				},
+			},
+		},
+		{
+			name: "user-supplied-global-tag",
+			config: config.OperatorConfig{
+				ImageDigests: map[string]config.IstioImageConfig{
+					"v1.24.0": {
+						ZTunnelImage: "ztunnel-test",
+					},
+				},
+			},
+			input: &v1alpha1.ZTunnel{
+				Spec: v1alpha1.ZTunnelSpec{
+					Version: "v1.24.0",
+					Values: &v1.ZTunnelValues{
+						Global: &v1.ZTunnelGlobalConfig{
+							Tag: ptr.Of("v1.24.0-custom-build"),
+						},
+					},
+				},
+			},
+			expectValues: &v1.ZTunnelValues{
+				Global: &v1.ZTunnelGlobalConfig{
+					Tag: ptr.Of("v1.24.0-custom-build"),
 				},
 			},
 		},
