@@ -87,11 +87,10 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient.Create(context.TODO(), operatorNs)).To(Succeed())
 
 	cfg := config.ReconcilerConfig{
-		ResourceDirectory:       path.Join(project.RootDir, "resources"),
-		Platform:                config.PlatformKubernetes,
-		DefaultProfile:          "",
-		OperatorNamespace:       operatorNs.Name,
-		MaxConcurrentReconciles: 5,
+		ResourceDirectory: path.Join(project.RootDir, "resources"),
+		Platform:          config.PlatformKubernetes,
+		DefaultProfile:    "",
+		OperatorNamespace: operatorNs.Name,
 	}
 
 	cl := mgr.GetClient()
