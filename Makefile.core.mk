@@ -225,15 +225,35 @@ test.e2e.kind: istioctl ## Deploy a KinD cluster and run the end-to-end tests ag
 test.e2e.describe: ## Runs ginkgo outline -format indent over the e2e test to show in BDD style the steps and test structure
 	GINKGO_FLAGS="$(GINKGO_FLAGS)" ${SOURCE_DIR}/tests/e2e/common-operator-integ-suite.sh --describe
 
-.PHONE: test.docs
+.PHONY: test.e2e.cleanup
+test.e2e.cleanup: ## Clean up e2e environment by removing Sail and Istio CRDs
+	@${SOURCE_DIR}/tests/e2e/common-operator-cleanup.sh
+
+##@ Build
+
+.PHONY: runme $(RUNME)
+runme: OS=$(shell go env GOOS)
+runme: ARCH=$(shell go env GOARCH)
+runme: $(RUNME) ## Download runme to bin directory. If wrong version is installed, it will be overwritten.
+	@test -s $(LOCALBIN)/runme || { \
+		GOBIN=$(LOCALBIN) GO111MODULE=on go install github.com/runmedev/runme/v3@v$(RUNME_VERSION) > /dev/stderr; \
+		echo "runme has been downloaded and placed in $(LOCALBIN)"; \
+	}
+
+.PHONY: update-docs-examples
+update-docs-examples: ## Copy the documentation files and generate the resulting md files to be executed by the runme tool.
+	@echo "Executing copy script to generate the documentation examples md files"
+	@echo "The script will copy the files from the source folder to the destination folder and add the runme suffix to the file names"
+	@tests/documentation_tests/scripts/update-docs-examples.sh
+	@echo "Documentation examples updated successfully"
+
+.PHONY: test.docs
 test.docs: runme istioctl ## Run the documentation examples tests.
 ## test.docs use runme to test the documentation examples. 
 ## Check the specific documentation to understand the use of the tool
 	@echo "Running runme test on the documentation examples."
 	@PATH=$(LOCALBIN):$$PATH tests/documentation_tests/scripts/run-docs-examples.sh
 	@echo "Documentation examples tested successfully"
-
-##@ Build
 
 .PHONY: build
 build: build-$(TARGET_ARCH) ## Build the sail-operator binary.
