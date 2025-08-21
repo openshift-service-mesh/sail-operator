@@ -34,7 +34,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: OpenShift Optional, Integration & Delivery, Networking, Security
     containerImage: ${OSSM_OPERATOR_3_0}
-    createdAt: "2025-08-18T09:09:28Z"
+    createdAt: "2025-08-21T07:33:43Z"
     description: The OpenShift Service Mesh Operator enables you to install, configure, and manage an instance of Red Hat OpenShift Service Mesh. OpenShift Service Mesh is based on the open source Istio project.
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "true"
@@ -702,7 +702,7 @@ spec:
                     resources:
                       limits:
                         cpu: 500m
-                        memory: 512Mi
+                        memory: 1Gi
                       requests:
                         cpu: 10m
                         memory: 64Mi
