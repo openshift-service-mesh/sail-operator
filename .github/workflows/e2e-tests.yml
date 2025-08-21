@@ -36,9 +36,16 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      
+      - name: Create S3 bucket
+        run: |
+          echo "Creating S3 bucket for PR ${GITHUB_REF}..."
+          aws s3api create-bucket --bucket sail-${{ github.run_id }} --region ${{ env.AWS_DEFAULT_REGION }}
+          echo "S3 bucket created successfully"
 
       # Step 3: Create pull secret file
       - name: Create pull secret file
+        if: success()
         env:
           PULL_SECRET_CONTENT: ${{ secrets.PULL_SECRET_CONTENT }}
         run: |
@@ -48,6 +55,7 @@ jobs:
 
       # Step 4: Create SNC cluster using mapt
       - name: Create OpenShift SNC cluster
+        if: success()
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -77,6 +85,7 @@ jobs:
 
       # Step 5: Install oc CLI
       - name: Install OpenShift CLI (oc)
+        if: success()
         run: |
           echo "Installing oc CLI..."
           curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
@@ -88,6 +97,7 @@ jobs:
 
       # Step 6: Setup kubeconfig and verify cluster connectivity
       - name: Configure kubeconfig and verify connectivity
+        if: success()
         env:
           KUBECONFIG: ${{ github.workspace }}/kubeconfig
         run: |
@@ -118,12 +128,20 @@ jobs:
 
       # Step 7: Execute E2E tests
       - name: Run E2E tests
+        if: success()
         env:
           KUBECONFIG: ${{ github.workspace }}/kubeconfig
         run: |
           echo "Running E2E tests against OpenShift cluster..."
           make test.e2e.ocp
           echo "E2E tests completed successfully"
+
+      - name: Delete S3 bucket
+        if: success()
+        run: |
+          echo "Deleting S3 bucket..."
+          aws s3 rb s3://sail-${{ github.run_id }} --force
+          echo "S3 bucket deleted successfully"
 
       # Step 8: Cleanup temporary files
       - name: Remove temporary files
