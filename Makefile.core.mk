@@ -192,6 +192,10 @@ test.e2e.kind: istioctl ## Deploy a KinD cluster and run the end-to-end tests ag
 .PHONY: test.e2e.describe
 test.e2e.describe: ## Runs ginkgo outline -format indent over the e2e test to show in BDD style the steps and test structure
 	GINKGO_FLAGS="$(GINKGO_FLAGS)" ${SOURCE_DIR}/tests/e2e/common-operator-integ-suite.sh --describe
+
+.PHONY: test.e2e.cleanup
+test.e2e.cleanup: ## Clean up e2e environment by removing Sail and Istio CRDs
+	@${SOURCE_DIR}/tests/e2e/common-operator-cleanup.sh
 ##@ Build
 
 .PHONY: runme $(RUNME)
