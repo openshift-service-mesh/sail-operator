@@ -21,7 +21,7 @@ deployment:
     images.v1_24_6.istiod: ${ISTIO_PILOT_1_24}
     images.v1_24_6.proxy: ${ISTIO_PROXY_1_24}
     images.v1_24_6.cni: ${ISTIO_CNI_1_24}
-    images.v1_24_6.ztunnel: ${ISTIO_PROXY_1_24}
+    images.v1_24_6.ztunnel: ${ISTIO_ZTUNNEL_1_24}
     images.v1_24_6.must-gather: ${OSSM_MUST_GATHER_3_0}
     # for unreleased downstream images, use env variables as placeholders, i.e.: images.v1_26_2.cni: ${ISTIO_CNI_1_26}
 service:
