@@ -329,8 +329,8 @@ spec:
 				Expect(k.CreateNamespace(common.HttpbinNamespace)).To(Succeed(), "Failed to create httpbin namespace")
 				Expect(k.Label("namespace", common.SleepNamespace, "istio-injection", "enabled")).To(Succeed(), "Error labeling sample namespace")
 				Expect(k.Label("namespace", common.HttpbinNamespace, "istio-injection", "enabled")).To(Succeed(), "Error labeling sample namespace")
-				Expect(k.WithNamespace(common.SleepNamespace).Apply(common.GetSampleYAML(latestVersion, "sleep"))).To(Succeed(), "error deploying sleep pod")
-				Expect(k.WithNamespace(common.HttpbinNamespace).Apply(common.GetSampleYAML(latestVersion, "httpbin"))).To(Succeed(), "error deploying httpbin pod")
+				Expect(k.WithNamespace(common.SleepNamespace).ApplyKustomize("sleep")).To(Succeed(), "error deploying sleep pod")
+				Expect(k.WithNamespace(common.HttpbinNamespace).ApplyKustomize("httpbin")).To(Succeed(), "error deploying httpbin pod")
 			})
 
 			It("waits for sample pods to be ready", func(ctx SpecContext) {
