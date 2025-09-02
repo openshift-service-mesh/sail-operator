@@ -101,59 +101,6 @@ spec:
 			})
 		})
 
-		// Workaround until https://issues.redhat.com/browse/OCPBUGS-56758 is fixed
-		When("the Cert Manager Operator is patched", func() {
-			BeforeAll(func() {
-				roleBindingYaml := `
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  labels:
-    app: cert-manager
-    app.kubernetes.io/component: controller
-    app.kubernetes.io/instance: cert-manager
-    app.kubernetes.io/name: cert-manager
-    app.kubernetes.io/version: v1.16.4
-  name: cert-manager-cert-manager-tokenrequest
-  namespace: cert-manager
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: cert-manager-tokenrequest
-subjects:
-  - kind: ServiceAccount
-    name: cert-manager
-    namespace: cert-manager`
-				Expect(k.WithNamespace(certManagerNamespace).CreateFromString(roleBindingYaml)).To(Succeed(), "RoleBinding creation failed")
-			})
-
-			It("should succeed", func() {
-				roleYaml := `
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  labels:
-    app: cert-manager
-    app.kubernetes.io/component: controller
-    app.kubernetes.io/instance: cert-manager
-    app.kubernetes.io/name: cert-manager
-    app.kubernetes.io/version: v1.16.4
-  name: cert-manager-tokenrequest
-  namespace: cert-manager
-rules:
-  - apiGroups:
-      - ""
-    resourceNames:
-      - cert-manager
-    resources:
-      - serviceaccounts/token
-    verbs:
-      - create`
-				Expect(k.WithNamespace(certManagerNamespace).CreateFromString(roleYaml)).To(Succeed(), "Role creation failed")
-				Success("Cert Manager Operator patched successfully")
-			})
-		})
-
 		When("root CA issuer for the IstioCSR agent is created", func() {
 			BeforeAll(func() {
 				Expect(
