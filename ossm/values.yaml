@@ -18,11 +18,11 @@ deployment:
     images.v1_24_5.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:54cada48e5c9824f255f82daa2ef5bea236919e521d3ea49885f2883ced2b7bc
     images.v1_24_5.ztunnel: registry.redhat.io/openshift-service-mesh-dev-preview-beta/istio-ztunnel-rhel9@sha256:7ea9b82e192402566e69063a4787351be9f1ef50719bfd1a8f5d5940362b3f70
     # 1.24.6 images are hardcoded to versions released with 3.0.4
-    images.v1_24_6.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:1f6aa02da643d014a65f35cdecf2fd8b24ad6780c4a29827c5e2a1e05d4de321
-    images.v1_24_6.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:ce7048d1f625ceee4cb7748c6dbb818f544cf128c91f81709d1f856585f0d99a
-    images.v1_24_6.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:70729fd98cba12ebfae536f474cc189c386a3c021df046a4f3922710029f2802
-    images.v1_24_6.ztunnel: registry.redhat.io/openshift-service-mesh-dev-preview-beta/istio-ztunnel-rhel9@sha256:7aefc0aa39abf21e80a9aec536b176f89534e22b4eea5b36ddbfa41381bcc54b
-    images.v1_24_6.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:53b4cd4b694370af2631ae4d7ca9748cec3fc6c91e638839f5cc765aa69d112c
+    images.v1_24_6.istiod: ${ISTIO_PILOT_1_24}
+    images.v1_24_6.proxy: ${ISTIO_PROXY_1_24}
+    images.v1_24_6.cni: ${ISTIO_CNI_1_24}
+    images.v1_24_6.ztunnel: ${ISTIO_ZTUNNEL_1_24}
+    images.v1_24_6.must-gather: ${OSSM_MUST_GATHER_3_0}
     # for unreleased downstream images, use env variables as placeholders, i.e.: images.v1_26_2.cni: ${ISTIO_CNI_1_26}
 service:
   port: 8443
