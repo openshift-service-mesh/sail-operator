@@ -187,15 +187,15 @@ values:
 					})
 
 					It("can access the dual-stack service from the sleep pod", func(ctx SpecContext) {
-						common.CheckPodConnectivity(sleepPod.Items[0].Name, SleepNamespace, DualStackNamespace, k)
+						checkTCPEchoConnectivity(sleepPod.Items[0].Name, SleepNamespace, DualStackNamespace)
 					})
 
 					It("can access the ipv4 only service from the sleep pod", func(ctx SpecContext) {
-						common.CheckPodConnectivity(sleepPod.Items[0].Name, SleepNamespace, IPv4Namespace, k)
+						checkTCPEchoConnectivity(sleepPod.Items[0].Name, SleepNamespace, IPv4Namespace)
 					})
 
 					It("can access the ipv6 only service from the sleep pod", func(ctx SpecContext) {
-						common.CheckPodConnectivity(sleepPod.Items[0].Name, SleepNamespace, IPv6Namespace, k)
+						checkTCPEchoConnectivity(sleepPod.Items[0].Name, SleepNamespace, IPv6Namespace)
 					})
 				})
 
@@ -260,4 +260,11 @@ func HaveContainersThat(matcher types.GomegaMatcher) types.GomegaMatcher {
 
 func getEnvVars(container corev1.Container) []corev1.EnvVar {
 	return container.Env
+}
+
+func checkTCPEchoConnectivity(podName, namespace, echoStr string) {
+	command := fmt.Sprintf(`sh -c 'echo %s | nc tcp-echo.%s 9000'`, echoStr, echoStr)
+	response, err := k.WithNamespace(namespace).Exec(podName, "sleep", command)
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("error connecting to the %q pod", podName))
+	Expect(response).To(ContainSubstring(fmt.Sprintf("hello %s", echoStr)), fmt.Sprintf("Unexpected response from %s pod", podName))
 }
