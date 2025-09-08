@@ -445,6 +445,7 @@ _Appears in:_
 | `waypoint` _[WaypointConfig](#waypointconfig)_ | Specifies how waypoints are configured within Istio. |  |  |
 | `trustBundleName` _string_ | Select a custom name for istiod's CA Root Cert ConfigMap. |  |  |
 | `nativeNftables` _boolean_ | Specifies whether native nftables rules should be used instead of iptables rules for traffic redirection. |  |  |
+| `networkPolicy` _[NetworkPolicyConfig](#networkpolicyconfig)_ | Settings related to Kubernetes NetworkPolicy. |  |  |
 
 
 #### GlobalLoggingConfig
@@ -2302,6 +2303,22 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `fromCidr` _string_ | A CIDR range for the set of endpoints in this network. The CIDR ranges for endpoints from different networks must not overlap. |  |  |
 | `fromRegistry` _string_ | Add all endpoints from the specified registry into this network. The names of the registries should correspond to the kubeconfig file name inside the secret that was used to configure the registry (Kubernetes multicluster) or supplied by MCP server. |  |  |
+
+
+#### NetworkPolicyConfig
+
+
+
+Configuration for NetworkPolicy
+
+
+
+_Appears in:_
+- [GlobalConfig](#globalconfig)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `enabled` _boolean_ | Controls whether default NetworkPolicy resources will be created. |  |  |
 
 
 
