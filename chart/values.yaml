@@ -2,6 +2,10 @@ name: sailoperator
 deployment:
   name: sail-operator
   annotations:
+    images.v1_26_4.ztunnel: gcr.io/istio-release/ztunnel:1.26.4
+    images.v1_26_4.istiod: gcr.io/istio-release/pilot:1.26.4
+    images.v1_26_4.proxy: gcr.io/istio-release/proxyv2:1.26.4
+    images.v1_26_4.cni: gcr.io/istio-release/install-cni:1.26.4
     images.v1_26_3.ztunnel: gcr.io/istio-release/ztunnel:1.26.3
     images.v1_26_3.istiod: gcr.io/istio-release/pilot:1.26.3
     images.v1_26_3.proxy: gcr.io/istio-release/proxyv2:1.26.3
