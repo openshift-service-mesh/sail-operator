@@ -190,4 +190,4 @@ require (
 	sigs.k8s.io/yaml v1.5.0 // indirect
 )
 
-replace istio.io/istio => github.com/openshift-service-mesh/istio v0.0.0-20250820174634-270914da554f
+replace istio.io/istio => github.com/openshift-service-mesh/istio v0.0.0-20250909060934-d9b1257c2de9
