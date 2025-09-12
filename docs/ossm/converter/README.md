@@ -26,6 +26,7 @@ If you already have OSSM (OpenShift Service Mesh) preinstalled, set the followin
 CONTROL_PLANE_SOURCE=sail
 TEST_HUB=docker.io/istio
 TAG=1.26.2 #Modify for desired version
+ISTIO_VERSION=v1.26.2 #Modify for desired version
 ```
 
 - ### Deploying Sail Operator from Source
@@ -49,13 +50,6 @@ https://raw.githubusercontent.com/istio-ecosystem/sail-operator/$CONVERTER_BRANC
 Example:
 ```sh
 CONVERTER_BRANCH=release-3.1
-```
-- ISTIO_VERSION:
-Allows you to directly specify the Istio version to install
-
-Example:
-```sh
-ISTIO_VERSION=1.26.2
 ```
 
 ## Executing Tests:
