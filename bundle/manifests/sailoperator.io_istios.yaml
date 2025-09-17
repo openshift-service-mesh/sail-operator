@@ -616,6 +616,14 @@ spec:
                           Network defines the network this cluster belong to. This name
                           corresponds to the networks in the map of mesh networks.
                         type: string
+                      networkPolicy:
+                        description: Settings related to Kubernetes NetworkPolicy.
+                        properties:
+                          enabled:
+                            description: Controls whether default NetworkPolicy resources
+                              will be created.
+                            type: boolean
+                        type: object
                       omitSidecarInjectorConfigMap:
                         description: |-
                           Controls whether the creation of the sidecar injector ConfigMap should be skipped.

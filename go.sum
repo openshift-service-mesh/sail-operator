@@ -258,6 +258,8 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=
 github.com/opencontainers/image-spec v1.1.1/go.mod h1:qpqAh3Dmcf36wStyyWU+kCeDgrGnAve2nCC8+7h8Q0M=
+github.com/openshift-service-mesh/istio v0.0.0-20250908155519-6667bf24a11c h1:J4u9UsUus3BQ/ZpyymFROjvOjKfnUKAGCtKnc8b3cuQ=
+github.com/openshift-service-mesh/istio v0.0.0-20250908155519-6667bf24a11c/go.mod h1:lCFDnjdmMaziwcb7xhi4cj5o3nWJF++tcYNCy2hOpFA=
 github.com/peterbourgon/diskv v2.0.1+incompatible h1:UBdAOUP5p4RWqPBg048CAvpKN+vxiaj6gdUUzhl4XmI=
 github.com/peterbourgon/diskv v2.0.1+incompatible/go.mod h1:uqqh8zWWbv1HBMNONnaR/tNboyR3/BZd58JJSHlUSCU=
 github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5 h1:Ii+DKncOVM8Cu1Hc+ETb5K+23HdAMvESYE3ZJ5b5cMI=
@@ -479,8 +481,6 @@ istio.io/api v1.27.1-0.20250820125923-f5a5d3a605a9 h1:gVTxnhYGJ1pY+iqcz/mrbPSpdk
 istio.io/api v1.27.1-0.20250820125923-f5a5d3a605a9/go.mod h1:DTVGH6CLXj5W8FF9JUD3Tis78iRgT1WeuAnxfTz21Wg=
 istio.io/client-go v1.27.1 h1:VWEtOzmv9gi4x3OPjN5wMFOBV1i95UIGcbYXoP4VVuA=
 istio.io/client-go v1.27.1/go.mod h1:otQns/CCDd4EoyEFWp8w+ksTP0T05baYTIx5FxqS8eM=
-istio.io/istio v0.0.0-20250904173900-b97585886f7c h1:HwdnRtOmtDvl0fzChZyeF2e1VtdNrFMK2LUUQ6+4lXg=
-istio.io/istio v0.0.0-20250904173900-b97585886f7c/go.mod h1:qqjKUQj9hKBFlR14xrxghHAyaqolkWn1ze+FYyzU+NU=
 k8s.io/api v0.34.0 h1:L+JtP2wDbEYPUeNGbeSa/5GwFtIA662EmT2YSLOkAVE=
 k8s.io/api v0.34.0/go.mod h1:YzgkIzOOlhl9uwWCZNqpw6RJy9L2FK4dlJeayUoydug=
 k8s.io/apiextensions-apiserver v0.34.0 h1:B3hiB32jV7BcyKcMU5fDaDxk882YrJ1KU+ZSkA9Qxoc=
