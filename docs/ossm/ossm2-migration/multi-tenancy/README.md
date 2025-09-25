@@ -148,6 +148,7 @@ oc create ns istio-system-tenant-a
    Now we are ready to migrate our workloads from our 2.6 controlplane to our 3.0 controlplane.
 
 #### Migrate Workloads
+> **_NOTE:_** OpenShift Service Mesh 3.0 does not support `sidecar.istio.io/inject: 'true'` annotation on a pod in `metadata.annotations`. Migration steps described bellow are adding namespace injection labels so there is no additional action required for resources using `sidecar.istio.io/inject: 'true'` annotation as the injection will be controlled by the namespace labels and `sidecar.istio.io/inject: 'true'` annotation will be ignored.
 
 1. Find the current `IstioRevision` for your Service Mesh 3.0 controlplane.
 
