@@ -25,6 +25,7 @@ When the migration of all workloads is finished, it's possible to remove OpenShi
     ```
 
 > **_NOTE:_** that depending on how you created `ServiceMeshMembers` and `ServiceMeshMemberRoll`, those resources might be removed automatically with removal of `ServiceMeshControlPlane` after step 2.
+> **_NOTE:_** OpenShift Service Mesh 3.0 does not support `sidecar.istio.io/inject: 'true'` annotation on a pod in `metadata.annotations` and it must be set as a label instead in `metadata.labels`. Keeping the annotation is harmless but it can be also safely removed.
 
 ## Remove 2.6 operator and CRDs
 1. Make sure there are no Service Mesh 2.6 resources left:
