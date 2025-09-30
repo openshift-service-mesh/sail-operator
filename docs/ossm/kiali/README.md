@@ -375,10 +375,10 @@ When using Istio Ambient mode, Kiali introduces new behaviors and visualizations
 ### Access Requirements
 
 ztunnel namespace access is required for Kiali to detect that Ambient mode is enabled. Without this access, Kiali cannot display Ambient-related features.
-New Visualizations and Features
 
-### Ambient Badges
-Kiali will show badges for namespaces and workloads that are enrolled in the Ambient mesh, making it easy to identify them at a glance.
+### New Visualizations and Features
+
+Ambient Badges: Kiali will show badges for namespaces and workloads that are enrolled in the Ambient mesh, making it easy to identify them at a glance.
 
 ### Traffic Graph Adjustments
 
