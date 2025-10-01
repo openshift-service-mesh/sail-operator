@@ -50,7 +50,7 @@ Going back to your OpenShift Service Mesh 2.6 installation, the way member selec
 
     With this configuration, it will be necessary to add either the `istio.io/rev` or `istio-injection` label during the migration.
 
-> **_NOTE:_** OpenShift Service Mesh 3.0 does not support `sidecar.istio.io/inject: 'true'` annotation on a pod in `metadata.annotations`. Migration steps described bellow are adding namespace injection labels so there is no additional action required for resources using `sidecar.istio.io/inject: 'true'` annotation as the injection will be controlled by the namespace labels and `sidecar.istio.io/inject: 'true'` annotation will be ignored.
+> **_NOTE:_** OpenShift Service Mesh 3.0 does not support `sidecar.istio.io/inject: 'true'` annotation on a pod in `metadata.annotations`. Migration steps described below are adding namespace injection labels so there is no additional action required for resources using `sidecar.istio.io/inject: 'true'` annotation as the injection will be controlled by the namespace labels and `sidecar.istio.io/inject: 'true'` annotation will be ignored.
 
 Procedures below show different approaches for migration. Only first or second procedure should be used for production environments. Read a description of each procedure to pick one which fits your needs.
 
