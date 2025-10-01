@@ -368,6 +368,47 @@ You can integrate OpenShift distributed tracing platform with Kiali, which enabl
 
 3. Navigate to **Workload** -> **Traces** tab to see traces in the Kiali UI.
 
+## Kiali and Istio Ambient: Key Considerations
+
+When using Istio Ambient mode, Kiali introduces new behaviors and visualizations to properly support the Ambient data plane. Below are the main points to understand when running Kiali in this context:
+
+### Access Requirements
+
+ztunnel namespace access is required for Kiali to detect that Ambient mode is enabled. Without this access, Kiali cannot display Ambient-related features.
+
+### New Visualizations and Features
+
+Ambient Badges: Kiali will show badges for namespaces and workloads that are enrolled in the Ambient mesh, making it easy to identify them at a glance.
+
+### Traffic Graph Adjustments
+
+The traffic graph changes based on Ambient enrollment:
+
+- Without waypoint proxies: the graph only shows L4 traffic.
+- With waypoint proxies: L7 traffic can also be visualized.
+
+Ambient introduces new telemetry sources. Kiali processes and displays metrics coming from both ztunnel and waypoints, ensuring visibility of mesh traffic in Ambient deployments. New selectors allow filtering and navigating Ambient-specific traffic sources.
+
+There is also a display feature to visualize the waypoint nodes in the traffic graph.
+
+### Workload Proxy Logs
+
+Kiali correlates and filters logs from both ztunnel and waypoint proxies, simplifying troubleshooting by unifying the proxy logs and showing only the relevant lines per workload.
+
+### Distributed Tracing
+
+- Traces exist only when waypoint proxies are deployed, since traces are emitted from waypoint services.
+- Kiali correlates workload traces automatically with the appropriate waypoint proxies.
+
+### Dedicated Pages for Ambient Components
+
+- Waypoint pages: show detailed information, including captured workloads.
+- Ztunnel pages: focus on telemetry, metrics, and diagnostics for ztunnel based on related istioctl utilities.
+
+These dedicated views help users drill down into Ambient components separately from workloads and services.
+
+This integration ensures that Ambient mode workloads are fully observable within Kiali, while also simplifying operational tasks.
+
 ## Viewing service mesh data in the Kiali console
 
 The Kiali Graph offers a powerful visualization of your mesh traffic. The topology combines request traffic with your Istio configuration information to present immediate insight into the behavior of your service mesh, letting you quickly pinpoint issues. Multiple Graph Types let you visualize traffic as a high-level service topology, a low-level workload topology, or as an application-level topology.
