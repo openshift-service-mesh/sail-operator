@@ -16,6 +16,9 @@ This guide is for users who are currently running `MultiTenant` OpenShift Servic
 
 In this example, we'll be using the [bookinfo demo](https://raw.githubusercontent.com/Maistra/istio/maistra-2.6/samples/bookinfo/platform/kube/bookinfo.yaml) but you can follow these same steps with your own workloads.
 
+> [!WARNING]
+> Adding new namespaces to the mesh during the migration is not recommended and requires extra caution. `MultiTenant` mode by design only interacts with namespaces which are part of the mesh. This means it will not add `istio-ca-root-cert` ConfigMap to newly created namespaces which are not part of the 2.6 mesh. As this procedure is installing 3.0 control plane to the namespace where 2.6 control plane is running, the leader election process will be triggered and only one of the control planes will be in charge of creating `istio-ca-root-cert` ConfigMap. In case the 2.6 control plane is elected, newly namespaces which are correctly labeled to be managed by 3.0 control plane will not contain `istio-ca-root-cert` ConfigMap and any side car injection attempts will fail. This issue is not visible in `ClusterWide` mode as the 2.6 control plane watches all namespaces by default.
+
 Before you begin, please ensure that you have completed all the steps in the [pre-migration checklist](../README.md#pre-migration-checklist).
 
 <!-- Developer instructions for testing with a fresh 2.6 install.
