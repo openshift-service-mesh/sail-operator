@@ -1,16 +1,15 @@
 # Coexistence of ambient and sidecar mode in the same mesh (Dev Preview)
 
-The OpenShift Container Platform (OCP) 3.2 supports running sidecar pods and ambient pods together within the same mesh. 
+The Openshift Service Mesh (OSSM) 3.2 supports running sidecar pods and ambient pods together within the same mesh.
 While basic connectivity and Layer 4 (L4) features work seamlessly between sidecar and ambient workloads, there is a
 significant limitation for Layer 7 (L7) capabilities in the hybrid model.
 
 ## Requirements for Coexistence
 
 - You have deployed Istio with `ambient` profile or have migrated your existing OSSM deployment to OSSM 3.2 with ambient profile.
-- For a sidecar proxy to communicate with a workload in ambient mode, it must be ambient-aware. This requires the sidecar to support
-  `HBONE` (HTTP-Based Overlay Network Environment) connections, which older versions do not. The feature is controlled by the
-  `ISTIO_META_ENABLE_HBONE` proxy metadata setting, applied by Istiod during injection and enabled by default in the `ambient` profile.
-  After upgrading the control plane, any existing pods must be restarted so they are reinjected with the updated, HBONE-aware configuration.
+- All sidecars in the hybrid mesh must be HBONE-aware. This requires you to restart any existing pods after upgrading the control
+  plane. The restart reinjects the pods with an updated sidecar configuration that enables HBONE (ISTIO_META_ENABLE_HBONE),
+  allowing them to communicate with the ambient mesh.
 
 ## Supported Use Cases in Coexistence Mode
 
@@ -43,5 +42,5 @@ an ambient pod, the traffic bypasses the Ambient waypoint, preventing Layer 7 (L
 
 When running sidecar and ambient modes together, follow these recommendations:
 
-- **Use separate namespaces**: Preferably use separate namespaces for ambient and sidecar pods to avoid configuration issues.
-- **Avoid mixed labeling**: Avoid labeling pods/namespaces with both sidecar and ambient injection labels (although sidecar takes preference if both are present).
+- **Use separate namespaces**: Whenever possible, use separate namespaces for ambient and sidecar pods to avoid configuration issues.
+- **Avoid mixed labeling**: Avoid labeling pods/namespaces with both sidecar and ambient injection labels (although sidecar takes precedence if both are present).
