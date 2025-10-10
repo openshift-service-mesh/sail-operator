@@ -193,10 +193,6 @@ spec:
   values:
     pilot:
       trustedZtunnelNamespace: ztunnel
-    meshConfig:
-      discoverySelectors:
-        - matchLabels:
-            istio-discovery: enabled
     # Preserve existing customizations
     # Add any existing values configuration here
 ```
@@ -599,6 +595,7 @@ $ istioctl authn tls-check productpage-v1-xxx.bookinfo
 - Reduced resource footprint
 
 ---
+
 
 ## 8. Additional Resources
 
