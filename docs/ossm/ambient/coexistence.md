@@ -15,13 +15,13 @@ significant limitation for Layer 7 (L7) capabilities in the hybrid model.
 
 The following table describes the functionality that is expected to work when running sidecar and ambient modes together:
 
-| Category | Functionality | Description |
-|----------|---------------|-------------|
-| **Basic connectivity** | East-west communication | Pods operating in sidecar mode can communicate with those in ambient mode, and vice versa. |
+| Category | Functionality | Description                                                                                                                                                                                                                                      |
+|----------|---------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Basic connectivity** | East-west communication | Pods operating in sidecar mode can communicate with those in ambient mode, and vice versa.                                                                                                                                                       |
 | **L4 Security** | mTLS | When a sidecar proxy detects that the destination is an HBONE endpoint, it automatically uses the HBONE protocol. Similarly, when a pod runs in ambient mode, its source ztunnel uses HBONE to communicate with the destination's sidecar proxy. |
-| **L4 Authentication/Authorization** | Layer 4 policies | Layer 4 (L4) authentication and authorization policies remain supported in coexistence mode. A `PeerAuthentication` policy with mTLS mode set to `STRICT` allows traffic from pods running in either sidecar or ambient mode. |
-| **Gateways** | Ingress and Egress Gateways | Pods operating in ambient mode interoperate with Istio egress gateways. Ingress gateways deployed in non-ambient namespaces can expose services hosted in both ambient and sidecar modes. |
-| **L4 Observability** | Basic telemetry | Only basic L4 TCP metrics are supported. |
+| **L4 Authentication/Authorization** | Layer 4 policies | Layer 4 (L4) authentication and authorization policies remain supported in coexistence mode. A `PeerAuthentication` policy with mTLS mode set to `STRICT` allows traffic from pods running in either sidecar or ambient mode. AuthorizationPolicy with L4 rules (based on principals, source IPs, ports) work consistently across both architectures, with policies being enforced by both ztunnel (ambient) and Envoy sidecars.                   |
+| **Gateways** | Ingress and Egress Gateways | Pods operating in ambient mode interoperate with Istio egress gateways. Ingress gateways deployed in non-ambient namespaces can expose services hosted in both ambient and sidecar modes.                                                        |
+| **L4 Observability** | Basic telemetry | Only basic L4 TCP metrics are supported.                                                                                                                                                                                                         |
 
 > **_NOTE:_** By default, traffic from ingress gateways to ambient services does not traverse waypoints unless the `istio.io/ingress-use-waypoint: "true"` label is applied.
 
@@ -31,12 +31,14 @@ The major limitations are around L7 features (like L7 based traffic routing, L7 
 
 ### Layer 7 Policy Enforcement
 
-Currently, sidecar proxies cannot communicate with waypoint proxies. As a result, when a sidecar pod sends traffic to
-an ambient pod, the traffic bypasses the Ambient waypoint, preventing Layer 7 (L7) policy enforcement. This means:
+Currently, sidecar proxies have limited support for communicating with waypoint proxies. As a result, when a sidecar pod sends traffic
+to an ambient pod with a waypoint, the traffic usually bypasses the waypoint, which prevents Layer 7 (L7) policy enforcement.
+However, ambient pods can communicate with sidecar pods through waypoints, allowing L7 policy enforcement in that direction.
 
+When a sidecar pod communicates with an ambient pod that has a waypoint:
 - L7 authorization policies do not apply
-- Only Layer 4 (L4) authorization policies can be used
-- All routing decisions are made by the client-side sidecar rather than the waypoint proxy
+- Only Layer 4 (L4) authorization policies are enforced
+- Routing decisions are made by the client-side sidecar, not the waypoint proxy
 
 ## Best Practices
 
