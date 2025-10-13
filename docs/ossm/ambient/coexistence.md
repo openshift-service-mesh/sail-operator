@@ -43,4 +43,4 @@ an ambient pod, the traffic bypasses the Ambient waypoint, preventing Layer 7 (L
 When running sidecar and ambient modes together, follow these recommendations:
 
 - **Use separate namespaces**: Whenever possible, use separate namespaces for ambient and sidecar pods to avoid configuration issues.
-- **Avoid mixed labeling**: Avoid labeling pods/namespaces with both sidecar and ambient injection labels (although sidecar takes precedence if both are present).
+- **Avoid mixed labeling**: Avoid [labeling](https://istio.io/latest/docs/reference/config/labels/) pods/namespaces with both sidecar and ambient injection labels (although sidecar takes precedence if both are present).
