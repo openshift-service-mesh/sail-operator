@@ -49,9 +49,11 @@ csv:
     This version of the operator supports the following Istio versions:
 
     - v1.27-latest
+    - v1.27.2
     - v1.27.1
     - v1.27.0
     - v1.26-latest
+    - v1.26.5
     - v1.26.4
     - v1.26.3
     - v1.26.2
