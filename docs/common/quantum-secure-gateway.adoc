@@ -1,0 +1,449 @@
+// Variables embedded for GitHub compatibility
+:istio_latest_version: 1.26.3
+:istio_latest_version_revision_format: 1-26-3
+:istio_latest_tag: v1.26-latest
+:istio_latest_minus_one_version: 1.26.2
+:istio_latest_minus_one_version_revision_format: 1-26-2
+
+link:../README.adoc[Return to Project Root]
+
+== Table of Contents
+
+* <<introduction-to-post-quantum-cryptography>>
+** <<what-is-post-quantum-cryptography>>
+** <<quantum-threat-to-current-cryptography>>
+** <<pqc-algorithms-and-standards>>
+* <<quantum-secure-gateway>>
+** <<prerequisites>>
+** <<customize-istio-proxy-image>>
+** <<install-service-mesh>>
+** <<verification-steps>>
+
+[[introduction-to-post-quantum-cryptography]]
+== Introduction to Post-Quantum Cryptography
+
+[[what-is-post-quantum-cryptography]]
+=== What is Post-Quantum Cryptography?
+
+Post-Quantum Cryptography (PQC) refers to cryptographic algorithms that are designed to be secure against attacks by both classical and quantum computers. As quantum computing technology advances, traditional cryptographic methods like RSA, ECDSA, and ECDH become vulnerable to quantum attacks, particularly through algorithms like Shor's algorithm, which can efficiently factor large integers and solve discrete logarithm problems.
+
+PQC algorithms are based on mathematical problems that are believed to be hard for both classical and quantum computers to solve, such as:
+
+* **Lattice-based cryptography**: Based on problems like Learning With Errors (LWE)
+* **Code-based cryptography**: Based on error-correcting codes
+* **Multivariate cryptography**: Based on solving systems of multivariate polynomial equations
+* **Hash-based signatures**: Based on the security of cryptographic hash functions
+* **Isogeny-based cryptography**: Based on walks in supersingular isogeny graphs
+
+[[quantum-threat-to-current-cryptography]]
+=== The Quantum Threat to Current Cryptography
+
+The development of large-scale quantum computers poses a significant threat to current cryptographic systems:
+
+1. **Shor's Algorithm**: Can efficiently factor large integers and compute discrete logarithms, breaking RSA, ECDSA, and ECDH
+2. **Grover's Algorithm**: Provides a quadratic speedup for searching unsorted databases, effectively halving the security level of symmetric cryptographic algorithms
+3. **Timeline Concerns**: While large-scale quantum computers don't exist today, experts estimate they could become reality within 10-30 years
+
+Organizations need to start preparing now because:
+
+* **Harvest Now, Decrypt Later**: Adversaries may be collecting encrypted data today to decrypt it once quantum computers become available
+* **Migration Complexity**: Transitioning to post-quantum cryptography requires significant planning and testing
+* **Compliance Requirements**: Various standards bodies and governments are beginning to mandate PQC readiness
+
+[[pqc-algorithms-and-standards]]
+=== PQC Algorithms and Standards
+
+The U.S. National Institute of Standards and Technology (NIST) has been leading the standardization of post-quantum cryptographic algorithms. In 2022, NIST published the first set of PQC standards:
+
+**Key Encapsulation Mechanisms (KEMs):**
+* **CRYSTALS-KYBER (ML-KEM)**: A lattice-based algorithm for key establishment
+* **X25519MLKEM768**: A hybrid approach combining traditional X25519 with ML-KEM-768
+
+**Digital Signatures:**
+* **CRYSTALS-DILITHIUM (ML-DSA)**: A lattice-based signature algorithm
+* **FALCON**: A lattice-based signature algorithm optimized for smaller signatures
+* **SPHINCS+**: A hash-based signature algorithm
+
+The hybrid approach (like X25519MLKEM768) is particularly important during the transition period, as it provides security against both classical and quantum attacks while maintaining compatibility with existing systems.
+
+[[quantum-secure-gateway]]
+== Quantum-Secure Gateway
+
+The Quantum-Secure Gateway feature in Sail Operator enables you to configure Istio gateways with post-quantum cryptographic algorithms, providing protection against both current and future quantum computer attacks. This implementation uses hybrid key exchange mechanisms that combine traditional cryptography with post-quantum algorithms.
+
+[[prerequisites]]
+=== Prerequisites
+
+Before setting up a Quantum-Secure Gateway, ensure you have the following:
+
+1. **OpenShift Service Mesh Operator 3.1+** installed in your cluster
+2. **Gateway API CRDs** (available by default on OpenShift Container Platform 4.19+):
++
+[source,shell]
+----
+oc apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/standard-install.yaml
+----
+
+3. **Access to build and push container images** to your cluster's image registry
+4. **Basic understanding of Istio gateways** and service mesh concepts
+
+[[customize-istio-proxy-image]]
+=== Customize istio-proxy Image
+
+OpenShift Service Mesh 3.1 delivers an istio-proxy image built with OpenSSL 3.2 that supports Post-Quantum Cryptography algorithms through the [OQS (Open Quantum Safe) provider](https://github.com/open-quantum-safe/oqs-provider).
+However, RHEL 9.6 does not currently provide the OQS provider package, so users must build and integrate it manually into their proxy images.
+Future versions of OpenShift Service Mesh will ship with an updated a newer version of OpenSSL with built-in support for PQC algorithms. This will remove the need for users to manually build and integrate the OQS provider, simplifying the deployment of quantum-secure gateways. Users will be able to leverage hybrid and PQC-only cryptographic algorithms in their gateways without requiring custom proxy images or manual OpenSSL configuration.
+
+Until these future releases become generally available, follow the steps below to build your own quantum-safe istio-proxy image.
+
+[NOTE]
+====
+Post-Quantum Cryptography algorithms will be available out-of-the-box in future releases of OpenShift Service Mesh, eliminating the need for custom proxy images.
+====
+
+To enable post-quantum safe algorithms in the current release, you need to create a custom istio-proxy image with the OQS provider configured.
+
+==== Build Custom Proxy Image
+
+1. **Create the Dockerfile** for the custom proxy image with OQS provider support:
++
+[source,dockerfile]
+----
+FROM docker.io/redhat/ubi9:9.6 AS builder
+
+ARG LIBOQS_TAG=0.12.0
+ARG OQSPROVIDER_TAG=0.8.0
+ARG INSTALLDIR_OPENSSL=/usr/lib64
+ARG INSTALLDIR_LIBOQS=/opt/liboqs
+
+RUN dnf install -y git make cmake ninja-build
+RUN dnf install -y openssl-devel
+RUN dnf install -y gcc gcc-c++
+
+WORKDIR /optbuild
+RUN git clone --depth 1 --branch ${LIBOQS_TAG} https://github.com/open-quantum-safe/liboqs
+
+WORKDIR /optbuild/liboqs/build
+RUN cmake -G "Ninja" .. \
+    -DOPENSSL_ROOT_DIR=${INSTALLDIR_OPENSSL} \
+    -DCMAKE_INSTALL_PREFIX=${INSTALLDIR_LIBOQS} && \
+    ninja install
+
+WORKDIR /optbuild
+RUN git clone --depth 1 --branch ${OQSPROVIDER_TAG} https://github.com/open-quantum-safe/oqs-provider.git
+
+WORKDIR /optbuild/oqs-provider
+RUN liboqs_DIR=${INSTALLDIR_LIBOQS} cmake \
+    -DOPENSSL_ROOT_DIR=${INSTALLDIR_OPENSSL} \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_PREFIX_PATH=${INSTALLDIR_OPENSSL} \
+    -S . -B _build && \
+    cmake --build _build && \
+    cmake --install _build && \
+    cp _build/lib/oqsprovider.so ${INSTALLDIR_OPENSSL}/ossl-modules
+
+FROM registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9:1.26.2 AS final
+
+ARG INSTALLDIR_OPENSSL=/usr/lib64
+ARG INSTALLDIR_LIBOQS=/opt/liboqs
+
+COPY --from=builder ${INSTALLDIR_LIBOQS} ${INSTALLDIR_LIBOQS}
+COPY --from=builder ${INSTALLDIR_OPENSSL}/ossl-modules ${INSTALLDIR_OPENSSL}/ossl-modules
+
+USER root
+RUN sed '/^default = default_sect$/a oqsprovider = oqsprovider_sect' /etc/pki/tls/openssl.cnf > /tmp/openssl.cnf && \
+    printf "\n[oqsprovider_sect]\n" >> /tmp/openssl.cnf && \
+    echo "module = /usr/lib64/ossl-modules/oqsprovider.so" >> /tmp/openssl.cnf && \
+    echo "activate = 1" >> /tmp/openssl.cnf && \
+    cp /tmp/openssl.cnf /etc/pki/tls/openssl.cnf
+USER 1000
+----
+
+2. **Extract pull secret from OpenShift** and build the proxy image with OQS provider:
++
+[source,shell]
+----
+oc get secret pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d > /tmp/config.json
+podman --config /tmp build -t localhost:5000/istio-system/istio-proxyv2-rhel9-oqs:1.26.2 .
+----
+
+2. **Configure permissions** for pushing images to the OpenShift image registry:
++
+[source,shell]
+----
+oc new-project istio-system
+oc policy add-role-to-user system:image-pusher -z default -n istio-system
+TOKEN=$(oc create token default -n istio-system)
+----
+
+3. **Create an image stream** for the custom istio-proxy and expose the registry:
++
+[source,shell]
+----
+oc patch configs.imageregistry.operator.openshift.io/cluster --type=merge -p '{"spec":{"defaultRoute":true}}'
+oc create imagestream istio-proxyv2-rhel9-oqs -n istio-system
+----
+
+4. **Push the custom image** to the OpenShift registry:
++
+[source,shell]
+----
+HOST=$(oc get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}')
+podman login --tls-verify=false -u default -p $TOKEN $HOST
+podman push --tls-verify=false istio-proxyv2-rhel9-oqs:1.26.2 $HOST/istio-system/istio-proxyv2-rhel9-oqs:1.26.2
+----
+
+==== Understanding the Custom Image
+
+The custom proxy image is built using a multi-stage Dockerfile that:
+
+1. **Builds OQS libraries**: Compiles liboqs and oqs-provider from source
+2. **Configures OpenSSL**: Integrates the OQS provider with OpenSSL
+3. **Extends base image**: Adds PQC capabilities to the standard istio-proxy image
+
+The key components added are:
+
+* **liboqs**: The core library implementing post-quantum cryptographic algorithms
+* **oqs-provider**: An OpenSSL provider that makes PQC algorithms available to applications
+* **OpenSSL configuration**: Modified to load and activate the OQS provider
+
+[[install-service-mesh]]
+=== Install Service Mesh
+
+==== Install CNI
+
+First, install the Istio CNI component:
+
+[source,shell]
+----
+oc new-project istio-cni
+oc apply -f - <<EOF
+apiVersion: sailoperator.io/v1
+kind: IstioCNI
+metadata:
+  name: default
+spec:
+  version: v1.26.2
+  namespace: istio-cni
+EOF
+----
+
+==== Install Control Plane with PQC Configuration
+
+Install the Istio control plane with post-quantum cryptography enabled:
+
+[source,shell]
+----
+oc apply -f - <<EOF
+apiVersion: sailoperator.io/v1
+kind: Istio
+metadata:
+  name: default
+spec:
+  version: v1.26.2
+  namespace: istio-system
+  updateStrategy:
+    type: InPlace
+  values:
+    meshConfig:
+      accessLogFile: /dev/stdout
+      tlsDefaults:
+        ecdhCurves:
+        - X25519MLKEM768
+EOF
+----
+
+[IMPORTANT]
+====
+The `meshConfig.tlsDefaults.ecdhCurves` setting applies to **all non-mesh TLS connections** in your Istio deployment. This includes:
+
+* **Ingress gateways**: TLS connections from external clients to your gateways
+* **Egress gateways**: TLS connections from your gateways to external services
+* **External service connections**: Any TLS connections to services outside the mesh
+
+However, this setting does **NOT** apply to:
+
+* **Mesh-internal mTLS**: Communication between services within the mesh continues to use Istio's default mTLS configuration
+
+Currently, Istio does not provide the capability to enable post-quantum cryptography algorithms on a per-workload basis. The `tlsDefaults` configuration is a mesh-wide setting that affects all gateways and external TLS connections uniformly.
+
+If you need different TLS configurations for different gateways, you would need to deploy separate Istio control planes with different `meshConfig.tlsDefaults` settings.
+====
+
+==== Generate TLS Certificates
+
+Create the necessary certificates for your gateway:
+
+[source,shell]
+----
+mkdir certs
+
+# Create root CA certificate
+openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 \
+  -subj '/O=example Inc./CN=example.com' \
+  -keyout certs/example.com.key \
+  -out certs/example.com.crt
+
+# Create certificate for httpbin service
+openssl req -out certs/httpbin.example.com.csr -newkey rsa:2048 -nodes \
+  -keyout certs/httpbin.example.com.key \
+  -subj "/CN=httpbin.example.com/O=httpbin organization"
+
+openssl x509 -req -sha256 -days 365 \
+  -CA certs/example.com.crt -CAkey certs/example.com.key \
+  -set_serial 0 -in certs/httpbin.example.com.csr \
+  -out certs/httpbin.example.com.crt
+
+# Create certificate for helloworld service (optional)
+openssl req -out certs/helloworld.example.com.csr -newkey rsa:2048 -nodes \
+  -keyout certs/helloworld.example.com.key \
+  -subj "/CN=helloworld.example.com/O=helloworld organization"
+
+openssl x509 -req -sha256 -days 365 \
+  -CA certs/example.com.crt -CAkey certs/example.com.key \
+  -set_serial 1 -in certs/helloworld.example.com.csr \
+  -out certs/helloworld.example.com.crt
+----
+
+==== Create Gateway Secret
+
+Create a Kubernetes secret containing the TLS certificate for your gateway:
+
+[source,shell]
+----
+oc create -n istio-system secret tls httpbin-credential \
+    --key=certs/httpbin.example.com.key \
+    --cert=certs/httpbin.example.com.crt
+----
+
+==== Deploy Quantum-Secure Gateway
+
+Deploy a Gateway using the Kubernetes Gateway API with the custom PQC-enabled proxy image:
+
+[source,shell]
+----
+oc apply -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: Gateway
+metadata:
+  name: pqc-gateway
+  namespace: istio-system
+  annotations:
+    sidecar.istio.io/proxyImage: "image-registry.openshift-image-registry.svc:5000/istio-system/istio-proxyv2-rhel9-oqs:1.26.2"
+spec:
+  gatewayClassName: istio
+  listeners:
+  - name: https
+    port: 443
+    protocol: HTTPS
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: httpbin-credential
+        namespace: istio-system
+    allowedRoutes:
+      namespaces:
+        from: All
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: httpbin-route
+  namespace: default
+spec:
+  parentRefs:
+  - name: pqc-gateway
+    namespace: istio-system
+  hostnames:
+  - "httpbin.example.com"
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: httpbin
+      port: 8000
+EOF
+----
+
+**Important Configuration Details:**
+
+* `sidecar.istio.io/proxyImage`: Specifies the custom proxy image with PQC support
+* `tls.mode: Terminate`: Configures the gateway to terminate TLS connections
+* `certificateRefs`: References the TLS certificate secret created earlier
+
+==== Deploy Backend Application
+
+Deploy the httpbin application as a backend service:
+
+[source,shell]
+----
+oc label ns default istio-injection=enabled
+oc apply -n default -f https://raw.githubusercontent.com/openshift-service-mesh/istio/master/samples/httpbin/httpbin.yaml
+----
+
+[[verification-steps]]
+=== Verification Steps
+
+==== Get Gateway Address
+
+Retrieve the gateway's external address depending on your load balancer provider:
+
+For hostname-based load balancers:
+[source,shell]
+----
+INGRESS_ADDR=$(kubectl get svc pqc-gateway-istio -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+----
+
+For IP-based load balancers:
+[source,shell]
+----
+INGRESS_ADDR=$(kubectl get svc pqc-gateway-istio -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+----
+
+==== Test Post-Quantum Cryptography
+
+1. **Test with PQC-enabled client** - This should succeed:
++
+[source,shell]
+----
+podman run --rm -it \
+  -v ./certs/example.com.crt:/etc/certs/example.com.crt \
+  docker.io/openquantumsafe/curl \
+  curl -vk "https://$INGRESS_ADDR:443/headers" \
+  -H "Host: httpbin.example.com" \
+  --curves X25519MLKEM768 \
+  --cacert /etc/certs/example.com.crt
+----
++
+This command uses the OQS-enabled curl client that supports the `X25519MLKEM768` hybrid key exchange algorithm.
+
+2. **Test with standard curl** - This should fail with a handshake error:
++
+[source,shell]
+----
+curl -vk "https://$INGRESS_ADDR:443/headers" \
+  -H "Host: httpbin.example.com" \
+  --cacert ./certs/example.com.crt
+----
++
+Expected output:
++
+[source,text]
+----
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS alert, handshake failure (552):
+* TLS connect error: error:0A000410:SSL routines::ssl/tls alert handshake failure
+* closing connection #0
+curl: (35) TLS connect error: error:0A000410:SSL routines::ssl/tls alert handshake failure
+----
+
+==== Understanding the Test Results
+
+The verification demonstrates that:
+
+1. **PQC Protection**: Only clients supporting post-quantum algorithms can establish connections
+2. **Backward Incompatibility**: Standard clients without PQC support cannot connect, ensuring quantum-safe communication
+3. **Hybrid Security**: The `X25519MLKEM768` algorithm provides protection against both classical and quantum attacks
+
