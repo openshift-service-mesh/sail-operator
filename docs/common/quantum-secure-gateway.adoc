@@ -76,16 +76,16 @@ The Quantum-Secure Gateway feature in Sail Operator enables you to configure Ist
 
 Before setting up a Quantum-Secure Gateway, ensure you have the following:
 
-1. **OpenShift Service Mesh Operator 3.1+** installed in your cluster
-2. **Gateway API CRDs** (available by default on OpenShift Container Platform 4.19+):
+1. OpenShift Service Mesh Operator 3.1+ installed in your cluster
+2. Gateway API CRDs (available by default on OpenShift Container Platform 4.19+):
 +
 [source,shell]
 ----
 oc apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/standard-install.yaml
 ----
 
-3. **Access to build and push container images** to your cluster's image registry
-4. **Basic understanding of Istio gateways** and service mesh concepts
+3. Access to build and push container images to your cluster's image registry
+4. Basic understanding of Istio gateways and service mesh concepts
 
 [[customize-istio-proxy-image]]
 === Customize istio-proxy Image
@@ -105,7 +105,7 @@ To enable post-quantum safe algorithms in the current release, you need to creat
 
 ==== Build Custom Proxy Image
 
-1. **Create the Dockerfile** for the custom proxy image with OQS provider support:
+1. Create the Dockerfile for the custom proxy image with OQS provider support:
 +
 [source,dockerfile]
 ----
@@ -159,7 +159,7 @@ RUN sed '/^default = default_sect$/a oqsprovider = oqsprovider_sect' /etc/pki/tl
 USER 1000
 ----
 
-2. **Extract pull secret from OpenShift** and build the proxy image with OQS provider:
+2. Extract pull secret from OpenShift and build the proxy image with OQS provider:
 +
 [source,shell]
 ----
@@ -167,7 +167,7 @@ oc get secret pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfig
 podman --config /tmp build -t localhost:5000/istio-system/istio-proxyv2-rhel9-oqs:1.26.2 .
 ----
 
-2. **Configure permissions** for pushing images to the OpenShift image registry:
+2. Configure permissions for pushing images to the OpenShift image registry:
 +
 [source,shell]
 ----
@@ -176,7 +176,7 @@ oc policy add-role-to-user system:image-pusher -z default -n istio-system
 TOKEN=$(oc create token default -n istio-system)
 ----
 
-3. **Create an image stream** for the custom istio-proxy and expose the registry:
+3. Create an image stream for the custom istio-proxy and expose the registry:
 +
 [source,shell]
 ----
@@ -184,7 +184,7 @@ oc patch configs.imageregistry.operator.openshift.io/cluster --type=merge -p '{"
 oc create imagestream istio-proxyv2-rhel9-oqs -n istio-system
 ----
 
-4. **Push the custom image** to the OpenShift registry:
+4. Push the custom image to the OpenShift registry:
 +
 [source,shell]
 ----
@@ -197,15 +197,8 @@ podman push --tls-verify=false istio-proxyv2-rhel9-oqs:1.26.2 $HOST/istio-system
 
 The custom proxy image is built using a multi-stage Dockerfile that:
 
-1. **Builds OQS libraries**: Compiles liboqs and oqs-provider from source
-2. **Configures OpenSSL**: Integrates the OQS provider with OpenSSL
-3. **Extends base image**: Adds PQC capabilities to the standard istio-proxy image
-
-The key components added are:
-
-* **liboqs**: The core library implementing post-quantum cryptographic algorithms
-* **oqs-provider**: An OpenSSL provider that makes PQC algorithms available to applications
-* **OpenSSL configuration**: Modified to load and activate the OQS provider
+1. Builds OQS libraries (liboqs and oqs-provider).
+2. Configures OpenSSL to use OQS provider.
 
 [[install-service-mesh]]
 === Install Service Mesh
@@ -367,11 +360,10 @@ spec:
 EOF
 ----
 
-**Important Configuration Details:**
-
-* `sidecar.istio.io/proxyImage`: Specifies the custom proxy image with PQC support
-* `tls.mode: Terminate`: Configures the gateway to terminate TLS connections
-* `certificateRefs`: References the TLS certificate secret created earlier
+[NOTE]
+====
+The `sidecar.istio.io/proxyImage` annotation specifies the custom proxy image with PQC (Post-Quantum Cryptography) support.
+====
 
 ==== Deploy Backend Application
 
@@ -404,7 +396,7 @@ INGRESS_ADDR=$(kubectl get svc pqc-gateway-istio -n istio-system -o jsonpath='{.
 
 ==== Test Post-Quantum Cryptography
 
-1. **Test with PQC-enabled client** - This should succeed:
+1. Test with PQC-enabled client - This should succeed:
 +
 [source,shell]
 ----
@@ -419,7 +411,7 @@ podman run --rm -it \
 +
 This command uses the OQS-enabled curl client that supports the `X25519MLKEM768` hybrid key exchange algorithm.
 
-2. **Test with standard curl** - This should fail with a handshake error:
+2. Test with standard curl - This should fail with a handshake error:
 +
 [source,shell]
 ----
