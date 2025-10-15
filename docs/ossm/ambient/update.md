@@ -228,37 +228,25 @@ After updating the Istio control plane, update the IstioCNI component. The Servi
 $ oc patch istiocni -n istio-cni default --type='merge' -p '{"spec":{"version":"v1.26.4"}}'
 ```
 
-2. Wait for the IstioCNI DaemonSet to be updated. The Service Mesh Operator updates the IstioCNI pods one node at a time:
+2. Wait for the IstioCNI DaemonSet to be updated:
 
 ```bash
 $ oc wait --for=condition=Ready istiocnis/default --timeout=5m
 ```
 
-3. Verify the IstioCNI resource shows the new version:
+3. Verify the IstioCNI resource shows the new version and all pods are running:
 
 ```bash
 $ oc get istiocni
 NAME      READY   STATUS    VERSION   AGE
 default   True    Healthy   v1.26.4   7d1h
-```
 
-4. Confirm all IstioCNI DaemonSet pods are running with the new version:
-
-```bash
 $ oc get pods -n istio-cni
 NAME                   READY   STATUS    RESTARTS   AGE
 istio-cni-node-abc12   1/1     Running   0          3m
 istio-cni-node-def34   1/1     Running   0          3m
 istio-cni-node-ghi56   1/1     Running   0          3m
 ```
-
-5. Verify the IstioCNI pods are healthy by checking the logs:
-
-```bash
-$ oc logs -n istio-cni -l k8s-app=istio-cni-node --tail=20
-```
-
-The IstioCNI pods should show successful initialization and no errors.
 
 #### Update ZTunnel
 
@@ -279,7 +267,7 @@ After updating IstioCNI, update the ZTunnel component. The Service Mesh Operator
 $ oc patch ztunnel -n ztunnel default --type='merge' -p '{"spec":{"version":"v1.26.4"}}'
 ```
 
-2. Monitor the ZTunnel DaemonSet rollout. The Service Mesh Operator updates the ZTunnel pods one node at a time:
+2. Monitor the ZTunnel DaemonSet rollout:
 
 ```bash
 $ oc rollout status daemonset/ztunnel -n ztunnel
@@ -293,31 +281,19 @@ $ oc rollout status daemonset/ztunnel -n ztunnel
 $ oc wait --for=condition=Ready ztunnel/default --timeout=10m
 ```
 
-4. Verify the ZTunnel resource shows the new version:
+4. Verify the ZTunnel resource shows the new version and all pods are running:
 
 ```bash
 $ oc get ztunnel
 NAME      READY   STATUS    VERSION   AGE
 default   True    Healthy   v1.26.4   7d1h
-```
 
-5. Confirm all ZTunnel pods are running with the new version on all nodes:
-
-```bash
 $ oc get pods -n ztunnel -o wide
 NAME              READY   STATUS    RESTARTS   AGE   NODE
 ztunnel-2w5mj     1/1     Running   0          5m    node1.example.com
 ztunnel-6njq8     1/1     Running   0          4m    node2.example.com
 ztunnel-96j7k     1/1     Running   0          3m    node3.example.com
 ```
-
-6. Verify the ZTunnel pods are healthy by checking the logs:
-
-```bash
-$ oc logs -n ztunnel -l app=ztunnel --tail=20
-```
-
-The ZTunnel pods should show successful startup and connection to the Istio control plane.
 
 #### Verify Ambient Workloads
 
@@ -532,17 +508,13 @@ $ oc patch istiocni -n istio-cni default --type='merge' -p '{"spec":{"version":"
 $ oc wait --for=condition=Ready istiocnis/default --timeout=5m
 ```
 
-3. Verify the IstioCNI resource shows the new version:
+3. Verify the IstioCNI resource shows the new version and all pods are running:
 
 ```bash
 $ oc get istiocni
 NAME      READY   STATUS    VERSION   AGE
 default   True    Healthy   v1.26.4   7d1h
-```
 
-4. Confirm all IstioCNI pods are running with the new version:
-
-```bash
 $ oc get pods -n istio-cni
 NAME                   READY   STATUS    RESTARTS   AGE
 istio-cni-node-abc12   1/1     Running   0          3m
@@ -584,17 +556,13 @@ $ oc rollout status daemonset/ztunnel -n ztunnel
 $ oc wait --for=condition=Ready ztunnel/default --timeout=10m
 ```
 
-4. Verify the ZTunnel resource shows the new version:
+4. Verify the ZTunnel resource shows the new version and all pods are running:
 
 ```bash
 $ oc get ztunnel
 NAME      READY   STATUS    VERSION   AGE
 default   True    Healthy   v1.26.4   7d1h
-```
 
-5. Confirm all ZTunnel pods are running with the new version:
-
-```bash
 $ oc get pods -n ztunnel -o wide
 NAME              READY   STATUS    RESTARTS   AGE   NODE
 ztunnel-2w5mj     1/1     Running   0          5m    node1.example.com
@@ -734,36 +702,9 @@ To update the CNI plugin, modify the spec.version field with the target version.
 
 In ambient mode, the IstioCNI component is responsible for traffic redirection. The component is compatible with multiple control plane versions during RevisionBased upgrades and continues to handle traffic redirection for both old and new control planes during the migration period.
 
-### 1.7.1. Updating the Istio CNI resource version
-
-You can update the Istio CNI resource version by changing the version in the resource. Then, the Service Mesh Operator deploys a new version of the CNI plugin that replaces the old version of the CNI plugin. The istio-cni-node pods automatically reconnect to the new CNI plugin.
-
-**Prerequisites:**
-
-* You are logged in to OpenShift Container Platform as a user with the `cluster-admin` role.
-* You installed the Red Hat OpenShift Service Mesh Operator and deployed Istio in ambient mode.
-* You installed the Istio CNI plugin with the desired version. In the following example, the IstioCNI resource named `default` is deployed in the `istio-cni` namespace.
-
-**Procedure:**
-
-1. Change the version in the Istio resource. For example, to update to Istio 1.26.4, set the `spec.version` field to `v1.26.4` by running the following command:
-
-```bash
-$ oc patch istiocni default --type='merge' -p '{"spec":{"version":"v1.26.4"}}'
-```
-
-2. Confirm that the new version of the CNI plugin is ready by running the following command:
-
-```bash
-$ oc get istiocni default
-```
-
-**Example Output**
-
-```console
-NAME      READY   STATUS    VERSION   AGE
-default   True    Healthy   v1.26.4   91m
-```
+For detailed procedures on updating IstioCNI, refer to the update instructions within your chosen update strategy:
+* For InPlace strategy, see section 1.5.2 "Updating Istio control plane with InPlace strategy"
+* For RevisionBased strategy, see section 1.6.2 "Updating Istio control plane with RevisionBased strategy"
 
 ---
 
