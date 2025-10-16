@@ -34,7 +34,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: OpenShift Optional, Integration & Delivery, Networking, Security
     containerImage: ${OSSM_OPERATOR_3_1}
-    createdAt: "2025-10-15T19:30:16Z"
+    createdAt: "2025-10-16T12:27:27Z"
     description: The OpenShift Service Mesh Operator enables you to install, configure, and manage an instance of Red Hat OpenShift Service Mesh. OpenShift Service Mesh is based on the open source Istio project.
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "true"
@@ -57,7 +57,7 @@ metadata:
     operatorframework.io/arch.arm64: supported
     operatorframework.io/arch.ppc64le: supported
     operatorframework.io/arch.s390x: supported
-  name: servicemeshoperator3.v3.1.3
+  name: servicemeshoperator3.v3.1.4
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -711,10 +711,11 @@ spec:
                   images.v1_26_4.must-gather: ${OSSM_MUST_GATHER_3_1}
                   images.v1_26_4.proxy: ${ISTIO_PROXY_1_26}
                   images.v1_26_4.ztunnel: ${ISTIO_ZTUNNEL_1_26}
-                  images.v1_26_5.cni: gcr.io/istio-release/install-cni:1.26.5
-                  images.v1_26_5.istiod: gcr.io/istio-release/pilot:1.26.5
-                  images.v1_26_5.proxy: gcr.io/istio-release/proxyv2:1.26.5
-                  images.v1_26_5.ztunnel: gcr.io/istio-release/ztunnel:1.26.5
+                  images.v1_26_5.cni: ${ISTIO_CNI_1_26}
+                  images.v1_26_5.istiod: ${ISTIO_PILOT_1_26}
+                  images.v1_26_5.must-gather: ${OSSM_MUST_GATHER_3_1}
+                  images.v1_26_5.proxy: ${ISTIO_PROXY_1_26}
+                  images.v1_26_5.ztunnel: ${ISTIO_ZTUNNEL_1_26}
                   kubectl.kubernetes.io/default-container: sail-operator
                 labels:
                   app.kubernetes.io/created-by: servicemeshoperator3
@@ -844,4 +845,4 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat, Inc.
-  version: 3.1.3
+  version: 3.1.4
