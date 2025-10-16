@@ -35,18 +35,24 @@ deployment:
     images.v1_26_3.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:2ca96716812d339775d3dfd396c863834dd3810720e98bfcf87bc67c5fbd29b5
     images.v1_26_3.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:26747627ae22bbdffcf9de58077454fc0c890cda83659d7834b15dea2b5aaaf2
     images.v1_26_3.ztunnel: registry.redhat.io/openshift-service-mesh-tech-preview/istio-ztunnel-rhel9@sha256:f7ab868455b5e887e2d89b7078678531290365f9166cae99ce56119f31fa2ba4
-    # 1.26.4 images are hardcoded to versions released with 3.1.2 GA
+    # 1.26.4 images TODO: replace by images from 3.1.3
     images.v1_26_4.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:0d6930075b8906bee0ab1aeac82f6e2431c16163cf87f7f0c68c10b2c40552a1
     images.v1_26_4.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:6881fb9f5a4b447be4c468b8585fff86171bd3d82671a48559f3ceabcb9dad24
     images.v1_26_4.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:6bb44c84363a4113c5bce2ae0d6528b345fddd12bc559bbfaacf6222060ddcb0
     images.v1_26_4.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:d757e700a124d7583b9456ec9e08e5e7e249c1de202bc4e973102922b9f69191
     images.v1_26_4.ztunnel: registry.redhat.io/openshift-service-mesh-tech-preview/istio-ztunnel-rhel9@sha256:b757b81d34711cb8abfcb0e8896c023d39d4778f237dd80b637ba4bf613df893
-    # 1.27.0 
-    images.v1_27_0.cni: ${ISTIO_CNI_1_27}
-    images.v1_27_0.istiod: ${ISTIO_PILOT_1_27}
-    images.v1_27_0.must-gather: ${OSSM_MUST_GATHER_3_2}
-    images.v1_27_0.proxy: ${ISTIO_PROXY_1_27}
-    images.v1_27_0.ztunnel: ${ISTIO_ZTUNNEL_1_27}
+    # 1.26.5 TODO: replace with final 3.1.4 images
+    images.v1_26_5.cni: ${ISTIO_CNI_1_26}
+    images.v1_26_5.istiod: ${ISTIO_PILOT_1_26}
+    images.v1_26_5.must-gather: ${OSSM_MUST_GATHER_3_1}
+    images.v1_26_5.proxy: ${ISTIO_PROXY_1_26}
+    images.v1_26_5.ztunnel: ${ISTIO_ZTUNNEL_1_26}
+    # 1.27.2
+    images.v1_27_2.cni: ${ISTIO_CNI_1_27}
+    images.v1_27_2.istiod: ${ISTIO_PILOT_1_27}
+    images.v1_27_2.must-gather: ${OSSM_MUST_GATHER_3_2}
+    images.v1_27_2.proxy: ${ISTIO_PROXY_1_27}
+    images.v1_27_2.ztunnel: ${ISTIO_ZTUNNEL_1_27}
 service:
   port: 8443
 serviceAccountName: servicemesh-operator3
