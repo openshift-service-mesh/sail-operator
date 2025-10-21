@@ -25,8 +25,8 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.5.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.18.5
-	istio.io/client-go v1.26.5
-	istio.io/istio v0.0.0-20251010112845-e1f97ec6453c
+	istio.io/client-go v1.26.6
+	istio.io/istio v0.0.0-20251017121452-383fb0e3f774
 	k8s.io/api v0.34.1
 	k8s.io/apiextensions-apiserver v0.34.1
 	k8s.io/apimachinery v0.34.1
@@ -188,4 +188,4 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace istio.io/istio => github.com/openshift-service-mesh/istio v0.0.0-20251016090737-82507ccd9c21
+replace istio.io/istio => github.com/openshift-service-mesh/istio v0.0.0-20251016195545-387c7556debf
