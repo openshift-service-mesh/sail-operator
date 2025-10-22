@@ -31,14 +31,14 @@ Integrating Red Hat OpenShift distributed tracing platform with Red Hat OpenShif
 
 For more information about the distributed tracing platform (Tempo), its features, installation, and configuration, see: [Red Hat OpenShift distributed tracing platform (Tempo)](https://docs.redhat.com/en/documentation/openshift_container_platform/latest/html/distributed_tracing/distr-tracing-architecture).
 
-For more information about Red Hat build of OpenTelemetry collector, its features, installation, and configuration, see: [Red Hat build of OpenTelemetry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.16/html/red_hat_build_of_opentelemetry/index).
+For more information about Red Hat build of OpenTelemetry collector, its features, installation, and configuration, see: [Red Hat build of OpenTelemetry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/red_hat_build_of_opentelemetry/index).
 
 NOTE: Red Hat OpenShift Service Mesh Ambient mode does not install sidecar proxies by default. The `ztunnel` component can only generate L4 data and traces can only be generated from L7 at the moment. So Distributed tracing is only supported when a workload or a service has an attached waypoint proxy or a Gateway proxy. A trace span will include those waypoint and/or Gateway proxies' telemetry data.
 
 ### Prerequisites
 
 - A Tempo Operator is installed. See: [Installing the Tempo Operator](https://docs.redhat.com/en/documentation/openshift_container_platform/latest/html/distributed_tracing/distr-tracing-tempo-installing#installing-the-tempo-operator_distr-tracing-tempo-installing).
-- A Red Hat build of OpenTelemetry Operator is installed. See: [Installing the Red Hat build of OpenTelemetry Operator](https://docs.redhat.com/en/documentation/openshift_container_platform/4.16/html/red_hat_build_of_opentelemetry/install-otel).
+- A Red Hat build of OpenTelemetry Operator is installed. See: [Installing the Red Hat build of OpenTelemetry Operator](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/red_hat_build_of_opentelemetry/install-otel).
 - A TempoStack is installed and configured in a namespace such as `tempo`. See: [Installing a TempoStack instance](https://docs.redhat.com/en/documentation/openshift_container_platform/latest/html/distributed_tracing/distr-tracing-tempo-installing#installing-a-tempostack-instance_distr-tracing-tempo-installing).
 
 ### Procedure
@@ -123,6 +123,7 @@ spec:
 ```
 
 NOTE: Once you verify that you can see traces, lower the randomSamplingPercentage value or set it to default to reduce the number of requests.
+
 NOTE: You may use a spec.targetRefs field to enable tracing at a gateway or a waypoint level.
 
 ### Validation
