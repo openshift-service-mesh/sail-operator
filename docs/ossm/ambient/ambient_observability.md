@@ -33,7 +33,7 @@ For more information about the distributed tracing platform (Tempo), its feature
 
 For more information about Red Hat build of OpenTelemetry collector, its features, installation, and configuration, see: [Red Hat build of OpenTelemetry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.16/html/red_hat_build_of_opentelemetry/index).
 
-NOTE: Red Hat OpenShift Service Mesh Ambient mode does not install sidecar proxies by default. The `ztunnel` component can only generate L4 data. So Distributed tracing is only supported when a workload has an attached waypoint proxy.
+NOTE: Red Hat OpenShift Service Mesh Ambient mode does not install sidecar proxies by default. The `ztunnel` component can only generate L4 data and traces can only be generated from L7 at the moment. So Distributed tracing is only supported when a workload or a service has an attached waypoint proxy or a Gateway proxy. A trace span will include those waypoint and/or Gateway proxies' telemetry data.
 
 ### Prerequisites
 
@@ -178,13 +178,13 @@ EOF
 $ oc label namespace bookinfo istio.io/use-waypoint=waypoint
 ```
 
-6. Send traffic to the `productpage` pod for generating traces:
+6. Send traffic to the `productpage` service for generating traces:
 
 ```sh
 $ curl "http://${GATEWAY_URL}/productpage" | grep "<title>"
 ```
 
-6. Validate the bookinfo application traces in a Tempo dashboard UI. You can find the dashboard UI route by running the following command:
+Validate the bookinfo application traces in a Tempo dashboard UI. You can find the dashboard UI route by running the following command:
 
 ```sh
 $ oc get routes -n tempo tempo-sample-query-frontend
