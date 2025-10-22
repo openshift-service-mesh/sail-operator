@@ -54,6 +54,7 @@ metadata:
   name: otel
   namespace: istio-system
 spec:
+  mode: deployment
   observability:
     metrics: {}
   deploymentUpdateStrategy: {}
@@ -122,6 +123,7 @@ spec:
 ```
 
 NOTE: Once you verify that you can see traces, lower the randomSamplingPercentage value or set it to default to reduce the number of requests.
+NOTE: You may use a spec.targetRefs field to enable tracing at a gateway or a waypoint level.
 
 ### Validation
 
@@ -135,10 +137,22 @@ $ oc label namespace bookinfo istio.io/dataplane-mode=ambient
 2. Deploy the bookinfo application in the `bookinfo` namespace by running the following command:
 
 ```sh
-$ oc apply -n bookinfo -f https://raw.githubusercontent.com/istio/istio/release-1.27/samples/bookinfo/platform/kube/bookinfo.yaml 
+$ oc apply -n bookinfo -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml
+$ oc wait --for=condition=Ready pods --all -n bookinfo --timeout 60s
 ```
 
-3. Deploy a waypoint proxy and use it to handle all service traffic in the `bookinfo` namespace:
+3. Create a bookinfo gateway to manage inbound bookinfo traffic:
+
+```sh
+$ oc get crd gateways.gateway.networking.k8s.io &> /dev/null ||  { oc kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.0.0" | oc apply -f -; }
+$ oc apply -n bookinfo -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/gateway-api/bookinfo-gateway.yaml
+$ export INGRESS_HOST=$(oc get -n bookinfo gtw bookinfo-gateway -o jsonpath='{.status.addresses[0].value}')
+$ export INGRESS_PORT=$(oc get -n bookinfo gtw bookinfo-gateway -o jsonpath='{.spec.listeners[?(@.name=="http")].port}')
+$ export GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
+$ echo "http://${GATEWAY_URL}/productpage"
+```
+
+4. Deploy a waypoint proxy and use it to handle all service traffic in the `bookinfo` namespace:
 
 ```sh
 cat <<EOF | oc apply -f-
@@ -158,16 +172,16 @@ spec:
 EOF
 ```
 
-4. Enroll the `bookinfo` namespace to use the waypoint:
+5. Enroll the `bookinfo` namespace to use the waypoint:
 
 ```sh
 $ oc label namespace bookinfo istio.io/use-waypoint=waypoint
 ```
 
-5. Send traffic to the `productpage` pod for generating traces:
+6. Send traffic to the `productpage` pod for generating traces:
 
 ```sh
-$ oc exec -it -n bookinfo deployments/productpage-v1 -c istio-proxy -- curl localhost:9080/productpage
+$ curl "http://${GATEWAY_URL}/productpage" | grep "<title>"
 ```
 
 6. Validate the bookinfo application traces in a Tempo dashboard UI. You can find the dashboard UI route by running the following command:
@@ -175,6 +189,8 @@ $ oc exec -it -n bookinfo deployments/productpage-v1 -c istio-proxy -- curl loca
 ```sh
 $ oc get routes -n tempo tempo-sample-query-frontend
 ```
+
+Select the `bookinfo-gateway-istio.booinfo` or the `waypoint.bookinfo` service from the dashboard UI and then click `Find Traces`.
 
 NOTE: The OpenShift route for Tempo dashboard UI can be created from the TempoStack custom resource with .spec.template.queryFrontend.jaegerQuery.ingress.type: route.
 
