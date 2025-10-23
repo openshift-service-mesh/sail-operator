@@ -4,7 +4,8 @@ HUB = quay.io/maistra-dev
 CHANNELS = "stable,stable-3.0"
 DEFAULT_CHANNEL = stable
 HELM_VALUES_FILE = ossm/values.yaml
-GENERATE_RELATED_IMAGES = false
+USE_IMAGE_DIGESTS = false
+PATCH_HELM_VALUES = false
 
 .PHONY: build-fips
 build-fips: ## Build sail-operator binary for FIPS mode.
