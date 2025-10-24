@@ -40,7 +40,7 @@ kubernetes_config:
 
 ## Authentication
 
-The openshift authentication strategy is required for production Kiali deployments on OpenShift.
+The openshift authentication strategy is required for production Kiali deployments on OpenShift. This is the default when installing on OpenShift with the Kiali Operator.
 
 ## Installation
 
