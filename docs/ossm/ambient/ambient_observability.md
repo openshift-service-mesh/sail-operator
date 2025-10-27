@@ -48,7 +48,7 @@ EOF
 oc wait --for=condition=Ready pods --all -n openshift-user-workload-monitoring --timeout 60s
 ```
 
-See [Enabling monitoring for user-defined projects](https://docs.openshift.com/container-platform/4.19/observability/monitoring/enabling-monitoring-for-user-defined-projects.html).
+See [Enabling monitoring for user-defined projects](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/monitoring/configuring-user-workload-monitoring#enabling-monitoring-for-user-defined-projects_preparing-to-configure-the-monitoring-stack-uwm).
 
 ### Procedure
 
