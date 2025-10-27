@@ -30,7 +30,7 @@ When you have enrolled your application in the Service Mesh Ambient mesh mode, y
 
 ### Prerequisites
 
-- Red Hat OpenShift Service Mesh 3 resources are installed.
+- Red Hat OpenShift Service Mesh 3 Ambient mode Istio, IstioCNI and ZTunnel CRs are created.
 - OpenShift Cluster Monitoring User-workload monitoring is enabled. You can enable that by applying the following ConfigMap change.
 
 ```sh
@@ -52,44 +52,7 @@ See [Enabling monitoring for user-defined projects](https://docs.redhat.com/en/d
 
 ### Procedure
 
-1. Verify that Red Hat OpenShift Service Mesh 3 Ambient mode CRs are created. For example,
-
-```yaml
-apiVersion: sailoperator.io/v1
-kind: IstioCNI
-metadata:
-#  ...
-  name: default
-spec:
-  namespace: istio-cni
-  profile: ambient
-#  ...
----
-apiVersion: sailoperator.io/v1
-kind: Istio
-metadata:
-#  ...
-  name: default
-spec:
-  namespace: istio-system
-  profile: ambient
-#  ...
-  values:
-    pilot:
-      trustedZtunnelNamespace: ztunnel
----
-apiVersion: sailoperator.io/v1alpha1
-kind: ZTunnel
-metadata:
-#  ...
-  name: default
-spec:
-  namespace: ztunnel
-  profile: ambient
-#  ...
-```
-
-2. Create a `Service` resource to use the metrics exposed by the ztunnel.
+1. Create a `Service` resource to use the metrics exposed by the ztunnel.
 
 ```sh
 cat <<EOF | kubectl apply -f-
@@ -112,7 +75,7 @@ spec:
 EOF
 ```
 
-3. Create `ServiceMonitor` resources to monitor the Istio contorl plane and ztunnel pods:
+2. Create `ServiceMonitor` resources to monitor the Istio contorl plane and ztunnel pods:
 
 ```sh
 cat <<EOF | kubectl apply -f-
