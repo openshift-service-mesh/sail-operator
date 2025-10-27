@@ -58,20 +58,22 @@ See [Enabling monitoring for user-defined projects](https://docs.redhat.com/en/d
 apiVersion: sailoperator.io/v1
 kind: IstioCNI
 metadata:
+#  ...
   name: default
 spec:
-  version: v1.27-latest
   namespace: istio-cni
   profile: ambient
+#  ...
 ---
 apiVersion: sailoperator.io/v1
 kind: Istio
 metadata:
+#  ...
   name: default
 spec:
-  version: v1.27-latest
   namespace: istio-system
   profile: ambient
+#  ...
   values:
     pilot:
       trustedZtunnelNamespace: ztunnel
@@ -79,11 +81,12 @@ spec:
 apiVersion: sailoperator.io/v1alpha1
 kind: ZTunnel
 metadata:
+#  ...
   name: default
 spec:
-  version: v1.27-latest
   namespace: ztunnel
   profile: ambient
+#  ...
 ```
 
 2. Create a `Service` resource to use the metrics exposed by the ztunnel.
