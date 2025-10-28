@@ -1,0 +1,776 @@
+== SPIRE and Red Hat's Zero Trust Workload Identity
+
+=== Spiffe and SPIRE
+Spire is a production-ready implementation of the https://spiffe.io/[SPIFFE] specification
+that performs node and workload attestation in order to securely issue
+cryptographic identities to workloads running in heterogeneous environments.
+SPIRE can be configured as a source of cryptographic identities for Istio
+workloads through an integration with Envoy’s SDS API.
+Istio can detect the existence of a UNIX Domain
+Socket that implements the Envoy SDS API on a defined socket path,
+allowing Envoy to communicate and fetch identities directly from it.
+
+This integration with SPIRE provides flexible attestation options not
+available with the default Istio identity management while harnessing Istio’s
+powerful service management. For example,
+SPIRE’s plugin architecture enables diverse workload attestation options
+beyond the Kubernetes namespace and service account attestation offered by Istio.
+SPIRE’s node attestation extends attestation to the physical or virtual hardware on
+which workloads run.
+
+=== Red Hat's Zero Trust Workload Identity Manager (ZTWIM)
+https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-spire-agent-config_zero-trust-manager-configuration[ZTWIM] is a Red Hat OpenShift operator that uses the
+open-source SPIFFE/SPIRE framework to automate the creation,
+rotation, and management of secure, verifiable identities for workloads.
+
+* <<installation,Installation>>
+** <<ztwim-installation,Zero Trust Workload Identity Manager (ZTWIM)>>
+*** <<ztwim-deploy-operator,Deploy ZTWIM Operator>>
+*** <<ztwim-deploy-operands,Deploy ZTWIM Operands (CRs)>>
+**** <<spire-server,Create SpireServer CR>>
+**** <<spire-agent,Create SpireAgent CR>>
+**** <<patch-spire-agent-configmap,Patch Spire Agent ConfigMap>>
+**** <<csi-driver,Create SpiffeCSIDriver CR>>
+**** <<oidc-discovery,Create SpireOIDCDiscoveryProvider CR>>
+**** <<verify-ztwim-installation,Verify ZTWIM installation>>
+** <<sail-operator,Sail Operator>>
+*** <<instal-sail-operator,Install Sail Operator>>
+*** <<create-istio-cr,Create Istio CR>>
+*** <<create-istio-cni,Create Istio CNI CR>>
+*** <<verify-istio-installation,Verify Istio Installation with ZTWIM>>
+** <<simple-istio-mutual-with-spire,ISTIO_MUTUAL with Spire>>
+** <<ingress-gateway,Istio Ingress Gateway with SPIFFE >>
+
+
+
+[[installation]]
+[[ztwim-installation]]
+=== Zero Trust Workload Identity Manager (ZTWIM)
+
+[[ztwim-deploy-operator]]
+==== Deploying ZTWIM Operator
+The official ZTWIM installation documentation is available link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-how-it-works_zero-trust-manager-overview[here].
+
+However, to make it work with Istio, we will need to apply patches to the deployment manifests.
+
+Deploy the ZTWIM operator only (without any operands) as described in the official ZTWIM documentation: link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-install-console_zero-trust-manager-install[Installing the Zero Trust Workload Identity Manager].
+
+Once the ZTWIM deployed, patch the Subscription to configure the ZTWIM controller to work in CreateOnly mode
+
+[source,bash]
+----
+oc -n zero-trust-workload-identity-manager patch subscription \
+  openshift-zero-trust-workload-identity-manager \
+  --type='merge' -p '{"spec":{"config":{"env":[{"name":"CREATE_ONLY_MODE","value":"true"}]}}}'
+----
+
+[[ztwim-deploy-operands]]
+==== Deploying ZTWIM Operands
+[[spire-server]]
+Define https://spiffe.io/docs/latest/spiffe-about/spiffe-concepts/#trust-domain[Spiffe Trust Domain]
+and other required environment variables, once done
+deploy https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-ztwim-cr_zero-trust-manager-install[ZeroTrustWorkloadIdentityManager]
+[source,bash]
+----
+export TRUST_DOMAIN=ocp.one
+export ZTWIM_NS=zero-trust-workload-identity-manager
+export JWT_ISSUER="https://oidc-discovery.$(oc get ingresses.config/cluster -o jsonpath={.spec.domain})"
+----
+
+[source,bash]
+----
+# Create ZeroTrustWorkloadIdentityManager CR
+oc apply -f - <<EOF
+apiVersion: operator.openshift.io/v1alpha1
+kind: ZeroTrustWorkloadIdentityManager
+metadata:
+ name: cluster
+ labels:
+   app.kubernetes.io/name: zero-trust-workload-identity-manager
+   app.kubernetes.io/managed-by: zero-trust-workload-identity-manager
+spec:
+  trustDomain: ${TRUST_DOMAIN}
+  clusterName: "sky-computing-cluster"
+  bundleConfigMap: "spire-bundle"
+EOF
+# Create SpierServer CR
+cat <<EOF | oc apply -f -
+apiVersion: operator.openshift.io/v1alpha1
+kind: SpireServer
+metadata:
+  name: cluster
+spec:
+  logLevel: "info"
+  logFormat: "text"
+  jwtIssuer: $JWT_ISSUER
+  caValidity: "24h"
+  defaultX509Validity: "1h"
+  defaultJWTValidity: "5m"
+  jwtKeyType: "rsa-2048"
+  caSubject:
+    country: "US"
+    organization: "Sky Computing Corporation"
+    commonName: "SPIRE Server CA"
+  persistence:
+    size: "5Gi"
+    accessMode: "ReadWriteOnce"
+  datastore:
+    databaseType: "sqlite3"
+    connectionString: "/run/spire/data/datastore.sqlite3"
+    tlsSecretName: ""
+    maxOpenConns: 100
+    maxIdleConns: 10
+    connMaxLifetime: 0
+    disableMigration: "false"
+EOF
+# wait for spire server become ready
+kubectl rollout restart statefulset/spire-server -n "${ZTWIM_NS}"
+kubectl rollout status statefulset/spire-server -n "${ZTWIM_NS}" --timeout=300s
+----
+
+[[spire-agent]]
+Deploy the link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-spire-agent-config_zero-trust-manager-install[SPIRE Agent].
+
+[source,bash]
+----
+# Crate SpireAgent CR
+cat <<EOF | oc apply -f -
+apiVersion: operator.openshift.io/v1alpha1
+kind: SpireAgent
+metadata:
+  name: cluster
+  annotations:
+    ztwim.openshift.io/create-only: "true"
+spec:
+  socketPath: "/run/spire/agent-sockets"
+  logLevel: "info"
+  logFormat: "text"
+  nodeAttestor:
+    k8sPSATEnabled: "true"
+  workloadAttestors:
+    k8sEnabled: "true"
+    workloadAttestorsVerification:
+      type: "auto"
+      hostCertBasePath: "/etc/kubernetes"
+      hostCertFileName: "kubelet-ca.crt"
+    disableContainerSelectors: "false"
+    useNewContainerLocator: "true"
+EOF
+# wait for agents become ready
+until oc get daemonset/spire-agent -n "${ZTWIM_NS}" &> /dev/null; do sleep 3; done
+kubectl rollout status daemonset/spire-agent -n "${ZTWIM_NS}" --timeout=300s
+----
+[[patch-spire-agent-configmap]]
+Patch the Spire Agent config map, and change the agent socket path value from
+`"socket_path": "/tmp/spire-agent/public/spire-agent.sock"` to `"socket_path": "/tmp/spire-agent/public/socket"`
+This will allow Istio's proxy (Envoy) to properly discover (SDS) Spiffe Workload API socket
+[source,bash]
+----
+# Patch spire-agent socket path to match istio SDS
+oc patch \
+  configmap spire-agent -n "${ZTWIM_NS}" \
+  -p "$(oc get configmap spire-agent  \
+  -n "${ZTWIM_NS}" -o json | \
+  jq '{data: {"agent.conf": (.data."agent.conf" | fromjson | .agent.socket_path = "/tmp/spire-agent/public/socket" | tostring)}}')"
+
+oc rollout restart daemonset/spire-agent -n "${ZTWIM_NS}"
+kubectl rollout status daemonset/spire-agent -n "${ZTWIM_NS}" --timeout=300s
+----
+
+[[csi-driver]]
+Deploy https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-spire-csidriver-config_zero-trust-manager-install[SpiffeCSIDriver]
+[source,bash]
+----
+cat <<EOF | oc apply -f -
+apiVersion: operator.openshift.io/v1alpha1
+kind: SpiffeCSIDriver
+metadata:
+  name: cluster
+spec:
+  agentSocketPath: '/run/spire/agent-sockets'
+  pluginName: "csi.spiffe.io"
+EOF
+
+until oc get daemonset/spire-spiffe-csi-driver -n "${ZTWIM_NS}" &> /dev/null; do sleep 3; done
+kubectl rollout status daemonset/spire-spiffe-csi-driver -n "${ZTWIM_NS}" --timeout=300s
+----
+
+[[oidc-discovery]]
+Deploy https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-oidc-config_zero-trust-manager-install[SpireOIDCDiscoveryProvider]
+[source,bash]
+----
+export OIDC_DISCOVERY_CONFIG_MAP=spire-spiffe-oidc-discovery-provider
+cat <<EOF | oc apply -f -
+apiVersion: operator.openshift.io/v1alpha1
+kind: SpireOIDCDiscoveryProvider
+metadata:
+  name: cluster
+spec:
+  logLevel: "info"
+  logFormat: "text"
+  csiDriverName: "csi.spiffe.io"
+  jwtIssuer: $JWT_ISSUER
+  replicaCount: 1
+  managedRoute: "true"
+EOF
+# wait for the deployment being created
+until oc get deployment spire-spiffe-oidc-discovery-provider -n "${ZTWIM_NS}" &> /dev/null; do sleep 3; done
+# patch configuration
+export PATCH_PAYLOAD=$(kubectl get configmap ${OIDC_DISCOVERY_CONFIG_MAP} -n "${ZTWIM_NS}" -o json | \
+  jq -r '.data["oidc-discovery-provider.conf"] | fromjson | .workload_api.socket_path = "/spiffe-workload-api/socket" | tojson | {data: {"oidc-discovery-provider.conf": .}}')
+kubectl patch configmap ${OIDC_DISCOVERY_CONFIG_MAP} -n "${ZTWIM_NS}" --patch "$PATCH_PAYLOAD"
+# rollout restart
+kubectl rollout restart deployment/spire-spiffe-oidc-discovery-provider -n "${ZTWIM_NS}"
+# wait for deployment to be ready
+oc wait --for=condition=Available deployment/spire-spiffe-oidc-discovery-provider -n "${ZTWIM_NS}" --timeout=300s
+----
+
+[[verify-ztwim-installation]]
+To verify ZTWIM installation, deploy client workload
+and try to fetch workload SVID
+[source,bash]
+----
+cat <<EOF | oc apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ztwim-client
+  namespace: default
+  labels:
+    app: ztwim-client
+spec:
+  selector:
+    matchLabels:
+      app: ztwim-client
+  template:
+    metadata:
+      labels:
+        app: ztwim-client
+    spec:
+      containers:
+        - name: client
+          image: ghcr.io/spiffe/spire-agent:1.5.1
+          command: ["/opt/spire/bin/spire-agent"]
+          args: [ "api", "watch",  "-socketPath", "/run/spire/sockets/socket" ]
+          volumeMounts:
+            - mountPath: /run/spire/sockets
+              name: spiffe-workload-api
+              readOnly: true
+      volumes:
+      - name: spiffe-workload-api
+        csi:
+          driver: csi.spiffe.io
+          readOnly: true
+EOF
+until oc get deployment ztwim-client -n default &> /dev/null; do sleep 3; done
+oc wait --for=condition=Available deployment/ztwim-client -n default --timeout=300s
+sleep 5 # this 5 second sleep insures that required spire entry has been created by the spire controller
+----
+Verify the x509 SVID:
+[source,bash]
+----
+oc exec -it \
+  "$(oc get \
+      pods -o=jsonpath='{.items[0].metadata.name}' \
+      -l app=ztwim-client \
+      -n default \
+   )" -n default -- \
+  /opt/spire/bin/spire-agent \
+    api fetch -socketPath /run/spire/sockets/socket
+----
+If ZTWIM was deployed and configured correctly, you should get something like this
+[source,text]
+----
+Received 1 svid after 29.636075ms
+
+SPIFFE ID:		spiffe://ocp.one/ns/default/sa/default
+SVID Valid After:	 2025-10-21 14:04:03 +0000 UTC
+SVID Valid Until:	 2025-10-21 15:04:13 +0000 UTC
+CA #1 Valid After:	2025-10-21 07:38:03 +0000 UTC
+CA #1 Valid Until:	2025-10-22 07:38:13 +0000 UTC
+----
+
+Verify the JWT SVID:
+[source,bash]
+----
+oc exec -it \
+  "$(oc get \
+      pods -o=jsonpath='{.items[0].metadata.name}' \
+      -l app=ztwim-client \
+      -n default \
+   )" -n default -- \
+  /opt/spire/bin/spire-agent \
+    api fetch jwt -audience=sample-aud -socketPath /run/spire/sockets/socket
+----
+
+If ZTWIM was deployed and configured correctly, you should get something like this
+[source,text]
+----
+token(spiffe://ocp.one/ns/default/sa/default):
+	eyJhbGciOiJSUzI1NiIsImtpZCI6Ij....IsIm
+bundle(spiffe://ocp.one):
+	{
+    "keys": [
+        {
+            "kty": "RSA",
+            "kid": "6k9PfhrAdfajT6jvLvR6bdomFvQxMeGf",
+            "n": "wEYTV0ri4OOcdgEVgzN0...KhUEGf0NKxnuaeGQ",
+            "e": "AQAB"
+        }
+    ]
+}
+----
+
+[[sail-operator]]
+=== Sail Operator
+
+[[instal-sail-operator]]
+==== Install Sail Operator
+Follow <<../../general/getting-started.adoc#installation-on-openshift,this guide>>
+and Install Sail Operator only *without any operands*.
+
+[[define-istio-installation-env-vars]]
+==== Define Installation Environment Variables
+[source,bash]
+----
+export ZTWIM_NS=zero-trust-workload-identity-manager
+export TRUST_DOMAIN=ocp.one
+export JWT_ISSUER="https://oidc-discovery.$(oc get ingresses.config/cluster -o jsonpath={.spec.domain})"
+export OSSM_NS=istio-system
+export OSSM_CNI=istio-cni
+export VERIFY_NS=verify-ossm-ztwim
+export EXTRA_ROOT_CA="$(oc get secret oidc-serving-cert \
+                         -n ${ZTWIM_NS} -o json | \
+                         jq -r '.data."tls.crt"' | \
+                         base64 -d | \
+                         sed 's/^/        /')"
+----
+
+[[create-istio-cni]]
+==== Create Istio CNI CR
+[source,bash]
+----
+oc new-project "${OSSM_CNI}" 2>/dev/null  || oc project "${OSSM_CNI}"
+# Create IstioCNI and wait till it successfully installed
+oc apply -f - <<EOF
+apiVersion: sailoperator.io/v1
+kind: IstioCNI
+metadata:
+  name: default
+spec:
+  namespace: ${OSSM_CNI}
+EOF
+until oc get daemonset/istio-cni-node -n "${OSSM_CNI}" &> /dev/null; do sleep 3; done
+kubectl rollout status daemonset/istio-cni-node -n "${OSSM_CNI}" --timeout=300s
+----
+
+[[create-istio-cr]]
+==== Install Istio `CR`
+[source,bash]
+----
+
+oc new-project "${OSSM_NS}" 2>/dev/null
+# Create Istiod
+cat <<EOF | oc apply -f -
+apiVersion: sailoperator.io/v1
+kind: Istio
+metadata:
+  name: default
+spec:
+  namespace: istio-system
+  updateStrategy:
+    type: InPlace
+  values:
+    pilot:
+      jwksResolverExtraRootCA: |
+${EXTRA_ROOT_CA}
+      env:
+        PILOT_JWT_ENABLE_REMOTE_JWKS: "true"
+    meshConfig:
+      trustDomain: $TRUST_DOMAIN
+    sidecarInjectorWebhook:
+      templates:
+        spire: |
+          spec:
+            initContainers:
+            - name: istio-proxy
+              volumeMounts:
+              - name: workload-socket
+                mountPath: /run/secrets/workload-spiffe-uds
+                readOnly: true
+            volumes:
+              - name: workload-socket
+                csi:
+                  driver: "csi.spiffe.io"
+                  readOnly: true
+        spireGateway: |
+          spec:
+            containers:
+            - name: istio-proxy
+              volumeMounts:
+              - name: workload-socket
+                mountPath: /run/secrets/workload-spiffe-uds
+                readOnly: true
+            volumes:
+              - name: workload-socket
+                csi:
+                  driver: "csi.spiffe.io"
+                  readOnly: true
+EOF
+# Wait till it successfully installed
+until oc get deployment istiod -n "${OSSM_NS}" &> /dev/null; do sleep 3; done
+oc wait --for=condition=Available deployment/istiod -n "${OSSM_NS}" --timeout=300s
+----
+_A note about `sidecarInjectorWebhook`.
+Spiffe Workload API exposed over unix socket.
+To avoid any host mounts we are using Spire CSI driver
+which is securely injecting the workload api socket.
+Thus, we must create sidecar injector template,
+which will be responsible for mounting the Spire Agent
+socket as a volume to the envoy sidecar container._
+
+[[verify-istio-installation]]
+==== Verify Istio Installation
+Create simple httpbin deployment and verify spiffe identity.
+Note, in the inject template we are specifying `spire` template.
+The spire injection template is responsible for mounting the Spiffe Workload API
+socket into the sidecar container
+[source,bash]
+----
+oc new-project "${VERIFY_NS}" 2>/dev/null
+# enable sidecar injection
+oc label namespace "${VERIFY_NS}" istio-injection=enabled
+# create httpbin workload
+cat <<EOF | oc apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: ${VERIFY_NS}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+      version: v1
+  template:
+    metadata:
+      annotations:
+        inject.istio.io/templates: "sidecar,spire"
+        spiffe.io/audience: "sky-computing-demo"
+      labels:
+        app: httpbin
+        version: v1
+    spec:
+      containers:
+      - image: docker.io/mccutchen/go-httpbin:v2.15.0
+        imagePullPolicy: IfNotPresent
+        name: httpbin
+        ports:
+        - containerPort: 8080
+EOF
+until oc get deployment httpbin -n "${VERIFY_NS}" &> /dev/null; do sleep 3; done
+oc wait --for=condition=Available deployment/httpbin -n "${VERIFY_NS}" --timeout=300s
+----
+Check that the workload identity was issued by SPIRE
+[source,bash]
+----
+# Verify ZTWIM identity
+HTTPBIN_POD=$(oc get pod -l app=httpbin -n "${VERIFY_NS}" -o jsonpath="{.items[0].metadata.name}")
+istioctl proxy-config secret "$HTTPBIN_POD" \
+ -n "${VERIFY_NS}" -o json \
+ | jq -r  '.dynamicActiveSecrets[0].secret.tlsCertificate.certificateChain.inlineBytes' \
+ | base64  --decode > chain.pem
+openssl x509 -in chain.pem -text | grep SPIRE
+----
+Example output
+[source,bash]
+----
+        Issuer: C=US, O=Sky Computing Corporation, CN=SPIRE Server CA/serialNumber=276066964103311963277244026411475463737
+        Subject: C=US, O=SPIRE
+----
+[[simple-istio-mutual-with-spire]]
+=== Simple Istio ISTIO_MUTUAL with Spire
+In this scenario we'll deploy client (curl)
+and server (httpbin) and validate mTLS connectivity
+between the two services.
+
+==== Define Installation Environment Variables
+[source,bash]
+----
+export TPJ=test-ossm-with-ztwim
+export SPIFFE_AUDIENCE="sky-computing-demo"
+----
+
+Create namespace
+[source,bash]
+----
+oc create namespace "${TPJ}" 2>/dev/null  || oc project "${TPJ}"
+oc label namespace "${TPJ}" istio-injection=enabled
+----
+Create httpbin server
+[source,bash]
+----
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: httpbin
+  namespace: ${TPJ}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: ${TPJ}
+  labels:
+    app: httpbin
+    service: httpbin
+spec:
+  ports:
+  - name: http-ex-spiffe
+    port: 443
+    targetPort: 8080
+  - name: http
+    port: 80
+    targetPort: 8080
+  selector:
+    app: httpbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: ${TPJ}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+      version: v1
+  template:
+    metadata:
+      annotations:
+        inject.istio.io/templates: "sidecar,spire"
+        spiffe.io/audience: "${SPIFFE_AUDIENCE}"
+      labels:
+        app: httpbin
+        version: v1
+    spec:
+      serviceAccountName: httpbin
+      containers:
+      - image: docker.io/mccutchen/go-httpbin:v2.15.0
+        imagePullPolicy: IfNotPresent
+        name: httpbin
+        ports:
+        - containerPort: 8080
+EOF
+until oc get deployment httpbin -n "${TPJ}" &> /dev/null; do sleep 3; done
+oc wait --for=condition=Available deployment/httpbin -n "${TPJ}" --timeout=300s
+----
+Create curl client
+[source,bash]
+----
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: curl
+  namespace: ${TPJ}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: curl
+  namespace: ${TPJ}
+  labels:
+    app: curl
+    service: curl
+spec:
+  ports:
+  - port: 80
+    name: http
+  selector:
+    app: curl
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: curl
+  namespace: ${TPJ}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: curl
+  template:
+    metadata:
+      annotations:
+        inject.istio.io/templates: "sidecar,spire"
+        spiffe.io/audience: "${SPIFFE_AUDIENCE}"
+      labels:
+        app: curl
+    spec:
+      terminationGracePeriodSeconds: 0
+      serviceAccountName: curl
+      containers:
+      - name: curl
+        image: curlimages/curl:8.16.0
+        command:
+        - /bin/sh
+        - -c
+        - sleep inf
+        imagePullPolicy: IfNotPresent
+EOF
+until oc get deployment curl -n "${TPJ}" &> /dev/null; do sleep 3; done
+oc wait --for=condition=Available deployment/curl -n "${TPJ}" --timeout=300s
+----
+Currently, Istio configured with default PERMISSIVE mode.
+Try to make http call without mTLS first
+[source,bash]
+----
+CURL_POD=$(oc get pod -l app=curl -n ${TPJ} -o jsonpath="{.items[0].metadata.name}")
+
+oc exec $CURL_POD -n ${TPJ} -it -- curl -s -o /dev/null -w "%{http_code}" http://httpbin
+----
+You should get HTTP 200 status code. Now, lets enabled mTLS between two services.
+We'll set `PeerAuthentication` to `STRICT` and will define two appropriate
+`DestinationRules`
+[source,bash]
+----
+cat <<EOF | oc apply -f -
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: ${TPJ}
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: curl
+  namespace: ${TPJ}
+spec:
+  host: curl
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: httpbin
+  namespace: ${TPJ}
+spec:
+  host: httpbin
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+EOF
+----
+Make the curl request again, you should get 200 response code.
+[source,bash]
+----
+CURL_POD=$(oc get pod -l app=curl -n ${TPJ} -o jsonpath="{.items[0].metadata.name}")
+
+oc exec $CURL_POD -n ${TPJ} -it -- curl -s -o /dev/null -w "%{http_code}" http://httpbin
+----
+If you receive an HTTP 200 code, it confirms that your mesh is configured with Spire correctly.
+Both services are able to fetch
+Spiffe link:https://github.com/spiffe/spiffe/blob/main/standards/X509-SVID.md[X.509 SVIDs],
+trust each other's identities and can communicate securely.
+
+[[ingress-gateway]]
+=== Ingress Gateway
+
+Deploy Istio Ingress Gateway
+
+_NOTE: The inject.istio.io/templates annotation should include
+both gateway and spire templates.
+The spire template is required to ensure the Spire Agent
+socket is automatically mounted to
+the Istio Ingress Gateway pod._
+
+[source,bash]
+----
+# allow istio ingress pod to run with anyuid
+oc adm policy add-scc-to-user anyuid system:serviceaccount:istio-system:istio-gateway
+
+# add istio helm repo
+helm repo add istio https://istio-release.storage.googleapis.com/charts
+
+# update the repo
+helm repo update
+
+# install the istio gateway helm chart
+helm install istio-gateway -n "${OSSM_NS}" \
+  istio/gateway --set-json \
+  'podAnnotations={"inject.istio.io/templates":"gateway,spireGateway"}'
+
+until oc get deployment istio-gateway -n "${OSSM_NS}" &> /dev/null; do sleep 3; done
+oc wait --for=condition=Available deployment/istio-gateway -n "${OSSM_NS}" --timeout=300s
+----
+Create Istio Gateway CR for `httpbin` service.
+
+==== Testing
+[source,bash]
+----
+# create Gateway CR
+cat <<EOF | oc apply -f -
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: httpbin-gateway
+  namespace: ${TPJ}
+spec:
+  selector:
+    istio: gateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+EOF
+----
+
+Create Istio Virtual Service for `httpbin` service.
+No need to create `DestinationRules`, we created it in previous steps.
+[source,bash]
+----
+cat <<EOF | oc apply -f -
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: httpbin
+  namespace: ${TPJ}
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - httpbin-gateway
+  http:
+    - route:
+      - destination:
+          host: httpbin.${TPJ}.svc.cluster.local
+          port:
+            number: 80
+EOF
+----
+
+Make an http call to the httpbin service
+[source,bash]
+----
+# define GATEWAY IP
+export GATEWAY_IP="$(oc get svc istio-gateway -n istio-system  -o jsonpath={.status.loadBalancer.ingress[].ip})"
+# make curl call
+curl -H "Host: httpbin" "${GATEWAY_IP}" -s -o /dev/null -w "%{http_code}"
+----
+If you receive an HTTP 200 code, it means your traffic
+is being securely routed from the Istio Gateway pod
+to the httpbin service using SPIFFE mTLS connection.
