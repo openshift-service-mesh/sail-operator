@@ -50,4 +50,6 @@ productpage-v1-7559db9df5-xgp7j           1/1     Running   0          23m
 1. Verify that injection labels are set correctly on the namespace and/or deployments:
 
     `istio-injection=enabled` label works only when the IstioRevision is called `default` or the `default` IstioRevisionTag exists. In other cases, `istio.io/rev` label must be used.
-1. When using `istio.io/rev` label, make sure the namespace is not labeled also with `istio-injection=enabled` as `istio-injection` takes precedence over `istio.io/rev` label
+1. Avoid conflicting labels: 
+
+If the namespace has both `istio-injection=enabled` and `istio.io/rev` labels, the `istio-injection` label will take precedence. To prevent conflicts, remove the `istio-injection` label when using `istio.io/rev`
