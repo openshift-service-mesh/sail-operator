@@ -14,10 +14,14 @@ This error means the workload is not able to communicate with the new control pl
 
     For both control planes, during the migration ensure that network policies do not block traffic between the following entities:
 
-        - The control plane and the data plane namespaces
-        - The data plane namespaces and the control plane
-        - The data plane namespaces themselves
-1. Verify that both control planes have access to all namespaces in the mesh. During the migration, some proxies are controlled by the 3.0 control plane while other proxies remain controlled by the 2.6 control plane. To ensure that mesh communication works during the migration, both control planes must detect the same set of services. Service discovery is provided by istiod component, which runs in the control plane namespace. In 2.6 the `ClusterWide` mode is watching all namespaces by default. `MultiTenant` mode only watches namespaces which are part of the mesh. In 3.0 the control plane watches all namespaces by default unless it's limited e.g. by `discoverySelectors`.
+    - The control plane pod and workloads in the data plane namespaces
+    - Workloads in the data plane namespaces and the control plane pod
+    - Workloads in the data plane namespaces themselves
+1. Verify that both control planes have access to all namespaces in the mesh. During the migration, some proxies are controlled by the 3.0 control plane while other proxies remain controlled by the 2.6 control plane. To ensure that mesh communication works during the migration, both control planes must detect the same set of services. Service discovery is provided by istiod component, which runs in the control plane namespace.
+
+    - 2.6 `ClusterWide` mode is watching all namespaces by default.
+    - 2.6 `MultiTenant` mode only watches namespaces which are part of the mesh.
+    - 3.0 control plane watches all namespaces by default unless it's limited e.g. by `discoverySelectors`.
 
 ## Newly added workloads during the migration fails to start
 Although it's not recommended, it might be necessary to add new namespaces to the mesh in the middle of the migration process. The init container might be failing with:
