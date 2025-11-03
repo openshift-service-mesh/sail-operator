@@ -44,9 +44,9 @@ metadata:
       ]
     capabilities: Seamless Upgrades
     categories: OpenShift Optional, Integration & Delivery, Networking, Security
-    containerImage: quay.io/sail-dev/sail-operator:1.28-latest
-    createdAt: "2025-11-03T05:05:32Z"
-    description: The Sail Operator manages the lifecycle of your Istio control plane. It provides custom resources for you to deploy and manage your control plane components.
+    containerImage: quay.io/maistra-dev/sail-operator:3.0-latest
+    createdAt: "2025-11-03T10:23:05Z"
+    description: The OpenShift Service Mesh Operator enables you to install, configure, and manage an instance of Red Hat OpenShift Service Mesh. OpenShift Service Mesh is based on the open source Istio project.
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "true"
     features.operators.openshift.io/csi: "false"
@@ -404,21 +404,10 @@ spec:
 
     ### Overview
 
-    - v1.27-latest
-    - v1.27.3
-    - v1.27.2
-    - v1.27.1
-    - v1.27.0
-    - v1.26-latest
-    - v1.26.6
-    - v1.26.5
-    - v1.26.4
-    - v1.26.3
-    - v1.26.2
-    - v1.26.1
-    - v1.26.0
-    - master
-    - v1.29-alpha.166562a0
+    Red Hat OpenShift Service Mesh, based on the open source [Istio](https://istio.io/) project, adds a transparent layer on existing
+    distributed applications without requiring any changes to the service code. You add Red Hat OpenShift Service Mesh
+    support to services by deploying a special sidecar proxy throughout your environment that intercepts all network
+    communication between microservices. You configure and manage the service mesh using the control plane features.
 
     Red Hat OpenShift Service Mesh provides an easy way to create a network of deployed services that provides discovery,
     load balancing, service-to-service authentication, failure recovery, metrics, and monitoring. A service mesh also
@@ -735,6 +724,11 @@ spec:
             template:
               metadata:
                 annotations:
+                  images.v1_24_4.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9:1.24.4
+                  images.v1_24_4.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9:1.24.4
+                  images.v1_24_4.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9:3.0.1
+                  images.v1_24_4.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9:1.24.4
+                  images.v1_24_4.ztunnel: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9:1.24.4
                   images.v1_26_0.cni: gcr.io/istio-release/install-cni:1.26.0
                   images.v1_26_0.istiod: gcr.io/istio-release/pilot:1.26.0
                   images.v1_26_0.proxy: gcr.io/istio-release/proxyv2:1.26.0
