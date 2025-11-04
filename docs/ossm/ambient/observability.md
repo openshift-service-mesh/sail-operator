@@ -26,12 +26,17 @@ OpenShift Service Mesh also integrates with:
 
 Monitoring stack components are deployed by default in every OpenShift Container Platform installation. These components include Prometheus, Alertmanager, Thanos Querier, and others.
 
-When you have enrolled your application in the Service Mesh Ambient mesh mode, you can monitor the [Istio Standard Metrics](https://istio.io/latest/docs/reference/config/metrics/) of your application from the ztunnel resource or the waypoint proxies. The ztunnel also exposes [a variety of DNS and debugging metrics](https://github.com/istio/ztunnel/blob/master/README.md#metrics).
+When you have enrolled your application in the Service Mesh Ambient mesh mode, you can monitor the [Istio Standard Metrics](https://istio.io/latest/docs/reference/config/metrics/) of your application from the ztunnel resource and the waypoint proxies. The ztunnel also exposes [a variety of DNS and debugging metrics](https://github.com/istio/ztunnel/blob/master/README.md#metrics).
+
+Because the Service Mesh Ambient mode has two levels of proxies, there are two sets of metrics that can be collected for each application service. The Layer 4 TCP related metrics can be collected from the ztunnel resource and the waypoint proxies. The Layer 7 metrics such as HTTP traffic metrics can be collected from the waypoint proxies.
 
 ### Prerequisites
 
-- Red Hat OpenShift Service Mesh 3 Ambient mode Istio, IstioCNI and ZTunnel CRs are created.
-- OpenShift Cluster Monitoring User-workload monitoring is enabled. You can enable that by applying the following ConfigMap change.
+1. Red Hat OpenShift Service Mesh 3 Ambient mode Istio, IstioCNI and ZTunnel CRs are created. If you have not already done so, install the OpenShift Service Mesh Operator along with Istio in ambient mode using the following [steps](https://github.com/openshift-service-mesh/sail-operator/blob/main/docs/ossm/ambient/README.md#3-procedure-to-install-istios-ambient-mode).
+
+2. OpenShift Cluster Monitoring User-workload monitoring is enabled. You can enable that by applying the following ConfigMap change.
+
+  This ConfigMap change is the only command you need from the doc page [Enabling monitoring for user-defined projects](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/monitoring/configuring-user-workload-monitoring#enabling-monitoring-for-user-defined-projects_preparing-to-configure-the-monitoring-stack-uwm). It's required for both sidecar mode and ambient mode metrics integration.
 
 ```sh
 cat <<EOF | kubectl apply -f-
@@ -45,14 +50,14 @@ data:
     enableUserWorkload: true
 EOF
 
-oc wait --for=condition=Ready pods --all -n openshift-user-workload-monitoring --timeout 60s
+kubectl wait --for=condition=Ready pods --all -n openshift-user-workload-monitoring --timeout 60s
 ```
-
-See [Enabling monitoring for user-defined projects](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/monitoring/configuring-user-workload-monitoring#enabling-monitoring-for-user-defined-projects_preparing-to-configure-the-monitoring-stack-uwm).
 
 ### Procedure
 
-1. Create a `Service` resource to use the metrics exposed by the ztunnel.
+1. The example below will use the sample Bookinfo application. If you have not already done so, deploy the sample Bookinfo applications. The steps can be found [here](https://github.com/openshift-service-mesh/sail-operator/blob/main/docs/ossm/ambient/README.md#36-about-the-bookinfo-application).
+
+2. Create a `Service` resource to use the metrics exposed by the ztunnel.
 
 ```sh
 cat <<EOF | kubectl apply -f-
@@ -75,7 +80,7 @@ spec:
 EOF
 ```
 
-2. Create `ServiceMonitor` resources to monitor the Istio contorl plane and ztunnel pods:
+3. Create a `ServiceMonitor` resource for collecting the Istio control plane metrics:
 
 ```sh
 cat <<EOF | kubectl apply -f-
@@ -96,6 +101,8 @@ spec:
 EOF
 ```
 
+4. Create a `ServiceMonitor` resource for collecting the ztunnel metrics:
+
 ```sh
 cat <<EOF | kubectl apply -f-
 apiVersion: monitoring.coreos.com/v1
@@ -115,7 +122,75 @@ spec:
 EOF
 ```
 
-If you need to monitor a waypoint proxy metrics, you can create a similar service to use the metrics exposed by the waypoint proxy and then apply a `ServiceMonitor` resource.
+5. Deploy a waypoint proxy as follows and enroll the `bookinfo` namespace to use the waypoint:
+
+```sh
+cat <<EOF | kubectl apply -f-
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  labels:
+    istio.io/waypoint-for: service
+    app: waypoint
+    service: waypoint
+  name: waypoint
+  namespace: bookinfo
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+  - name: mesh
+    port: 15008
+    protocol: HBONE
+  - name: http-monitoring
+    protocol: TCP
+    port: 15020
+EOF
+
+kubectl label namespace bookinfo istio.io/use-waypoint=waypoint
+```
+
+6. Create a `ServiceMonitor` resource for collecting a waypoint proxy metrics:
+
+```sh
+cat <<EOF | kubectl apply -f-
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: waypoint-monitor
+  namespace: bookinfo
+spec:
+  targetLabels:
+  - app
+  selector:
+    matchLabels:
+      service: waypoint
+  endpoints:
+  - port: http-monitoring
+    interval: 30s
+EOF
+```
+
+  A waypoint proxy generates Layer 4 and Layer 7 statistics as metrics. It scopes the statistics by Envoy proxy functions. Examples include:
+
+  - [Upstream connection](https://www.envoyproxy.io/docs/envoy/latest/configuration/upstream/cluster_manager/cluster_stats)
+  - [Listener](https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/stats)
+  - [HTTP Connection Manager](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/stats)
+  - [TCP proxy](https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/network_filters/tcp_proxy_filter#statistics)
+  - [Router](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/router_filter.html?highlight=vhost#statistics)
+
+### Metrics Validation
+
+1. You can find the status of `Metrics Targets` in the OpenShift Console. Click the `Observe` and `Targets` from the left panel and search targets such as `istiod-monitor`, `ztunnel-monitor` and `waypoint-monitor`. Wait for their `Up` status.
+
+  NOTE: The `ServiceMonitor` resource configuration can take up to 5 minutes for showing new `Metrics Targets` results.
+
+2. Send some traffic to the Bookinfo `productpage` service for generating metrics:
+
+```sh
+curl "http://${GATEWAY_URL}/productpage" | grep "<title>"
+```
+
+3. Validate the Bookinfo application metrics in the OpenShift Console. Click the `Observe` and `Metrics` from the left panel and run a query such as `istio_build`, `istio_tcp_received_bytes_total` or `istio_requests_total`.
 
 
 ## Configuring OpenShift Distributed tracing platform with Service Mesh Ambient mode
@@ -172,7 +247,7 @@ spec:
 EOF
 ```
 
-NOTE: The `exporters.otlp.endpoint` field is the Tempo sample distributor service in a namespace such as `tempo`.
+  NOTE: The `exporters.otlp.endpoint` field is the Tempo sample distributor service in a namespace such as `tempo`.
 
 2. Configure Red Hat OpenShift Service Mesh `Istio` custom resource to define a tracing provider in the spec.values.meshConfig:
 
@@ -198,7 +273,7 @@ spec:
       trustedZtunnelNamespace: ztunnel
 ```
 
-NOTE: The `service` field is the OpenTelemetry collector service in the `istio-system` namespace.
+  NOTE: The `service` field is the OpenTelemetry collector service in the `istio-system` namespace.
 
 3. Create an Istio Telemetry custom resource to enable the tracing provider defined in the spec.values.meshConfig.ExtensionProviders:
 
@@ -217,47 +292,44 @@ spec:
 EOF
 ```
 
-NOTE: Once you verify that you can see traces, lower the randomSamplingPercentage value or set it to default to reduce the number of requests.
+  NOTE: Once you verify that you can see traces, lower the randomSamplingPercentage value or set it to default to reduce the number of requests.
 
-NOTE: You may use a spec.targetRefs field to enable tracing at a gateway or a waypoint level.
+  NOTE: You may use a spec.targetRefs field to enable tracing at a gateway or a waypoint level.
 
-## Validation
+  NOTE: When you need to use a single Istio Telemetry custom resource for a metrics `prometheus` provider and a tracing provider, you can set the `spec.metrics.overrides.disabled: false` to enable a metrics `prometheus` provider. This step is not needed if you follow the `Configuring Metrics with OpenShift Cluster Monitoring` approach above.
 
-1. You can find the status of `Metrics Targets` in the OpenShift Console. Click the `Observe` and `Targets` from the left panel and search targets such as `istiod-mointor`, `ztunnel-monitor` etc. Wait for their `Up` status.
+### Tracing Validation
 
-NOTE: The `SerivceMonitor` resource configuration can take up to 5 minutes for showing new `Metrics Targets` results.
-
-
-2. Create a `bookinfo` namespace and enable ambient mode by running the following commands:
+1. Create a `bookinfo` namespace and enable ambient mode by running the following commands:
 
 ```sh
-oc new-project bookinfo
-oc label namespace bookinfo istio.io/dataplane-mode=ambient
+kubectl create namespace bookinfo
+kubectl label namespace bookinfo istio.io/dataplane-mode=ambient
 ```
 
-3. Deploy the bookinfo application in the `bookinfo` namespace by running the following command:
+2. Deploy a Bookinfo application by running the following command:
 
 ```sh
-oc apply -n bookinfo -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml
-oc wait --for=condition=Ready pods --all -n bookinfo --timeout 60s
+kubectl apply -n bookinfo -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml
+kubectl wait --for=condition=Ready pods --all -n bookinfo --timeout 60s
 ```
 
-4. Create a bookinfo gateway to manage inbound bookinfo traffic:
+3. Create a Bookinfo gateway for managing inbound Bookinfo traffic:
 
 ```sh
-oc get crd gateways.gateway.networking.k8s.io &> /dev/null ||  { oc kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.0.0" | oc apply -f -; }
-oc apply -n bookinfo -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/gateway-api/bookinfo-gateway.yaml
-oc wait --for=condition=Ready pods --all -n bookinfo --timeout 60s
-export INGRESS_HOST=$(oc get -n bookinfo gtw bookinfo-gateway -o jsonpath='{.status.addresses[0].value}')
-export INGRESS_PORT=$(oc get -n bookinfo gtw bookinfo-gateway -o jsonpath='{.spec.listeners[?(@.name=="http")].port}')
+kubectl get crd gateways.gateway.networking.k8s.io &> /dev/null ||  { kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.3.0" | kubectl apply -f -; }
+kubectl apply -n bookinfo -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/gateway-api/bookinfo-gateway.yaml
+kubectl wait --for=condition=Ready pods --all -n bookinfo --timeout 60s
+export INGRESS_HOST=$(kubectl get -n bookinfo gtw bookinfo-gateway -o jsonpath='{.status.addresses[0].value}')
+export INGRESS_PORT=$(kubectl get -n bookinfo gtw bookinfo-gateway -o jsonpath='{.spec.listeners[?(@.name=="http")].port}')
 export GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
 echo "http://${GATEWAY_URL}/productpage"
 ```
 
-5. Deploy a waypoint proxy and use it to handle all service traffic in the `bookinfo` namespace:
+4. Deploy a waypoint proxy and enroll the `bookinfo` namespace to use the waypoint:
 
 ```sh
-cat <<EOF | oc apply -f-
+cat <<EOF | kubectl apply -f-
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -272,29 +344,23 @@ spec:
     port: 15008
     protocol: HBONE
 EOF
+
+kubectl label namespace bookinfo istio.io/use-waypoint=waypoint
 ```
 
-6. Enroll the `bookinfo` namespace to use the waypoint:
-
-```sh
-oc label namespace bookinfo istio.io/use-waypoint=waypoint
-```
-
-7. Send traffic to the `productpage` service for generating metrics and traces:
+5. Send some traffic to the Bookinfo `productpage` service for generating traces:
 
 ```sh
 curl "http://${GATEWAY_URL}/productpage" | grep "<title>"
 ```
 
-8. Validate the bookinfo application metrics in the OpenShift Console. Click the `Observe` and `Metrics` from the left panel and run the query `istio_tcp_received_bytes_total` or `istio_build`.
-
-9. Validate the bookinfo application traces in a Tempo dashboard UI. You can find the dashboard UI route by running the following command:
+6. Validate the Bookinfo application traces in a Tempo dashboard UI. You can find the dashboard UI route by running the following command:
 
 ```sh
-oc get routes -n tempo tempo-sample-query-frontend
+kubectl get routes -n tempo tempo-sample-query-frontend
 ```
 
   Select the `bookinfo-gateway-istio.booinfo` or the `waypoint.bookinfo` service from the dashboard UI and then click `Find Traces`.
 
-NOTE: The OpenShift route for Tempo dashboard UI can be created from the TempoStack custom resource with `.spec.template.queryFrontend.jaegerQuery.ingress.type: route`.
+  NOTE: The OpenShift route for Tempo dashboard UI can be created from the TempoStack custom resource with `.spec.template.queryFrontend.jaegerQuery.ingress.type: route`.
 
