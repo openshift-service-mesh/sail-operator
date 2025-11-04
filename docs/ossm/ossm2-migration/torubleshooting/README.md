@@ -6,7 +6,7 @@ After restarting the deployment the new ReplicaSet is failing with:
 
 This error means the workload is not able to communicate with the new control plane. It might be caused by existing `NetworkPolicies` in the control plane namespace.
 
-1. Verify that `spec.security.manageNetworkPolicy=false` is set in your `ServiceMeshControlPlane` resource. By default the 2.6 control plane is creating `NetworkPolicies` which are blocking the traffic for 3.0 control plane. It must be disabled by `spec.security.manageNetworkPolicy=false` and re-created manually.
+1. Verify that `spec.security.manageNetworkPolicy` is set to false in your `ServiceMeshControlPlane` resource. By default, the 2.6 control plane automatically creates `NetworkPolicy` objects that can block traffic to the 3.0 control plane. To avoid this issue, disable automatic network policy management by setting `spec.security.manageNetworkPolicy: false`
 1. Verify there are no other  `NetworkPolicies` which would be blocking the traffic.
 
 ## Migrated deployment is not able to communicate with not yet migrated deployment
