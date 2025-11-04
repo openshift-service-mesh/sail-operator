@@ -300,33 +300,9 @@ EOF
 
 ### Tracing Validation
 
-1. Create a `bookinfo` namespace and enable ambient mode by running the following commands:
+1. The example below will use the sample Bookinfo application. If you have not already done so, deploy the sample Bookinfo applications. The steps can be found [here](https://github.com/openshift-service-mesh/sail-operator/blob/main/docs/ossm/ambient/README.md#36-about-the-bookinfo-application).
 
-```sh
-oc create namespace bookinfo
-oc label namespace bookinfo istio.io/dataplane-mode=ambient
-```
-
-2. Deploy a Bookinfo application by running the following command:
-
-```sh
-oc apply -n bookinfo -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/platform/kube/bookinfo.yaml
-oc wait --for=condition=Ready pods --all -n bookinfo --timeout 60s
-```
-
-3. Create a Bookinfo gateway for managing inbound Bookinfo traffic:
-
-```sh
-oc get crd gateways.gateway.networking.k8s.io &> /dev/null ||  { oc kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.3.0" | oc apply -f -; }
-oc apply -n bookinfo -f https://raw.githubusercontent.com/istio/istio/master/samples/bookinfo/gateway-api/bookinfo-gateway.yaml
-oc wait --for=condition=Ready pods --all -n bookinfo --timeout 60s
-export INGRESS_HOST=$(oc get -n bookinfo gtw bookinfo-gateway -o jsonpath='{.status.addresses[0].value}')
-export INGRESS_PORT=$(oc get -n bookinfo gtw bookinfo-gateway -o jsonpath='{.spec.listeners[?(@.name=="http")].port}')
-export GATEWAY_URL=$INGRESS_HOST:$INGRESS_PORT
-echo "http://${GATEWAY_URL}/productpage"
-```
-
-4. Deploy a waypoint proxy and enroll the `bookinfo` namespace to use the waypoint:
+2. If you have not already done so, deploy a waypoint proxy and enroll the `bookinfo` namespace to use the waypoint:
 
 ```sh
 cat <<EOF | oc apply -f-
@@ -348,13 +324,13 @@ EOF
 oc label namespace bookinfo istio.io/use-waypoint=waypoint
 ```
 
-5. Send some traffic to the Bookinfo `productpage` service for generating traces:
+3. Send some traffic to the Bookinfo `productpage` service for generating traces:
 
 ```sh
 curl "http://${GATEWAY_URL}/productpage" | grep "<title>"
 ```
 
-6. Validate the Bookinfo application traces in a Tempo dashboard UI. You can find the dashboard UI route by running the following command:
+4. Validate the Bookinfo application traces in a Tempo dashboard UI. You can find the dashboard UI route by running the following command:
 
 ```sh
 oc get routes -n tempo tempo-sample-query-frontend
