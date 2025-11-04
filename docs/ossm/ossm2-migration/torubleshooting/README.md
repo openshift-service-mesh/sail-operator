@@ -24,7 +24,7 @@ This error means the workload is not able to communicate with the new control pl
     - 3.0 control plane watches all namespaces by default unless it's limited e.g. by `discoverySelectors`.
 
 ## Newly added workloads during the migration fails to start
-Although it's not recommended, it might be necessary to add new namespaces to the mesh in the middle of the migration process. The init container might be failing with:
+Although not recommended, you might need to add new namespaces to the mesh during the migration process. In such cases, the init container might fail with the following error:
 
     `MountVolume.SetUp failed for volume "istiod-ca-cert" : configmap "istio-ca-root-cert" not found`
 
