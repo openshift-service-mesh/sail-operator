@@ -77,6 +77,10 @@ link:../[Return to Project Root]
 ** link:common/istio-ambient-waypoint.adoc#layer-7-features-in-ambient-mode[Layer 7 Features in Ambient Mode]
 ** link:common/istio-ambient-waypoint.adoc#troubleshoot-issues[Troubleshoot issues]
 ** link:common/istio-ambient-waypoint.adoc#cleanup[Cleanup]
+* link:common/coexistence.adoc#coexistence-of-ambient-and-sidecar-mode[Coexistence of Ambient and sidecar mode]
+** link:common/coexistence.adoc#requirements-for-coexistence[Requirements]
+** link:common/coexistence.adoc#supported-use-cases-in-coexistence-mode[Supported use-cases]
+** link:common/coexistence.adoc#limitations-and-unsupported-use-cases[Limitations and gaps]
 * link:addons/addons.adoc#addons[Addons]
 ** link:addons/addons.adoc#deploy-prometheus-and-jaeger-addons[Deploy Prometheus and Jaeger addons]
 ** link:addons/addons.adoc#deploy-kiali-addon[Deploy Kiali addon]
@@ -174,7 +178,7 @@ As you can see in the YAML above, `IstioRevisionTag` really only has one field i
 [#istiocni-resource]
 === IstioCNI resource
 
-The lifecycle of Istio's CNI plugin is managed separately when using Sail Operator. To install it, you can create an `IstioCNI` resource. The `IstioCNI` resource is a cluster-wide resource as it will install a `DaemonSet` that will be operating on all nodes of your cluster.
+The lifecycle of Istio's CNI plugin is managed separately when using Sail Operator. To install it, you can create an `IstioCNI` resource. The `IstioCNI` resource is a cluster-wide resource as it will install a `DaemonSet` that will be operating on all nodes of your cluster. The `metadata.name` field must be set to `default`, as enforced by a CRD validation rule that guarantees only one `IstioCNI` custom resource exists cluster-wide.
 
 [source,yaml]
 ----
@@ -316,3 +320,7 @@ The Sail Operator uses InUse detection to determine whether an object is referen
 == API Reference documentation
 
 The Sail Operator API reference documentation can be found link:api-reference/sailoperator.io.adoc#api-reference[here].
+
+== AI Agents Guide
+
+For developers using AI coding assistants (Claude, GitHub Copilot, Cursor, etc.), see the link:ai/ai-agents-guide.adoc[AI Agents Guide] for information on how to configure and use the Sail Operator's AI agent context files.
