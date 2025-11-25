@@ -31,7 +31,7 @@ metadata:
           }
         },
         {
-          "apiVersion": "sailoperator.io/v1alpha1",
+          "apiVersion": "sailoperator.io/v1",
           "kind": "ZTunnel",
           "metadata": {
             "name": "default"
@@ -45,7 +45,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: OpenShift Optional, Integration & Delivery, Networking, Security
     containerImage: ${OSSM_OPERATOR_3_2}
-    createdAt: "2025-11-18T10:58:49Z"
+    createdAt: "2025-11-25T12:07:49Z"
     description: The OpenShift Service Mesh Operator enables you to install, configure, and manage an instance of Red Hat OpenShift Service Mesh. OpenShift Service Mesh is based on the open source Istio project.
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "true"
@@ -146,6 +146,9 @@ spec:
       - kind: WorkloadGroup
         name: workloadgroups.networking.istio.io
         version: v1beta1
+      - kind: ZTunnel
+        name: ztunnels.sailoperator.io
+        version: v1alpha1
       - kind: AuthorizationPolicy
         name: authorizationpolicies.security.istio.io
         version: v1
@@ -373,18 +376,10 @@ spec:
             path: namespace
             x-descriptors:
               - urn:alm:descriptor:io.kubernetes:Namespace
-          - description: |-
-              The built-in installation configuration profile to use.
-              The 'default' profile is 'ambient' and it is always applied.
-              Must be one of: ambient, default, demo, empty, external, preview, remote, stable.
-            displayName: Profile
-            path: profile
-            x-descriptors:
-              - urn:alm:descriptor:com.tectonic.ui:hidden
           - description: Defines the values to be passed to the Helm charts when installing Istio ztunnel.
             displayName: Helm Values
             path: values
-        version: v1alpha1
+        version: v1
   description: |-
     Red Hat OpenShift Service Mesh is a platform that provides behavioral insight and operational control over a service mesh, providing a uniform way to connect, secure, and monitor microservice applications.
 
