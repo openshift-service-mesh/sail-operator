@@ -58,3 +58,58 @@ For this lab, we'll use two clusters referred to as "East" and "West". You'll ne
    # Verify West cluster
    kwest get nodes
    ```
+
+### Setup Certificates
+
+We create different root and intermediate certificate authorities (CAs) for each mesh, as it was allowed in OSSM 2 federation.
+
+1. Download the certificate generation tools from the Istio repository:
+
+   ```bash
+   wget https://raw.githubusercontent.com/istio/istio/release-1.22/tools/certs/common.mk -O common.mk
+   wget https://raw.githubusercontent.com/istio/istio/release-1.22/tools/certs/Makefile.selfsigned.mk -O Makefile.selfsigned.mk
+   ```
+
+1. Generate certificates for each cluster:
+
+   ```bash
+   # east
+   make -f Makefile.selfsigned.mk \
+     ROOTCA_CN="East Root CA" \
+     ROOTCA_ORG=my-company.org \
+     root-ca
+   make -f Makefile.selfsigned.mk \
+     INTERMEDIATE_CN="East Intermediate CA" \
+     INTERMEDIATE_ORG=my-company.org \
+     east-cacerts
+   make -f common.mk clean
+   # west
+   make -f Makefile.selfsigned.mk \
+     ROOTCA_CN="West Root CA" \
+     ROOTCA_ORG=my-company.org \
+     root-ca
+   make -f Makefile.selfsigned.mk \
+     INTERMEDIATE_CN="West Intermediate CA" \
+     INTERMEDIATE_ORG=my-company.org \
+     west-cacerts
+   make -f common.mk clean
+   ```
+
+1. Create the certificate secrets in both clusters:
+
+   ```bash
+   # east
+   keast create namespace istio-system
+   keast create secret generic cacerts -n istio-system \
+     --from-file=root-cert.pem=east/root-cert.pem \
+     --from-file=ca-cert.pem=east/ca-cert.pem \
+     --from-file=ca-key.pem=east/ca-key.pem \
+     --from-file=cert-chain.pem=east/cert-chain.pem
+   # west
+   kwest create namespace istio-system
+   kwest create secret generic cacerts -n istio-system \
+     --from-file=root-cert.pem=west/root-cert.pem \
+     --from-file=ca-cert.pem=west/ca-cert.pem \
+     --from-file=ca-key.pem=west/ca-key.pem \
+     --from-file=cert-chain.pem=west/cert-chain.pem
+   ```
