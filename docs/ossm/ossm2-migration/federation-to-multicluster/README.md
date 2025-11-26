@@ -22,3 +22,39 @@ Before beginning the migration, ensure you have:
   - See [Running OSSM 2 and OSSM 3 side by side](../../ossm-2-and-ossm-3-side-by-side/README.md) for installation instructions
 - Cluster admin access to all clusters
 - Network connectivity between clusters for cross-cluster communication
+
+## Lab Setup
+
+This section provides step-by-step instructions for setting up a lab environment to demonstrate the migration from OSSM 2.6 federation to OSSM 3.x multi-cluster.
+
+### Environment Setup
+
+For this lab, we'll use two clusters referred to as "East" and "West". You'll need to set up environment variables pointing to the kubeconfig files for each cluster.
+
+1. Export the kubeconfig paths for both clusters:
+
+   ```bash
+   export EAST_AUTH_PATH=/path/to/east/kubeconfig
+   export WEST_AUTH_PATH=/path/to/west/kubeconfig
+   ```
+
+   Ensure that a file named `kubeconfig` exists at both `$EAST_AUTH_PATH` and `$WEST_AUTH_PATH` locations with the appropriate cluster credentials.
+
+1. Set up command aliases for easier cluster access:
+
+   ```bash
+   alias keast="KUBECONFIG=$EAST_AUTH_PATH/kubeconfig kubectl"
+   alias ieast="istioctl --kubeconfig=$EAST_AUTH_PATH/kubeconfig"
+   alias kwest="KUBECONFIG=$WEST_AUTH_PATH/kubeconfig kubectl"
+   alias iwest="istioctl --kubeconfig=$WEST_AUTH_PATH/kubeconfig"
+   ```
+
+1. Verify connectivity to both clusters:
+
+   ```bash
+   # Verify East cluster
+   keast get nodes
+
+   # Verify West cluster
+   kwest get nodes
+   ```
