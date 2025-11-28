@@ -154,6 +154,8 @@ BUNDLE_MANIFEST_DATE := $(shell cat bundle/manifests/${OPERATOR_NAME}.clusterser
 BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
 # BUNDLE_GEN_FLAGS are the flags passed to the operator-sdk generate bundle command
+# We are overwriting the version as we are appending a suffix for nightly builds,
+# otherwise it would be taken directly from helm values.
 BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 
 # USE_IMAGE_DIGESTS defines if images are resolved via tags or digests
@@ -171,6 +173,8 @@ endif
 # Default values and flags used when rendering chart templates locally
 HELM_VALUES_FILE ?= chart/values.yaml
 HELM_TEMPL_DEF_FLAGS ?= --include-crds --values $(HELM_VALUES_FILE)
+# When true, all operand images will be added to the HELM_VALUES_FILE automatically
+PATCH_HELM_VALUES ?= true
 
 TODAY ?= $(shell date -I)
 
@@ -512,10 +516,12 @@ operator-chart: download-istio-charts # pull the charts first as they are requir
 	sed -i -e "s/^\(version: \).*$$/\1${VERSION}/g" \
 	       -e "s/^\(appVersion: \).*$$/\1\"${VERSION}\"/g" chart/Chart.yaml
 	sed -i -e "s|^\(image: \).*$$|\1${IMAGE}|g" \
-	       -e "s/^\(  version: \).*$$/\1${VERSION}/g" chart/values.yaml
+	       -e "s/^\(  version: \).*$$/\1${VERSION}/g" ${HELM_VALUES_FILE}
 	# adding all component images to values
 	# when building the bundle, helm generated base CSV is passed to the operator-sdk. With USE_IMAGE_DIGESTS=true, operator-sdk replaces all pullspecs with tags by digests and adds spec.relatedImages field automatically
-	@hack/patch-values.sh chart/values.yaml
+ifeq ($(PATCH_HELM_VALUES), true)
+	@hack/patch-values.sh ${HELM_VALUES_FILE}
+endif
 
 .PHONY: update-istio
 update-istio: ## Update the Istio commit hash in the 'latest' entry in versions.yaml to the latest commit in the branch.
@@ -524,6 +530,12 @@ update-istio: ## Update the Istio commit hash in the 'latest' entry in versions.
 .PHONY: update-istio-samples
 update-istio-samples: ## Update the Istio samples files located in the samples folder to match the latest Istio upstream version of the charts.
 	@hack/update-istio-samples.sh
+
+.PHONY: update-deps
+update-deps: ## Update all dependencies including tools, Go modules, and operator components.
+	@echo "Running dependency update script..."
+	@tools/update_deps.sh
+	@echo "Dependency update completed successfully."
 
 .PHONY: print-variables
 print-variables: ## Print all Makefile variables; Useful to inspect overrides of variables.
@@ -551,15 +563,15 @@ RUNME ?= $(LOCALBIN)/runme
 MISSPELL ?= $(LOCALBIN)/misspell
 
 ## Tool Versions
-OPERATOR_SDK_VERSION ?= v1.41.1
-HELM_VERSION ?= v3.19.0
+OPERATOR_SDK_VERSION ?= v1.42.0
+HELM_VERSION ?= v3.19.2
 CONTROLLER_TOOLS_VERSION ?= v0.19.0
 CONTROLLER_RUNTIME_BRANCH ?= release-0.22
-OPM_VERSION ?= v1.60.0
-OLM_VERSION ?= v0.34.0
-GITLEAKS_VERSION ?= v8.28.0
+OPM_VERSION ?= v1.61.0
+OLM_VERSION ?= v0.38.0
+GITLEAKS_VERSION ?= v8.29.1
 ISTIOCTL_VERSION ?= 1.26.2
-RUNME_VERSION ?= 3.15.3
+RUNME_VERSION ?= 3.16.1
 MISSPELL_VERSION ?= v0.3.4
 
 .PHONY: helm $(HELM)
