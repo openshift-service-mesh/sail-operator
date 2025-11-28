@@ -231,6 +231,99 @@ var _ = Describe("IstioRevision resource", Label("istiorevision"), Ordered, func
 		})
 	})
 
+	Describe("ZTunnel dependency checks", func() {
+		ztunnelName := "default"
+		ztunnelKey := client.ObjectKey{Name: ztunnelName}
+		ztunnel := &v1.ZTunnel{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: ztunnelName,
+			},
+			Spec: v1.ZTunnelSpec{
+				Version:   istioversion.Default,
+				Namespace: istioNamespace,
+			},
+		}
+
+		// Create IstioCNI as ambient mode requires it
+		cni := &v1.IstioCNI{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: cniName,
+			},
+			Spec: v1.IstioCNISpec{
+				Version:   istioversion.Default,
+				Namespace: istioNamespace,
+			},
+		}
+
+		BeforeAll(func() {
+			Expect(k8sClient.Create(ctx, cni)).To(Succeed())
+			// Wait for CNI DaemonSet to be created
+			dsKey := client.ObjectKey{Name: "istio-cni-node", Namespace: istioNamespace}
+			ds := &appsv1.DaemonSet{}
+			Eventually(k8sClient.Get).WithArguments(ctx, dsKey, ds).Should(Succeed())
+			// Make CNI healthy
+			ds.Status.CurrentNumberScheduled = 3
+			ds.Status.NumberReady = 3
+			Expect(k8sClient.Status().Update(ctx, ds)).To(Succeed())
+			expectCNICondition(ctx, v1.IstioCNIConditionReady, metav1.ConditionTrue)
+
+			rev = &v1.IstioRevision{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: revName,
+				},
+				Spec: v1.IstioRevisionSpec{
+					Version:   istioversion.Default,
+					Namespace: istioNamespace,
+					Values: &v1.Values{
+						Revision: ptr.Of(revName),
+						Profile:  ptr.Of("ambient"),
+						Global: &v1.GlobalConfig{
+							IstioNamespace: ptr.Of(istioNamespace),
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, rev)).To(Succeed())
+		})
+
+		AfterAll(func() {
+			deleteAllIstioRevisions(ctx)
+
+			Expect(k8sClient.Delete(ctx, ztunnel)).To(Succeed())
+			Eventually(k8sClient.Get).WithArguments(ctx, ztunnelKey, ztunnel).Should(ReturnNotFoundError())
+
+			Expect(k8sClient.Delete(ctx, cni)).To(Succeed())
+			Eventually(k8sClient.Get).WithArguments(ctx, cniKey, cni).Should(ReturnNotFoundError())
+		})
+
+		It("shows dependencies unhealthy when ZTunnel is missing", func() {
+			expectCondition(ctx, revName, v1.IstioRevisionConditionDependenciesHealthy, metav1.ConditionFalse,
+				func(g Gomega, condition *v1.IstioRevisionCondition) {
+					g.Expect(condition.Reason).To(Equal(v1.IstioRevisionReasonZTunnelNotFound))
+				})
+		})
+
+		It("shows dependencies unhealthy when ZTunnel is unhealthy", func() {
+			Expect(k8sClient.Create(ctx, ztunnel)).To(Succeed())
+			expectCondition(ctx, revName, v1.IstioRevisionConditionDependenciesHealthy, metav1.ConditionFalse,
+				func(g Gomega, condition *v1.IstioRevisionCondition) {
+					g.Expect(condition.Reason).To(Equal(v1.IstioRevisionReasonZTunnelNotHealthy))
+				})
+		})
+
+		It("shows dependencies healthy when ZTunnel is healthy", func() {
+			dsKey := client.ObjectKey{Name: "ztunnel", Namespace: ztunnel.Spec.Namespace}
+			ds := &appsv1.DaemonSet{}
+			Expect(k8sClient.Get(ctx, dsKey, ds)).To(Succeed())
+			ds.Status.CurrentNumberScheduled = 3
+			ds.Status.NumberReady = 3
+			Expect(k8sClient.Status().Update(ctx, ds)).To(Succeed())
+
+			expectZTunnelCondition(ctx, v1.ZTunnelConditionReady, metav1.ConditionTrue)
+			expectCondition(ctx, revName, v1.IstioRevisionConditionDependenciesHealthy, metav1.ConditionTrue)
+		})
+	})
+
 	Describe("target namespace dependency checks", func() {
 		When("IstioRevision is created before the target namespace", func() {
 			nsName := "nonexistent-namespace-" + rand.String(8)
@@ -560,6 +653,32 @@ var _ = Describe("IstioRevision resource", Label("istiorevision"), Ordered, func
 
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(sa), sa)).To(Succeed())
 			Expect(sa.ImagePullSecrets).To(ContainElement(corev1.LocalObjectReference{Name: "other-pull-secret"}))
+		})
+
+		It("skips reconcile when sailoperator.io/ignore annotation is set to true on a resource", func() {
+			waitForInFlightReconcileToFinish()
+
+			webhook := &admissionv1.MutatingWebhookConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "istio-sidecar-injector-" + revName + "-" + istioNamespace,
+				},
+			}
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(webhook), webhook)).To(Succeed())
+
+			GinkgoWriter.Println("webhook:", webhook)
+
+			expectNoReconciliation(istioRevisionController, func() {
+				By("adding sailoperator.io/ignore annotation to ConfigMap")
+				webhook.Annotations = map[string]string{
+					"sailoperator.io/ignore": "true",
+				}
+				webhook.Labels["app"] = "sidecar-injector-test"
+				Expect(k8sClient.Update(ctx, webhook)).To(Succeed())
+			})
+
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(webhook), webhook)).To(Succeed())
+			Expect(webhook.Annotations["sailoperator.io/ignore"]).To(Equal("true"))
+			Expect(webhook.Labels["app"]).To(Equal("sidecar-injector-test"))
 		})
 	})
 
@@ -896,4 +1015,22 @@ func expectCondition(ctx context.Context, name string, condition v1.IstioRevisio
 			check(g, &condition)
 		}
 	}).Should(Succeed(), "Expected condition %q to be %q on IstioRevision: %s", condition, status, name)
+}
+
+// expectZTunnelCondition on the ZTunnel resource to eventually have a given status.
+func expectZTunnelCondition(ctx context.Context, condition v1.ZTunnelConditionType, status metav1.ConditionStatus,
+	extraChecks ...func(Gomega, *v1.ZTunnelCondition),
+) {
+	ztunnelKey := client.ObjectKey{Name: "default"}
+	ztunnel := v1.ZTunnel{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, ztunnelKey, &ztunnel)).To(Succeed())
+		g.Expect(ztunnel.Status.ObservedGeneration).To(Equal(ztunnel.ObjectMeta.Generation))
+
+		condition := ztunnel.Status.GetCondition(condition)
+		g.Expect(condition.Status).To(Equal(status))
+		for _, check := range extraChecks {
+			check(g, &condition)
+		}
+	}).Should(Succeed())
 }
