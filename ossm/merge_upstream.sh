@@ -75,6 +75,9 @@ main () {
   rm -rf bundle/**/*.yaml resources bundle.Dockerfile
   # TODO, fix this to add versions not replacing them
   #updateVersionsInOssmValuesYaml
+  # even if we specify ossm/values.yaml via HELM_VALUES_FILE, helm by design merges annotations specified in chart/values.yaml and ossm/values.yaml
+  # to only keep annotations specified in ossm/values.yaml, it's necessary to overwrite all annotations in chart/values.yaml
+  yq -i '.deployment.annotations = {}' chart/values.yaml
   make gen
   git add .
 

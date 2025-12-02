@@ -1,6 +1,8 @@
 name: servicemeshoperator3
 deployment:
   name: servicemesh-operator3
+  # even if we specify ossm/values.yaml via HELM_VALUES_FILE, helm by design merges annotations specified in chart/values.yaml and ossm/values.yaml
+  # to only keep annotations specified in ossm/values.yaml, it's necessary to overwrite all annotations in chart/values.yaml. This is done when merging upstream changes via ossm/merge_upstream.sh
   annotations:
     # 1.24.3 images are hardcoded to versions released with 3.0.0
     images.v1_24_3.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:d6693c31d6137c4219812cf69097d04654b296e0ab059dc48596a09b9cd124b1
