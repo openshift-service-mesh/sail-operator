@@ -113,3 +113,159 @@ We create different root and intermediate certificate authorities (CAs) for each
      --from-file=ca-key.pem=west/ca-key.pem \
      --from-file=cert-chain.pem=west/cert-chain.pem
    ```
+
+## Installing OSSM 2.6 Control Planes with Federation
+
+Now we'll install OSSM 2.6 control planes in both clusters with federation ingress and egress gateways configured. This setup allows the two meshes to communicate across clusters.
+
+### Deploy ServiceMeshControlPlane in East Cluster
+
+1. Create the ServiceMeshControlPlane in the east cluster with federation gateways:
+
+   ```bash
+   keast apply -f - <<EOF
+   apiVersion: maistra.io/v2
+   kind: ServiceMeshControlPlane
+   metadata:
+     name: basic
+     namespace: istio-system
+   spec:
+     version: v2.6
+     addons:
+       grafana:
+         enabled: false
+       kiali:
+         enabled: false
+       prometheus:
+         enabled: false
+     tracing:
+       type: None
+     proxy:
+       accessLogging:
+         file:
+           name: /dev/stdout
+     gateways:
+       ingress:
+         enabled: false
+       egress:
+         enabled: false
+       additionalEgress:
+         west-mesh-egress:
+           enabled: true
+           requestedNetworkView:
+           - network-west-mesh
+           service:
+             metadata:
+               labels:
+                 federation.maistra.io/egress-for: west-mesh
+             ports:
+             - port: 15443
+               name: tls
+             - port: 8188
+               name: http-discovery
+       additionalIngress:
+         west-mesh-ingress:
+           enabled: true
+           service:
+             type: LoadBalancer
+             metadata:
+               labels:
+                 federation.maistra.io/ingress-for: west-mesh
+             ports:
+             - port: 15443
+               name: tls
+             - port: 8188
+               name: https-discovery
+     security:
+       identity:
+         type: ThirdParty
+       trust:
+         domain: east.local
+   EOF
+   ```
+
+### Deploy ServiceMeshControlPlane in West Cluster
+
+1. Create the ServiceMeshControlPlane in the west cluster with federation gateways:
+
+   ```bash
+   kwest apply -f - <<EOF
+   apiVersion: maistra.io/v2
+   kind: ServiceMeshControlPlane
+   metadata:
+     name: basic
+     namespace: istio-system
+   spec:
+     version: v2.6
+     addons:
+       grafana:
+         enabled: false
+       kiali:
+         enabled: false
+       prometheus:
+         enabled: false
+     tracing:
+       type: None
+     proxy:
+       accessLogging:
+         file:
+           name: /dev/stdout
+     gateways:
+       ingress:
+         enabled: false
+       egress:
+         enabled: false
+       additionalEgress:
+         east-mesh-egress:
+           enabled: true
+           requestedNetworkView:
+           - network-east-mesh
+           service:
+             metadata:
+               labels:
+                 federation.maistra.io/egress-for: east-mesh
+             ports:
+             - port: 15443
+               name: tls
+             - port: 8188
+               name: http-discovery
+       additionalIngress:
+         east-mesh-ingress:
+           enabled: true
+           service:
+             type: LoadBalancer
+             metadata:
+               labels:
+                 federation.maistra.io/ingress-for: east-mesh
+             ports:
+             - port: 15443
+               name: tls
+             - port: 8188
+               name: https-discovery
+     security:
+       identity:
+         type: ThirdParty
+       trust:
+         domain: west.local
+   EOF
+   ```
+
+### Verify the Installation
+
+1. Verify that the control planes are running in both clusters:
+
+   ```bash
+   keast get smcp -n istio-system
+   kwest get smcp -n istio-system
+   ```
+
+1. Verify that the federation gateways are deployed:
+
+   ```bash
+   # east
+   keast get pods -n istio-system -l federation.maistra.io/egress-for=west-mesh
+   keast get pods -n istio-system -l federation.maistra.io/ingress-for=west-mesh
+   # west
+   kwest get pods -n istio-system -l federation.maistra.io/egress-for=east-mesh
+   kwest get pods -n istio-system -l federation.maistra.io/ingress-for=east-mesh
+   ```
