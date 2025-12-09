@@ -27,6 +27,9 @@ Before you begin to migrate your controlplane from OpenShift Service Mesh 2.6 to
 > [!WARNING]
 > You must upgrade your OpenShift Service Mesh 2 Operator to the latest release **before** you install the OpenShift Service Mesh 3 operator. If you upgrade your OpenShift Service Mesh 2 operator _after_ you install your OpenShift Service Mesh 3 operator, you will need to then uninstall and reinstall your OpenShift Service Mesh 3 operator to ensure the included CRDs are up to date.
 
+> [!WARNING]
+> Some users have encountered issues when installing the OSSM 3 operator where the operator fails to install due to outdated custom resources present in the cluster. Specifically, users have run into issues with outdated `ServiceEntry` resources, for which the CRD schema changed in upstream Istio version 1.24. The two issues that have been observed so far are old ServiceEntries which did not include port numbers, and old ServiceEntries which exceed the current maximum number of hostnames in a ServiceEntry. Please keep these on your radar during the migration process.
+
 By the end of this checklist, your `ServiceMeshControlPlane` should look something like this:
 
 ```yaml
