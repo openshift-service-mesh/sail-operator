@@ -31,11 +31,11 @@ This section provides step-by-step instructions for setting up a lab environment
 
 For this lab, we'll use two clusters referred to as "East" and "West". You'll need to set up environment variables pointing to the kubeconfig files for each cluster.
 
-1. Export the kubeconfig paths for both clusters:
+1. Export paths to directories with kubeconfigs for each cluster:
 
    ```bash
-   export EAST_AUTH_PATH=/path/to/east/kubeconfig
-   export WEST_AUTH_PATH=/path/to/west/kubeconfig
+   export EAST_AUTH_PATH=/path/to/east
+   export WEST_AUTH_PATH=/path/to/west
    ```
 
    Ensure that a file named `kubeconfig` exists at both `$EAST_AUTH_PATH` and `$WEST_AUTH_PATH` locations with the appropriate cluster credentials.
@@ -130,6 +130,7 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
      name: basic
      namespace: istio-system
    spec:
+     mode: ClusterWide
      version: v2.6
      addons:
        grafana:
@@ -150,7 +151,7 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
        egress:
          enabled: false
        additionalEgress:
-         west-mesh-egress:
+         federation-egress:
            enabled: true
            requestedNetworkView:
            - network-west-mesh
@@ -164,18 +165,22 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
              - port: 8188
                name: http-discovery
        additionalIngress:
-         west-mesh-ingress:
+         federation-ingress:
            enabled: true
            service:
              type: LoadBalancer
              metadata:
                labels:
-                 federation.maistra.io/ingress-for: west-mesh
+                 federation.maistra.io/ingress-for: east-mesh
              ports:
              - port: 15443
                name: tls
              - port: 8188
                name: https-discovery
+     general:
+       logging:
+         componentLevels:
+           default: info
      security:
        identity:
          type: ThirdParty
@@ -196,6 +201,7 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
      name: basic
      namespace: istio-system
    spec:
+     mode: ClusterWide
      version: v2.6
      addons:
        grafana:
@@ -216,7 +222,7 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
        egress:
          enabled: false
        additionalEgress:
-         east-mesh-egress:
+         federation-egress:
            enabled: true
            requestedNetworkView:
            - network-east-mesh
@@ -230,18 +236,22 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
              - port: 8188
                name: http-discovery
        additionalIngress:
-         east-mesh-ingress:
+         federation-ingress:
            enabled: true
            service:
              type: LoadBalancer
              metadata:
                labels:
-                 federation.maistra.io/ingress-for: east-mesh
+                 federation.maistra.io/ingress-for: west-mesh
              ports:
              - port: 15443
                name: tls
              - port: 8188
                name: https-discovery
+     general:
+       logging:
+         componentLevels:
+           default: info
      security:
        identity:
          type: ThirdParty
@@ -264,8 +274,162 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
    ```bash
    # east
    keast get pods -n istio-system -l federation.maistra.io/egress-for=west-mesh
-   keast get pods -n istio-system -l federation.maistra.io/ingress-for=west-mesh
+   keast get pods -n istio-system -l federation.maistra.io/ingress-for=east-mesh
    # west
    kwest get pods -n istio-system -l federation.maistra.io/egress-for=east-mesh
-   kwest get pods -n istio-system -l federation.maistra.io/ingress-for=east-mesh
+   kwest get pods -n istio-system -l federation.maistra.io/ingress-for=west-mesh
+   ```
+
+### Configure mesh federation
+
+1. In cluster `west`:
+
+   ```shell
+   kwest create cm east-mesh-ca-root-cert -n istio-system \
+     --from-file=root-cert.pem=east/root-cert.pem
+   ```
+   ```shell
+   EAST_INGRESS_IP=$(keast get svc federation-ingress -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+   ```
+   ```shell
+   kwest apply -f - <<EOF
+   apiVersion: federation.maistra.io/v1
+   kind: ServiceMeshPeer
+   metadata:
+     name: east-mesh
+     namespace: istio-system
+   spec:
+     remote:
+       addresses:
+       - "$EAST_INGRESS_IP"
+       discoveryPort: 8188
+       servicePort: 15443
+     gateways:
+       ingress:
+         name: federation-ingress
+       egress:
+         name: federation-egress
+     security:
+       trustDomain: east.local
+       clientID: east.local/ns/istio-system/sa/federation-egress-service-account
+       certificateChain:
+         kind: ConfigMap
+         name: east-mesh-ca-root-cert
+   EOF
+   ```
+
+1. In cluster `east`:
+
+   ```shell
+   keast create cm west-mesh-ca-root-cert -n istio-system \
+     --from-file=root-cert.pem=west/root-cert.pem
+   ```
+   ```shell
+   WEST_INGRESS_IP=$(kwest get svc federation-ingress -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+   ```
+   ```shell
+   keast apply -f - <<EOF
+   apiVersion: federation.maistra.io/v1
+   kind: ServiceMeshPeer
+   metadata:
+     name: west-mesh
+     namespace: istio-system
+   spec:
+     remote:
+       addresses:
+       - "$WEST_INGRESS_IP"
+       discoveryPort: 8188
+       servicePort: 15443
+     gateways:
+       ingress:
+         name: federation-ingress
+       egress:
+         name: federation-egress
+     security:
+       trustDomain: west.local
+       clientID: west.local/ns/istio-system/sa/federation-egress-service-account
+       certificateChain:
+         kind: ConfigMap
+         name: west-mesh-ca-root-cert
+   EOF
+   ```
+
+#### Verify ServiceMeshPeer Status
+
+1. Check the status of the ServiceMeshPeer in the west cluster:
+
+   ```shell
+   kwest get servicemeshpeer east-mesh -n istio-system -o jsonpath='{.status}'
+   ```
+
+1. Check the status of the ServiceMeshPeer in the east cluster:
+
+   ```shell
+   keast get servicemeshpeer west-mesh -n istio-system -o jsonpath='{.status}'
+   ```
+
+### Deploy apps
+
+1. Deploy apps in `west` cluster:
+
+   ```shell
+   # east
+   keast create ns client
+   keast label ns client istio-injection=enabled
+   keast apply -f https://raw.githubusercontent.com/istio/istio/master/samples/curl/curl.yaml -n client
+   keast patch deploy curl -n client -p '{"spec":{"template":{"metadata":{"annotations":{"sidecar.istio.io/inject":"true"}}}}}'
+   # west
+   kwest create ns a
+   kwest label ns a istio-injection=enabled
+   kwest apply -f https://raw.githubusercontent.com/istio/istio/master/samples/httpbin/httpbin.yaml -n a
+   kwest patch deploy httpbin -n a -p '{"spec":{"template":{"metadata":{"annotations":{"sidecar.istio.io/inject":"true"}}}}}'
+   kwest create ns b
+   kwest label ns b istio-injection=enabled
+   kwest apply -f https://raw.githubusercontent.com/istio/istio/master/samples/httpbin/httpbin.yaml -n b
+   kwest patch deploy httpbin -n b -p '{"spec":{"template":{"metadata":{"annotations":{"sidecar.istio.io/inject":"true"}}}}}'
+   ```
+
+1. Export apps:
+
+   ```shell
+   kwest apply -f - <<EOF
+   apiVersion: federation.maistra.io/v1
+   kind: ExportedServiceSet
+   metadata:
+     name: east-mesh
+     namespace: istio-system
+   spec:
+     exportRules:
+     - type: NameSelector
+       nameSelector:
+         namespace: a
+         name: httpbin
+     - type: NameSelector
+       nameSelector:
+         namespace: b
+         name: httpbin
+   EOF
+   ```
+
+1. Import apps:
+
+   ```shell
+   keast apply -f - <<EOF
+   apiVersion: federation.maistra.io/v1
+   kind: ImportedServiceSet
+   metadata:
+     name: west-mesh
+     namespace: istio-system
+   spec:
+     importRules:
+     - type: NameSelector
+       nameSelector:
+         namespace: a
+     - type: NameSelector
+       nameSelector:
+         namespace: b
+         alias:
+           namespace: b
+       importAsLocal: true
+   EOF
    ```
