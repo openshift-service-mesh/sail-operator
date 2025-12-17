@@ -52,10 +52,7 @@ For this lab, we'll use two clusters referred to as "East" and "West". You'll ne
 1. Verify connectivity to both clusters:
 
    ```bash
-   # Verify East cluster
    keast get nodes
-
-   # Verify West cluster
    kwest get nodes
    ```
 
@@ -141,10 +138,32 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
          enabled: false
      tracing:
        type: None
+     general:
+       logging:
+         componentLevels:
+           default: info
+     techPreview:
+       meshConfig:
+         trustDomainAliases:
+         - west.local
      proxy:
        accessLogging:
          file:
            name: /dev/stdout
+     runtime:
+       components:
+         pilot:
+           container:
+             env:
+               PILOT_MULTI_NETWORK_DISCOVER_GATEWAY_API: "true"
+     cluster:
+       network: network-east-mesh
+     security:
+       identity:
+         type: ThirdParty
+       trust:
+         domain: east.local
+       manageNetworkPolicy: false
      gateways:
        ingress:
          enabled: false
@@ -177,15 +196,6 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
                name: tls
              - port: 8188
                name: https-discovery
-     general:
-       logging:
-         componentLevels:
-           default: info
-     security:
-       identity:
-         type: ThirdParty
-       trust:
-         domain: east.local
    EOF
    ```
 
@@ -212,10 +222,26 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
          enabled: false
      tracing:
        type: None
+     general:
+       logging:
+         componentLevels:
+           default: info
+     techPreview:
+       meshConfig:
+         trustDomainAliases:
+         - east.local
      proxy:
        accessLogging:
          file:
            name: /dev/stdout
+     cluster:
+       network: network-west-mesh
+     security:
+       identity:
+         type: ThirdParty
+       trust:
+         domain: west.local
+       manageNetworkPolicy: false
      gateways:
        ingress:
          enabled: false
@@ -248,15 +274,6 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
                name: tls
              - port: 8188
                name: https-discovery
-     general:
-       logging:
-         componentLevels:
-           default: info
-     security:
-       identity:
-         type: ThirdParty
-       trust:
-         domain: west.local
    EOF
    ```
 
@@ -433,3 +450,185 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
        importAsLocal: true
    EOF
    ```
+
+### Migration process
+
+#### Export
+
+1. Create a ServiceEntry for the exported service:
+
+   ```shell
+   kwest apply -f - <<EOF
+   apiVersion: networking.istio.io/v1beta1
+   kind: ServiceEntry
+   metadata:
+     name: httpbin-a-svc-east-mesh-exports-local
+     namespace: a
+   spec:
+     hosts:
+     - httpbin.a.svc.west-mesh-imports.local
+     location: MESH_INTERNAL
+     ports:
+     - number: 8000
+       name: http
+       protocol: HTTP
+       targetPort: 8080
+     resolution: STATIC
+     workloadSelector:
+       labels:
+         app: httpbin
+   EOF
+   ```
+
+1. Deploy custom federation ingress gateway for the exported services:
+
+   ```shell
+   kwest apply -f - <<EOF
+   apiVersion: gateway.networking.k8s.io/v1
+   kind: Gateway
+   metadata:
+     name: eastwestgateway
+     namespace: istio-system
+     labels:
+       topology.istio.io/network: network-west-mesh
+   spec:
+     gatewayClassName: istio
+     listeners:
+     - name: cross-network
+       hostname: fake-hostname-to-block-all-by-default
+       port: 15443
+       protocol: TLS
+       tls:
+         mode: Passthrough
+         options:
+           gateway.istio.io/listener-protocol: auto-passthrough
+   ---
+   apiVersion: networking.istio.io/v1alpha3
+   kind: Gateway
+   metadata:
+     name: expose-services
+   spec:
+     selector:
+       istio.io/gateway-name: eastwestgateway
+     servers:
+     - port:
+         number: 15443
+         name: tls
+         protocol: TLS
+       tls:
+         mode: AUTO_PASSTHROUGH
+       hosts:
+         - "httpbin.a.svc.west-mesh-imports.local"
+         - "httpbin.b.svc.cluster.local"
+   EOF
+   ```
+
+#### Import
+
+1. Create remote Gateway:
+
+   ```shell
+   WEST_REMOTE_IP=$(kwest get svc eastwestgateway-istio -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+   ```
+   ```shell
+   keast apply -f - <<EOF
+   apiVersion: gateway.networking.k8s.io/v1beta1
+   kind: Gateway
+   metadata:
+     name: remote-gateway-network-west-mesh
+     namespace: istio-system
+     labels:
+       topology.istio.io/network: network-west-mesh
+   spec:
+     gatewayClassName: istio-remote
+     addresses:
+     - value: "$WEST_REMOTE_IP"
+     listeners:
+     - name: cross-network
+       port: 15443
+       protocol: TLS
+       tls:
+         mode: Passthrough
+         options:
+           gateway.istio.io/listener-protocol: auto-passthrough
+   EOF
+   ```
+
+1. Create ServiceEntry for imported services:
+
+   ```shell
+   keast apply -f - <<EOF
+   apiVersion: networking.istio.io/v1beta1
+   kind: ServiceEntry
+   metadata:
+     name: httpbin-b-svc-cluster-local
+     namespace: client
+   spec:
+     hosts:
+     - httpbin.b.svc.cluster.local
+     location: MESH_INTERNAL
+     ports:
+     - number: 8000
+       name: http
+       protocol: HTTP
+     resolution: STATIC
+     subjectAltNames:
+     - "spiffe://west.local/ns/b/sa/httpbin"
+     workloadSelector:
+       labels:
+         app: httpbin-cluster-local
+   ---
+   apiVersion: networking.istio.io/v1beta1
+   kind: WorkloadEntry
+   metadata:
+     name: httpbin-cluster-local-west-mesh
+     namespace: client
+     labels:
+       app: httpbin-cluster-local
+       security.istio.io/tlsMode: istio
+   spec:
+     network: network-west-mesh
+   EOF
+   ```
+   
+   ```shell
+   keast apply -f - <<EOF
+   apiVersion: networking.istio.io/v1beta1
+   kind: ServiceEntry
+   metadata:
+     name: httpbin-west-mesh-imports
+     namespace: client
+   spec:
+     hosts:
+     - httpbin.a.svc.west-mesh-imports.local
+     location: MESH_INTERNAL
+     ports:
+     - number: 8000
+       name: http
+       protocol: HTTP
+     resolution: STATIC
+     subjectAltNames:
+     - "spiffe://west.local/ns/a/sa/httpbin"
+     workloadSelector:
+       labels:
+         app: httpbin-west-imports
+   ---
+   apiVersion: networking.istio.io/v1beta1
+   kind: WorkloadEntry
+   metadata:
+     name: httpbin-west-mesh-imports
+     namespace: client
+     labels:
+       app: httpbin-west-imports
+       security.istio.io/tlsMode: istio
+   spec:
+     network: network-west-mesh
+   EOF
+   ```
+
+### Verify connectivity
+
+```shell
+keast exec -n client deploy/curl -c curl -- curl -v httpbin.a.svc.west-mesh-imports.local:8000/headers
+keast exec -n client deploy/curl -c curl -- curl -v httpbin.b.svc.cluster.local:8000/headers
+```
