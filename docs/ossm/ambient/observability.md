@@ -151,7 +151,7 @@ spec:
 EOF
 ```
 
-5. A waypoint is an optional proxy that can be deployed to provide layer 7 (e.g. HTTP) features, such as metrics and traces in ambient mode. Deploy a waypoint proxy. The steps can be found [here](https://github.com/openshift-service-mesh/sail-operator/blob/main/docs/ossm/ambient/README.md#36-about-the-bookinfo-application).
+5. A waypoint is an optional proxy that can be deployed to provide layer 7 (e.g. HTTP) features, such as metrics and traces in ambient mode. Deploy a waypoint proxy. The steps can be found [here](https://github.com/openshift-service-mesh/sail-operator/blob/main/docs/ossm/ambient/waypoint.md#3-waypoint-proxies).
 
 6. Create a `PodMonitor` resource for collecting waypoint proxies metrics in an application namespace such as `bookinfo`:
 
