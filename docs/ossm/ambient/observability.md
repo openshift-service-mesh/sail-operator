@@ -57,26 +57,19 @@ oc wait --for=condition=Ready pods --all -n openshift-user-workload-monitoring -
 
 1. The example below will use the sample Bookinfo application. If you have not already done so, deploy the sample Bookinfo applications. The steps can be found [here](https://github.com/openshift-service-mesh/sail-operator/blob/main/docs/ossm/ambient/README.md#36-about-the-bookinfo-application).
 
-2. Create a `Service` resource to use the metrics exposed by the ztunnel.
+2. Create a `Telemetry` resource in the Istio Control Plane namespace to ensure Prometheus is a metrics provider:
 
 ```sh
 cat <<EOF | oc apply -f-
-apiVersion: v1
-kind: Service
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
 metadata:
-  name: ztunnel
-  namespace: ztunnel
-  labels:
-    app: ztunnel
-    service: ztunnel
+  name: enable-prometheus-metrics
+  namespace: istio-system
 spec:
-  selector:
-    app: ztunnel
-  ports:
-    - name: http-monitoring
-      protocol: TCP
-      port: 15020
-      targetPort: 15020
+  metrics:
+  - providers:
+    - name: prometheus
 EOF
 ```
 
@@ -101,72 +94,119 @@ spec:
 EOF
 ```
 
-4. Create a `ServiceMonitor` resource for collecting the ztunnel metrics:
+4. Create a `PodMonitor` resource in the `ztunnel` namespace for collecting the ztunnel metrics:
 
 ```sh
 cat <<EOF | oc apply -f-
 apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
+kind: PodMonitor
 metadata:
-  name: ztunnel-monitor
+  name: istio-ztunnel-monitor
   namespace: ztunnel
 spec:
-  targetLabels:
-  - app
   selector:
-    matchLabels:
-      service: ztunnel
-  endpoints:
-  - port: http-monitoring
+    matchExpressions:
+    - key: istio-prometheus-ignore
+      operator: DoesNotExist
+  podMetricsEndpoints:
+  - path: /stats/prometheus
     interval: 30s
+    relabelings:
+    - action: keep
+      sourceLabels: [__meta_kubernetes_pod_container_name]
+      regex: "istio-proxy"
+    - action: keep
+      sourceLabels: [__meta_kubernetes_pod_annotationpresent_prometheus_io_scrape]
+    - action: replace
+      regex: (\\d+);(([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4})
+      replacement: '[\$2]:\$1'
+      sourceLabels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_ip]
+      targetLabel: __address__
+    - action: replace
+      regex: (\\d+);((([0-9]+?)(\.|$)){4})
+      replacement: \$2:\$1
+      sourceLabels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_ip]
+      targetLabel: __address__
+    # Set the 'app' label from 'app.kubernetes.io/name' or fallback to 'app'
+    - sourceLabels: ["__meta_kubernetes_pod_label_app_kubernetes_io_name", "__meta_kubernetes_pod_label_app"]
+      separator: ";"
+      targetLabel: "app"
+      action: replace
+      regex: "(.+);.*|.*;(.+)"
+      replacement: "\${1}\${2}"  # Use the first non-empty value
+    # Set the 'version' label from 'app.kubernetes.io/version' or fallback to 'version'
+    - sourceLabels: ["__meta_kubernetes_pod_label_app_kubernetes_io_version", "__meta_kubernetes_pod_label_version"]
+      separator: ";"
+      targetLabel: "version"
+      action: replace
+      regex: "(.+);.*|.*;(.+)"
+      replacement: "\${1}\${2}"  # Use the first non-empty value
+    # add some labels we want
+    - sourceLabels: [__meta_kubernetes_namespace]
+      action: replace
+      targetLabel: namespace
+    - action: replace
+      replacement: "mesh_id"
+      targetLabel: mesh_id
 EOF
 ```
 
-5. A waypoint is an optional proxy that can be deployed to provide layer 7 (e.g. HTTP) features, such as metrics and traces in ambient mode. Deploy a waypoint proxy as follows and enroll the `bookinfo` namespace to use the waypoint:
+5. A waypoint is an optional proxy that can be deployed to provide layer 7 (e.g. HTTP) features, such as metrics and traces in ambient mode. Deploy a waypoint proxy. The steps can be found [here](https://github.com/openshift-service-mesh/sail-operator/blob/main/docs/ossm/ambient/waypoint.md#3-waypoint-proxies).
 
-```sh
-cat <<EOF | oc apply -f-
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  labels:
-    istio.io/waypoint-for: service
-    app: waypoint
-    service: waypoint
-  name: waypoint
-  namespace: bookinfo
-spec:
-  gatewayClassName: istio-waypoint
-  listeners:
-  - name: mesh
-    port: 15008
-    protocol: HBONE
-  - name: http-monitoring
-    protocol: TCP
-    port: 15020
-EOF
-
-oc label namespace bookinfo istio.io/use-waypoint=waypoint
-```
-
-6. Create a `ServiceMonitor` resource for collecting a waypoint proxy metrics:
+6. Create a `PodMonitor` resource for collecting waypoint proxies metrics in an application namespace such as `bookinfo`:
 
 ```sh
 cat <<EOF | oc apply -f-
 apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
+kind: PodMonitor
 metadata:
-  name: waypoint-monitor
+  name: istio-waypoint-monitor
   namespace: bookinfo
 spec:
-  targetLabels:
-  - app
   selector:
-    matchLabels:
-      service: waypoint
-  endpoints:
-  - port: http-monitoring
+    matchExpressions:
+    - key: istio-prometheus-ignore
+      operator: DoesNotExist
+  podMetricsEndpoints:
+  - path: /stats/prometheus
     interval: 30s
+    relabelings:
+    - action: keep
+      sourceLabels: [__meta_kubernetes_pod_container_name]
+      regex: "istio-proxy"
+    - action: keep
+      sourceLabels: [__meta_kubernetes_pod_annotationpresent_prometheus_io_scrape]
+    - action: replace
+      regex: (\\d+);(([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4})
+      replacement: '[\$2]:\$1'
+      sourceLabels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_ip]
+      targetLabel: __address__
+    - action: replace
+      regex: (\\d+);((([0-9]+?)(\.|$)){4})
+      replacement: \$2:\$1
+      sourceLabels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_ip]
+      targetLabel: __address__
+    # Set the 'app' label from 'app.kubernetes.io/name' or fallback to 'app'
+    - sourceLabels: ["__meta_kubernetes_pod_label_app_kubernetes_io_name", "__meta_kubernetes_pod_label_app"]
+      separator: ";"
+      targetLabel: "app"
+      action: replace
+      regex: "(.+);.*|.*;(.+)"
+      replacement: "\${1}\${2}"  # Use the first non-empty value
+    # Set the 'version' label from 'app.kubernetes.io/version' or fallback to 'version'
+    - sourceLabels: ["__meta_kubernetes_pod_label_app_kubernetes_io_version", "__meta_kubernetes_pod_label_version"]
+      separator: ";"
+      targetLabel: "version"
+      action: replace
+      regex: "(.+);.*|.*;(.+)"
+      replacement: "\${1}\${2}"  # Use the first non-empty value
+    # add some labels we want
+    - sourceLabels: [__meta_kubernetes_namespace]
+      action: replace
+      targetLabel: namespace
+    - action: replace
+      replacement: "mesh_id"
+      targetLabel: mesh_id
 EOF
 ```
 
@@ -180,9 +220,9 @@ EOF
 
 ### Metrics Validation
 
-1. You can find the status of `Metrics Targets` in the OpenShift Console. Click the `Observe` and `Targets` from the left panel and search targets such as `istiod-monitor`, `ztunnel-monitor` and `waypoint-monitor`. Wait for their `Up` status.
+1. You can find the status of `Metrics Targets` in the OpenShift Console. Click the `Observe` and `Targets` from the left panel and search targets such as `istiod-monitor`, `istio-ztunnel-monitor` and `istio-waypoint-monitor`. Wait for their `Up` status.
 
-  NOTE: The `ServiceMonitor` resource configuration can take up to 5 minutes for showing new `Metrics Targets` results.
+  NOTE: The `ServiceMonitor` and `PodMonitor` resources configuration can take up to 5 minutes for showing new `Metrics Targets` results.
 
 2. Send some traffic to the Bookinfo `productpage` service for generating metrics:
 
