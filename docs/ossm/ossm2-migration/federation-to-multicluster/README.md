@@ -406,7 +406,7 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
    kwest patch deploy httpbin -n b -p '{"spec":{"template":{"metadata":{"annotations":{"sidecar.istio.io/inject":"true"}}}}}'
    ```
 
-1. Export apps:
+1. Export services:
 
    ```shell
    kwest apply -f - <<EOF
@@ -428,7 +428,7 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
    EOF
    ```
 
-1. Import apps:
+1. Import services:
 
    ```shell
    keast apply -f - <<EOF
@@ -451,7 +451,14 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
    EOF
    ```
 
-### Migration process
+1. Verify connectivity:
+
+```shell
+keast exec -n client deploy/curl -c curl -- curl -v httpbin.a.svc.west-mesh-imports.local:8000/headers
+keast exec -n client deploy/curl -c curl -- curl -v httpbin.b.svc.cluster.local:8000/headers
+```
+
+### Migration steps
 
 #### Export
 
@@ -626,9 +633,32 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
    EOF
    ```
 
-### Verify connectivity
+1. Verify connectivity
 
-```shell
-keast exec -n client deploy/curl -c curl -- curl -v httpbin.a.svc.west-mesh-imports.local:8000/headers
-keast exec -n client deploy/curl -c curl -- curl -v httpbin.b.svc.cluster.local:8000/headers
-```
+   ```shell
+   keast exec -n client deploy/curl -c curl -- curl -v httpbin.a.svc.west-mesh-imports.local:8000/headers
+   keast exec -n client deploy/curl -c curl -- curl -v httpbin.b.svc.cluster.local:8000/headers
+   ```
+
+1. Remove federation-related resources:
+
+   ```shell
+   keast delete importedserviceset west-mesh -n istio-system
+   kwest delete exportedserviceset east-mesh -n istio-system
+   keast delete servicemeshpeer west-mesh -n istio-system
+   kwest delete servicemeshpeer east-mesh -n istio-system
+   ```
+
+1. Remove federation gateways:
+
+   ```shell
+   keast patch servicemeshcontrolplane basic -n istio-system --type=json -p='[{"op": "remove", "path": "/spec/gateways/additionalIngress"}, {"op": "remove", "path": "/spec/gateways/additionalEgress"}]'
+   kwest patch servicemeshcontrolplane basic -n istio-system --type=json -p='[{"op": "remove", "path": "/spec/gateways/additionalIngress"}, {"op": "remove", "path": "/spec/gateways/additionalEgress"}]'
+   ```
+
+1. Verify connectivity
+
+   ```shell
+   keast exec -n client deploy/curl -c curl -- curl -v httpbin.a.svc.west-mesh-imports.local:8000/headers
+   keast exec -n client deploy/curl -c curl -- curl -v httpbin.b.svc.cluster.local:8000/headers
+   ```
