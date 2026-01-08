@@ -134,13 +134,9 @@ We create **different** root and intermediate CAs for each mesh, as it was allow
      --from-file=cert-chain.pem=west/cert-chain.pem
    ```
 
-## Installing OSSM 2.6 Control Planes with Federation
+### Install Service Mesh 2
 
-Now we'll install OSSM 2.6 control planes in both clusters with federation ingress and egress gateways configured. This setup allows the two meshes to communicate across clusters.
-
-### Deploy ServiceMeshControlPlane in East Cluster
-
-1. Create the ServiceMeshControlPlane in the east cluster with federation gateways:
+1. Deploy control planes and federation gateways:
 
    ```bash
    keast apply -f - <<EOF
@@ -165,28 +161,15 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
        logging:
          componentLevels:
            default: info
-     techPreview:
-       meshConfig:
-         trustDomainAliases:
-         - west.local
      proxy:
        accessLogging:
          file:
            name: /dev/stdout
-     runtime:
-       components:
-         pilot:
-           container:
-             env:
-               PILOT_MULTI_NETWORK_DISCOVER_GATEWAY_API: "true"
-     cluster:
-       network: network-east-mesh
      security:
        identity:
          type: ThirdParty
        trust:
          domain: east.local
-       manageNetworkPolicy: false
      gateways:
        ingress:
          enabled: false
@@ -221,11 +204,6 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
                name: https-discovery
    EOF
    ```
-
-### Deploy ServiceMeshControlPlane in West Cluster
-
-1. Create the ServiceMeshControlPlane in the west cluster with federation gateways:
-
    ```bash
    kwest apply -f - <<EOF
    apiVersion: maistra.io/v2
@@ -249,22 +227,15 @@ Now we'll install OSSM 2.6 control planes in both clusters with federation ingre
        logging:
          componentLevels:
            default: info
-     techPreview:
-       meshConfig:
-         trustDomainAliases:
-         - east.local
      proxy:
        accessLogging:
          file:
            name: /dev/stdout
-     cluster:
-       network: network-west-mesh
      security:
        identity:
          type: ThirdParty
        trust:
          domain: west.local
-       manageNetworkPolicy: false
      gateways:
        ingress:
          enabled: false
@@ -483,34 +454,75 @@ keast exec -n client deploy/curl -c curl -- curl -v httpbin.b.svc.cluster.local:
 
 ### Migration steps
 
-#### Export
+#### Configure control plane
 
-1. Create a ServiceEntry for the exported service:
+To prepare the mesh for disabling the federation feature, you have to configure the following properties:
 
-   ```shell
-   kwest apply -f - <<EOF
-   apiVersion: networking.istio.io/v1beta1
-   kind: ServiceEntry
-   metadata:
-     name: httpbin-a-svc-east-mesh-exports-local
-     namespace: a
-   spec:
-     hosts:
-     - httpbin.a.svc.west-mesh-imports.local
-     location: MESH_INTERNAL
-     ports:
-     - number: 8000
-       name: http
-       protocol: HTTP
-       targetPort: 8080
-     resolution: STATIC
-     workloadSelector:
-       labels:
-         app: httpbin
-   EOF
-   ```
+1. `techPreview.meshConfig.trustDomainAliases` - required for enabling communication between identities from different trust domains.
+2. `PILOT_MULTI_NETWORK_DISCOVER_GATEWAY_API` - the feature flag required to enable multi-cluster routing with Kubernetes Gateway API.
+3. `cluster.network` - specifies local network name, which is used by `istio-remote` gateways.
+4. `security.manageNetworkPolicy` - controls default network policies; needs to be disabled to skip federation egress gateway on the connection path.
 
-1. Deploy custom federation ingress gateway for the exported services:
+    ```shell
+    keast patch smcp basic -n istio-system --type=merge -p '{
+      "spec": {
+        "techPreview": {
+          "meshConfig": {
+            "trustDomainAliases": ["west.local"]
+          }
+        },
+        "runtime": {
+          "components": {
+            "pilot": {
+              "container": {
+                "env": {
+                  "PILOT_MULTI_NETWORK_DISCOVER_GATEWAY_API": "true"
+                }
+              }
+            }
+          }
+        },
+        "cluster": {
+          "network": "network-east-mesh"
+        },
+        "security": {
+          "manageNetworkPolicy": false
+        }
+      }
+    }'
+    ```
+    ```shell
+    kwest patch smcp basic -n istio-system --type=merge -p '{
+      "spec": {
+        "techPreview": {
+          "meshConfig": {
+            "trustDomainAliases": ["east.local"]
+          }
+        },
+        "runtime": {
+          "components": {
+            "pilot": {
+              "container": {
+                "env": {
+                  "PILOT_MULTI_NETWORK_DISCOVER_GATEWAY_API": "true"
+                }
+              }
+            }
+          }
+        },
+        "cluster": {
+          "network": "network-west-mesh"
+        },
+        "security": {
+          "manageNetworkPolicy": false
+        }
+      }
+    }'
+    ```
+
+#### Export services
+
+1. Deploy east-west gateway and expose exported services:
 
    ```shell
    kwest apply -f - <<EOF
@@ -550,6 +562,41 @@ keast exec -n client deploy/curl -c curl -- curl -v httpbin.b.svc.cluster.local:
        hosts:
          - "httpbin.a.svc.west-mesh-imports.local"
          - "httpbin.b.svc.cluster.local"
+   EOF
+   ```
+
+> [!NOTE]
+> We apply two gateway configurations:
+>
+> 1. A **Kubernetes Gateway**, used to leverage Istio’s deployment controller so that we do not need to manually manage the underlying `Service`, `Deployment`, and related resources.
+> 2. An **Istio Gateway**, used to selectively expose specific services.
+>
+> If you want to export all local services, you can omit the Istio Gateway and configure the Kubernetes Gateway with `hostname: "*"`.
+>
+> Both APIs are required because the Kubernetes Gateway API does not support configuring multiple hostnames on a single Gateway, and wildcard matching is not always sufficient.
+
+1. Create ServiceEntries for each service that was imported **without** `importAsLocal` in other clusters:
+
+   ```shell
+   kwest apply -f - <<EOF
+   apiVersion: networking.istio.io/v1beta1
+   kind: ServiceEntry
+   metadata:
+     name: httpbin-a-svc-east-mesh-exports-local
+     namespace: a
+   spec:
+     hosts:
+     - httpbin.a.svc.west-mesh-imports.local
+     location: MESH_INTERNAL
+     ports:
+     - number: 8000
+       name: http
+       protocol: HTTP
+       targetPort: 8080
+     resolution: STATIC
+     workloadSelector:
+       labels:
+         app: httpbin
    EOF
    ```
 
