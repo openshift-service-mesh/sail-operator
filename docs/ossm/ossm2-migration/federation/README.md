@@ -708,7 +708,7 @@ The `istio-remote` gateway is used by Istio to populate WorkloadEntry addresses 
 > - `subjectAltNames` specifies the expected service identity
 > - `network` must match `topology.istio.io/network` specified in the `istio-remote` gateway to ensure the correct address is assigned to the endpoint.
 
-#### Verification and cleanup
+#### Verification steps
 
 1. Verify connectivity
 
