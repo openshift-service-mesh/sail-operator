@@ -575,7 +575,7 @@ To prepare the mesh for disabling the federation feature, you have to configure 
 >
 > Both APIs are required because the Kubernetes Gateway API does not support configuring multiple hostnames on a single Gateway, and wildcard matching is not always sufficient.
 
-1. Create ServiceEntries for each service that was imported **without** `importAsLocal` in other clusters:
+1. Create ServiceEntry for each service that was imported **without** `importAsLocal` in other clusters:
 
    ```shell
    kwest apply -f - <<EOF
@@ -600,14 +600,12 @@ To prepare the mesh for disabling the federation feature, you have to configure 
    EOF
    ```
 
-#### Import
+#### Import services
 
-1. Create remote Gateway:
+1. Create a remote Gateway for each remote network:
 
    ```shell
    WEST_REMOTE_IP=$(kwest get svc eastwestgateway-istio -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-   ```
-   ```shell
    keast apply -f - <<EOF
    apiVersion: gateway.networking.k8s.io/v1beta1
    kind: Gateway
@@ -631,7 +629,9 @@ To prepare the mesh for disabling the federation feature, you have to configure 
    EOF
    ```
 
-1. Create ServiceEntry for imported services:
+The `istio-remote` gateway is used by Istio to populate WorkloadEntry addresses that point to the network managed by the gateway.
+
+1. Create ServiceEntry for each imported service:
 
    ```shell
    keast apply -f - <<EOF
@@ -702,6 +702,11 @@ To prepare the mesh for disabling the federation feature, you have to configure 
      network: network-west-mesh
    EOF
    ```
+
+> [!IMPORTANT]
+> - `security.istio.io/tlsMode: istio` enforces Istio mTLS for the endpoint specified by the WorkloadEntry
+> - `subjectAltNames` specifies the expected service identity
+> - `network` must match `topology.istio.io/network` specified in the `istio-remote` gateway to ensure the correct address is assigned to the endpoint.
 
 1. Verify connectivity
 
