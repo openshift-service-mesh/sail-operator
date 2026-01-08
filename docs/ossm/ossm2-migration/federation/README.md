@@ -81,7 +81,7 @@ For this demo, we'll use two clusters referred to as "East" and "West". You'll n
 
 ### Setup Certificates
 
-We create different root and intermediate certificate authorities (CAs) for each mesh, as it was allowed in OSSM 2 federation.
+We create **different** root and intermediate CAs for each mesh, as it was allowed in OSSM 2 federation.
 
 1. Download the certificate generation tools from the Istio repository:
 
