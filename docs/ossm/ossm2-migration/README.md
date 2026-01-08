@@ -27,6 +27,22 @@ Before you begin to migrate your controlplane from OpenShift Service Mesh 2.6 to
 > [!WARNING]
 > You must upgrade your OpenShift Service Mesh 2 Operator to the latest release **before** you install the OpenShift Service Mesh 3 operator. If you upgrade your OpenShift Service Mesh 2 operator _after_ you install your OpenShift Service Mesh 3 operator, you will need to then uninstall and reinstall your OpenShift Service Mesh 3 operator to ensure the included CRDs are up to date.
 
+> [!WARNING]
+> Some users have encountered issues when installing the OSSM 3 operator where the operator fails to install due to outdated custom resources present in the cluster. Specifically, users have run into issues with outdated `ServiceEntry` resources, for which the CRD schema changed in upstream Istio version 1.24. The two issues that have been observed so far are:
+> - Old ServiceEntries which did not include port numbers
+> - Old ServiceEntries which exceed the maximum of 256 hostnames allowed in a single ServiceEntry
+>
+> **How to check if you are affected:**
+> ```sh
+> # Check for ServiceEntries with more than 256 hosts
+> kubectl get serviceentries -A -o json | jq -r '.items[] | select(.spec.hosts | length > 256) | "\(.metadata.namespace)/\(.metadata.name): \(.spec.hosts | length) hosts"'
+>
+> # Check for ServiceEntries without port numbers
+> kubectl get serviceentries -A -o json | jq -r '.items[] | select(.spec.ports == null or (.spec.ports | length == 0)) | "\(.metadata.namespace)/\(.metadata.name)"'
+> ```
+>
+> **Workaround:** If you have ServiceEntries with more than 256 hosts, you must split them into multiple ServiceEntry resources, each containing 256 or fewer hosts, before installing the OSSM 3 operator. For ServiceEntries missing port numbers, add the required port configuration.
+
 By the end of this checklist, your `ServiceMeshControlPlane` should look something like this:
 
 ```yaml
