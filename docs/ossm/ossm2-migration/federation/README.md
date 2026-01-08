@@ -1,8 +1,8 @@
-# Guideline for migration from federation to multi-cluster with manual service discovery
+# Federation-to–Multi-Cluster Migration Guide
 
 ## Introduction
 
-This document provides instructions for migrating from federation in OpenShift Service Mesh 2 to multi-cluster with manual service discovery in OpenShift Service Mesh 3.
+This document provides instructions for migrating from federation in OpenShift Service Mesh 2 to multi-cluster with **manual service discovery** in OpenShift Service Mesh 3.
 
 > [!NOTE]
 > While `federation` is a type of multi-cluster topology, we avoid using this term in the Service Mesh 3 to avoid confusion with the Federation feature available in OSSM 2, which used custom resources that are no longer available in OSSM 3.
