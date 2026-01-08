@@ -24,6 +24,23 @@ The key differences between the two approaches are:
 
 This guide will help you transition from the federation model to the multi-cluster model with minimal disruption to your services.
 
+## Why manual service discovery
+
+Automatic service discovery is supported in Istio multi-primary deployments.
+However, this guide focuses on scenarios where meshes do not maintain identical namespace and service definitions across clusters.
+
+In a multi-primary setup using automatic service discovery, a service is visible across clusters only if the same namespace and service exist locally.
+For example, if cluster A exposes a service `foo` in namespace `bar`, clients in cluster B can access it only if cluster B also defines a local service `foo` in namespace `bar`.
+This local service effectively acts as a "stub" that Istio uses to route traffic to the remote endpoints.
+
+Manual service discovery removes the above constraints. Client clusters are not required to mirror the server cluster’s namespace or service configuration.
+Instead, remote services are explicitly modeled using `ServiceEntry` and `WorkloadEntry` resources, providing full control over how services are named, addressed, and discovered.
+This approach is particularly useful when:
+- clusters use different namespace naming conventions
+- you want to avoid creating placeholder namespaces and services
+- services must be imported under different names or namespaces than their source
+- fine-grained control is required over which services are exposed and to which consumers
+
 ## Prerequisites
 
 Before beginning the migration, ensure you have:
