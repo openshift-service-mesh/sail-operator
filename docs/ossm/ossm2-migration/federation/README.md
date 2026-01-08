@@ -1,16 +1,26 @@
-# OSSM 2 Federation to OSSM 3 Multi-Cluster Migration Guide
+# Guideline for migration from federation to multi-cluster with manual service discovery
 
 ## Introduction
 
-This document provides instructions for migrating from OpenShift Service Mesh 2.6 federation to OpenShift Service Mesh 3.x multi-cluster architecture.
+This document provides instructions for migrating from federation in OpenShift Service Mesh 2 to multi-cluster with manual service discovery in OpenShift Service Mesh 3.
 
 > [!NOTE]
-> While "federation" is a type of multi-cluster topology in the general Istio context, we avoid using this term in the OSSM 3 project to avoid confusion with the OSSM 2 federation feature, which used specific custom resources that are no longer used in OSSM 3.
+> While `federation` is a type of multi-cluster topology, we avoid using this term in the Service Mesh 3 to avoid confusion with the Federation feature available in OSSM 2, which used custom resources that are no longer available in OSSM 3.
 
 The key differences between the two approaches are:
 
-- **OSSM 2.6 Federation**: Used custom resources - `ServiceMeshPeer`, `ExportedServiceSet`, and `ImportedServiceSet` - to establish mesh federation, and terminated mTLS at egress and ingress gateways for cross-network traffic.
-- **OSSM 3.x Multi-cluster**: Relies on basic Istio resources - `Gateway`, `ServiceEntry`, and `WorkloadEntry` - to establish federation between clusters and manage exported and imported services. This approach provides a more standardized and simplified configuration model.
+- **OSSM 2 Federation**:
+  - relies on custom resources (`ServiceMeshPeer`, `ExportedServiceSet`, and `ImportedServiceSet`) to establish mesh federation
+  - automates exporting and importing services using flexible matching and aliasing rules
+  - terminates cross-network mTLS at egress and ingress gateways
+  - does not support end-to-end client-server authentication and authorization due to mTLS termination at gateways and gateway-based identity impersonation
+  - allows exporting a service to a specific mesh
+- **OSSM 3 Multi-cluster (with manual service discovery)**:
+  - relies on basic Istio resources to export and import services (`Gateway`, `ServiceEntry`, and `WorkloadEntry`)
+  - requires manual effort to configure imported and exported services
+  - does not require mTLS termination at gateways
+  - fully supports end-to-end client-server authentication and authorization
+  - exports services to all meshes with network access to the exported service
 
 This guide will help you transition from the federation model to the multi-cluster model with minimal disruption to your services.
 
@@ -18,18 +28,14 @@ This guide will help you transition from the federation model to the multi-clust
 
 Before beginning the migration, ensure you have:
 
-- Two or more OpenShift clusters with both OSSM 2.6 and OSSM 3.x installed side-by-side
+- Two or more OpenShift clusters with both OSSM 2.6 and OSSM 3 installed side-by-side
   - See [Running OSSM 2 and OSSM 3 side by side](../../ossm-2-and-ossm-3-side-by-side/README.md) for installation instructions
 - Cluster admin access to all clusters
 - Network connectivity between clusters for cross-cluster communication
 
-## Lab Setup
-
-This section provides step-by-step instructions for setting up a lab environment to demonstrate the migration from OSSM 2.6 federation to OSSM 3.x multi-cluster.
-
 ### Environment Setup
 
-For this lab, we'll use two clusters referred to as "East" and "West". You'll need to set up environment variables pointing to the kubeconfig files for each cluster.
+For this demo, we'll use two clusters referred to as "East" and "West". You'll need to set up environment variables pointing to the kubeconfig files for each cluster.
 
 1. Export paths to directories with kubeconfigs for each cluster:
 
