@@ -708,6 +708,8 @@ The `istio-remote` gateway is used by Istio to populate WorkloadEntry addresses 
 > - `subjectAltNames` specifies the expected service identity
 > - `network` must match `topology.istio.io/network` specified in the `istio-remote` gateway to ensure the correct address is assigned to the endpoint.
 
+#### Verification and cleanup
+
 1. Verify connectivity
 
    ```shell
@@ -731,7 +733,7 @@ The `istio-remote` gateway is used by Istio to populate WorkloadEntry addresses 
    kwest patch servicemeshcontrolplane basic -n istio-system --type=json -p='[{"op": "remove", "path": "/spec/gateways/additionalIngress"}, {"op": "remove", "path": "/spec/gateways/additionalEgress"}]'
    ```
 
-1. Verify connectivity
+1. Verify connectivity once again:
 
    ```shell
    keast exec -n client deploy/curl -c curl -- curl -v httpbin.a.svc.west-mesh-imports.local:8000/headers
