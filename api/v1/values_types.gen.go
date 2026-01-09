@@ -762,6 +762,10 @@ type ProxyConfig struct {
 	ReadinessPeriodSeconds *uint32 `json:"readinessPeriodSeconds,omitempty"`
 	// Sets the number of successive failed probes before indicating readiness failure.
 	ReadinessFailureThreshold *uint32 `json:"readinessFailureThreshold,omitempty"`
+	// Configures the seccomp profile for the istio-validation and istio-proxy containers.
+	//
+	// See: https://kubernetes.io/docs/tutorials/security/seccomp/
+	SeccompProfile *k8sv1.SeccompProfile `json:"seccompProfile,omitempty"`
 	// Configures the startup probe for the istio-proxy container.
 	StartupProbe *StartupProbe `json:"startupProbe,omitempty"`
 	// Default port used for the Pilot agent's health checks.
@@ -992,6 +996,8 @@ type Values struct {
 	// +kubebuilder:validation:Schemaless
 	Experimental json.RawMessage `json:"experimental,omitempty"`
 	// Configuration for Gateway Classes
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
 	GatewayClasses json.RawMessage `json:"gatewayClasses,omitempty"`
 }
 
@@ -1353,7 +1359,8 @@ const filePkgApisValuesTypesProtoRawDesc = "" +
 	"\n" +
 	"targetPort\x18\x04 \x01(\x05R\n" +
 	"targetPort\x12\x1a\n" +
-	"\bprotocol\x18\x05 \x01(\tR\bprotocol\"\xca\t\n" +
+	"\bprotocol\x18\x05 \x01(\tR\bprotocol\"\x96\n" +
+	"\n" +
 	"\vProxyConfig\x12\x1e\n" +
 	"\n" +
 	"autoInject\x18\x04 \x01(\tR\n" +
@@ -1372,7 +1379,8 @@ const filePkgApisValuesTypesProtoRawDesc = "" +
 	"privileged\x12B\n" +
 	"\x1creadinessInitialDelaySeconds\x18\x14 \x01(\rR\x1creadinessInitialDelaySeconds\x126\n" +
 	"\x16readinessPeriodSeconds\x18\x15 \x01(\rR\x16readinessPeriodSeconds\x12<\n" +
-	"\x19readinessFailureThreshold\x18\x16 \x01(\rR\x19readinessFailureThreshold\x12I\n" +
+	"\x19readinessFailureThreshold\x18\x16 \x01(\rR\x19readinessFailureThreshold\x12J\n" +
+	"\x0eseccompProfile\x18+ \x01(\v2\".k8s.io.api.core.v1.SeccompProfileR\x0eseccompProfile\x12I\n" +
 	"\fstartupProbe\x18) \x01(\v2%.istio.operator.v1alpha1.StartupProbeR\fstartupProbe\x12\x1e\n" +
 	"\n" +
 	"statusPort\x18\x17 \x01(\rR\n" +
@@ -2055,6 +2063,14 @@ type MeshConfig struct {
 	// Currently, this supports configuration of ecdhCurves and cipherSuites only.
 	// For ISTIO_MUTUAL TLS settings, use meshMTLS configuration.
 	TlsDefaults *MeshConfigTLSConfig `json:"tlsDefaults,omitempty"`
+	// File flush interval for envoy flushes buffers to disk in milliseconds.
+	// Default is 1000.
+	// Optional.
+	FileFlushInterval *uint32 `json:"fileFlushInterval,omitempty"`
+	// File flush buffer size for envoy flushes buffers to disk in kilobytes.
+	// Defaults to 64.
+	// Optional.
+	FileFlushMinSize *uint32 `json:"fileFlushMinSize,omitempty"`
 }
 
 // ConfigSource describes information about a configuration store inside a
@@ -3111,7 +3127,7 @@ type MeshConfigExtensionProviderResourceDetectorsDynatraceResourceDetector struc
 
 const fileMeshV1alpha1ConfigProtoRawDesc = "" +
 	"\n" +
-	"\x1amesh/v1alpha1/config.proto\x12\x13istio.mesh.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x19mesh/v1alpha1/proxy.proto\x1a*networking/v1alpha3/destination_rule.proto\x1a)networking/v1alpha3/virtual_service.proto\"\x84p\n" +
+	"\x1amesh/v1alpha1/config.proto\x12\x13istio.mesh.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x19mesh/v1alpha1/proxy.proto\x1a*networking/v1alpha3/destination_rule.proto\x1a)networking/v1alpha3/virtual_service.proto\"\xe3p\n" +
 	"\n" +
 	"MeshConfig\x12*\n" +
 	"\x11proxy_listen_port\x18\x04 \x01(\x05R\x0fproxyListenPort\x129\n" +
@@ -3159,7 +3175,9 @@ const fileMeshV1alpha1ConfigProtoRawDesc = "" +
 	"\x12path_normalization\x18= \x01(\v26.istio.mesh.v1alpha1.MeshConfig.ProxyPathNormalizationR\x11pathNormalization\x12_\n" +
 	"\x19default_http_retry_policy\x18> \x01(\v2$.istio.networking.v1alpha3.HTTPRetryR\x16defaultHttpRetryPolicy\x12F\n" +
 	"\tmesh_mTLS\x18? \x01(\v2).istio.mesh.v1alpha1.MeshConfig.TLSConfigR\bmeshMTLS\x12L\n" +
-	"\ftls_defaults\x18@ \x01(\v2).istio.mesh.v1alpha1.MeshConfig.TLSConfigR\vtlsDefaults\x1a\xad\x01\n" +
+	"\ftls_defaults\x18@ \x01(\v2).istio.mesh.v1alpha1.MeshConfig.TLSConfigR\vtlsDefaults\x12.\n" +
+	"\x13file_flush_interval\x18D \x01(\rR\x11fileFlushInterval\x12-\n" +
+	"\x13file_flush_min_size\x18E \x01(\rR\x10fileFlushMinSize\x1a\xad\x01\n" +
 	"\x15OutboundTrafficPolicy\x12N\n" +
 	"\x04mode\x18\x01 \x01(\x0e2:.istio.mesh.v1alpha1.MeshConfig.OutboundTrafficPolicy.ModeR\x04mode\"D\n" +
 	"\x04Mode\x12\x11\n" +

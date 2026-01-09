@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   creationTimestamp: null
   name: istiorevisions.sailoperator.io
 spec:
@@ -117,8 +117,7 @@ spec:
                     x-kubernetes-preserve-unknown-fields: true
                   gatewayClasses:
                     description: Configuration for Gateway Classes
-                    format: byte
-                    type: string
+                    x-kubernetes-preserve-unknown-fields: true
                   global:
                     description: Global configuration for Istio components.
                     properties:
@@ -283,9 +282,10 @@ spec:
                             operator:
                               description: |-
                                 Operator represents a key's relationship to the value.
-                                Valid operators are Exists and Equal. Defaults to Equal.
+                                Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal.
                                 Exists is equivalent to wildcard for value, so that a pod can
                                 tolerate all taints of a particular category.
+                                Lt and Gt perform numeric comparisons (requires feature gate TaintTolerationComparisonOperators).
                               type: string
                             tolerationSeconds:
                               description: |-
@@ -994,6 +994,31 @@ spec:
                                   otherwise to an implementation-defined value. Requests cannot exceed Limits.
                                   More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                 type: object
+                            type: object
+                          seccompProfile:
+                            description: |-
+                              Configures the seccomp profile for the istio-validation and istio-proxy containers.
+
+                              See: https://kubernetes.io/docs/tutorials/security/seccomp/
+                            properties:
+                              localhostProfile:
+                                description: |-
+                                  localhostProfile indicates a profile defined in a file on the node should be used.
+                                  The profile must be preconfigured on the node to work.
+                                  Must be a descending path, relative to the kubelet's configured seccomp profile location.
+                                  Must be set if type is "Localhost". Must NOT be set for any other type.
+                                type: string
+                              type:
+                                description: |-
+                                  type indicates which kind of seccomp profile will be applied.
+                                  Valid options are:
+
+                                  Localhost - a profile defined in a file on the node should be used.
+                                  RuntimeDefault - the container runtime default profile should be used.
+                                  Unconfined - no profile should be applied.
+                                type: string
+                            required:
+                            - type
                             type: object
                           startupProbe:
                             description: Configures the startup probe for the istio-proxy
@@ -2327,9 +2352,10 @@ spec:
                                 operator:
                                   description: |-
                                     Operator represents a key's relationship to the value.
-                                    Valid operators are Exists and Equal. Defaults to Equal.
+                                    Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal.
                                     Exists is equivalent to wildcard for value, so that a pod can
                                     tolerate all taints of a particular category.
+                                    Lt and Gt perform numeric comparisons (requires feature gate TaintTolerationComparisonOperators).
                                   type: string
                                 tolerationSeconds:
                                   description: |-
@@ -5403,6 +5429,20 @@ spec:
                               + (has(self.sds)?1:0) <= 1
                         maxItems: 1000
                         type: array
+                      fileFlushInterval:
+                        description: |-
+                          File flush interval for envoy flushes buffers to disk in milliseconds.
+                          Default is 1000.
+                          Optional.
+                        format: int32
+                        type: integer
+                      fileFlushMinSize:
+                        description: |-
+                          File flush buffer size for envoy flushes buffers to disk in kilobytes.
+                          Defaults to 64.
+                          Optional.
+                        format: int32
+                        type: integer
                       h2UpgradePolicy:
                         description: |-
                           Specify if http1.1 connections should be upgraded to http2 by default.
@@ -7070,8 +7110,8 @@ spec:
                                   and scale-down and scale-up tolerances of 5% and 1% respectively, scaling will be
                                   triggered when the actual consumption falls below 95Mi or exceeds 101Mi.
 
-                                  This is an alpha field and requires enabling the HPAConfigurableTolerance
-                                  feature gate.
+                                  This is an beta field and requires the HPAConfigurableTolerance feature
+                                  gate to be enabled.
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                             type: object
@@ -7145,8 +7185,8 @@ spec:
                                   and scale-down and scale-up tolerances of 5% and 1% respectively, scaling will be
                                   triggered when the actual consumption falls below 95Mi or exceeds 101Mi.
 
-                                  This is an alpha field and requires enabling the HPAConfigurableTolerance
-                                  feature gate.
+                                  This is an beta field and requires the HPAConfigurableTolerance feature
+                                  gate to be enabled.
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
                             type: object
@@ -7667,9 +7707,10 @@ spec:
                             operator:
                               description: |-
                                 Operator represents a key's relationship to the value.
-                                Valid operators are Exists and Equal. Defaults to Equal.
+                                Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal.
                                 Exists is equivalent to wildcard for value, so that a pod can
                                 tolerate all taints of a particular category.
+                                Lt and Gt perform numeric comparisons (requires feature gate TaintTolerationComparisonOperators).
                               type: string
                             tolerationSeconds:
                               description: |-
@@ -8536,7 +8577,7 @@ spec:
                                         resources:
                                           description: |-
                                             resources represents the minimum resources the volume should have.
-                                            If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements
+                                            Users are allowed to specify resource requirements
                                             that are lower than previous value but must still be higher than capacity recorded in the
                                             status field of the claim.
                                             More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources
@@ -9422,6 +9463,24 @@ spec:
                                             description: Kubelet's generated CSRs
                                               will be addressed to this signer.
                                             type: string
+                                          userAnnotations:
+                                            additionalProperties:
+                                              type: string
+                                            description: |-
+                                              userAnnotations allow pod authors to pass additional information to
+                                              the signer implementation.  Kubernetes does not restrict or validate this
+                                              metadata in any way.
+
+                                              These values are copied verbatim into the `spec.unverifiedUserAnnotations` field of
+                                              the PodCertificateRequest objects that Kubelet creates.
+
+                                              Entries are subject to the same validation as object metadata annotations,
+                                              with the addition that all keys must be domain-prefixed. No restrictions
+                                              are placed on values, except an overall size limitation on the entire field.
+
+                                              Signers should document the keys and values they support. Signers should
+                                              deny requests that contain keys they do not recognize.
+                                            type: object
                                         required:
                                         - keyType
                                         - signerName
@@ -10041,13 +10100,19 @@ spec:
               version:
                 description: |-
                   Defines the version of Istio to install.
-                  Must be one of: v1.28.0, v1.27.3, v1.27.2, v1.27.1, v1.27.0, v1.26.6, v1.26.5, v1.26.4, v1.26.3, v1.26.2, v1.26.1, v1.26.0, v1.29-alpha.b2f713a9.
+                  Must be one of: v1.28.2, v1.28.1, v1.28.0, v1.27.5, v1.27.4, v1.27.3, v1.27.2, v1.27.1, v1.27.0, v1.26.8, v1.26.7, v1.26.6, v1.26.5, v1.26.4, v1.26.3, v1.26.2, v1.26.1, v1.26.0, v1.29-alpha.dcfb1b0b.
                 enum:
+                - v1.28.2
+                - v1.28.1
                 - v1.28.0
+                - v1.27.5
+                - v1.27.4
                 - v1.27.3
                 - v1.27.2
                 - v1.27.1
                 - v1.27.0
+                - v1.26.8
+                - v1.26.7
                 - v1.26.6
                 - v1.26.5
                 - v1.26.4
@@ -10077,7 +10142,7 @@ spec:
                 - v1.22.6
                 - v1.22.5
                 - v1.21.6
-                - v1.29-alpha.b2f713a9
+                - v1.29-alpha.dcfb1b0b
                 type: string
             required:
             - namespace
