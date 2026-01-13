@@ -271,22 +271,15 @@ We create **different** root and intermediate CAs for each mesh, as it was allow
    EOF
    ```
 
-### Verify the Installation
+### Verify the installation
 
-1. Verify that the control planes are running in both clusters:
-
-   ```bash
-   keast get smcp -n istio-system
-   kwest get smcp -n istio-system
-   ```
-
-1. Verify that the federation gateways are deployed:
-
-   ```bash
+   ```shell
    # east
+   keast get smcp -n istio-system
    keast get pods -n istio-system -l federation.maistra.io/egress-for=west-mesh
    keast get pods -n istio-system -l federation.maistra.io/ingress-for=east-mesh
    # west
+   kwest get smcp -n istio-system
    kwest get pods -n istio-system -l federation.maistra.io/egress-for=east-mesh
    kwest get pods -n istio-system -l federation.maistra.io/ingress-for=west-mesh
    ```
@@ -367,21 +360,14 @@ We create **different** root and intermediate CAs for each mesh, as it was allow
 
 #### Verify ServiceMeshPeer Status
 
-1. Check the status of the ServiceMeshPeer in the west cluster:
-
    ```shell
+   keast get servicemeshpeer west-mesh -n istio-system -o jsonpath='{.status}'
    kwest get servicemeshpeer east-mesh -n istio-system -o jsonpath='{.status}'
    ```
 
-1. Check the status of the ServiceMeshPeer in the east cluster:
+### Export and import services
 
-   ```shell
-   keast get servicemeshpeer west-mesh -n istio-system -o jsonpath='{.status}'
-   ```
-
-### Deploy apps
-
-1. Deploy apps in `west` cluster:
+1. Deploy applications:
 
    ```shell
    # east
@@ -400,7 +386,7 @@ We create **different** root and intermediate CAs for each mesh, as it was allow
    kwest patch deploy httpbin -n b -p '{"spec":{"template":{"metadata":{"annotations":{"sidecar.istio.io/inject":"true"}}}}}'
    ```
 
-1. Export services:
+1. Export services from west to east mesh:
 
    ```shell
    kwest apply -f - <<EOF
@@ -422,7 +408,7 @@ We create **different** root and intermediate CAs for each mesh, as it was allow
    EOF
    ```
 
-1. Import services:
+1. Import services from west to east mesh:
 
    ```shell
    keast apply -f - <<EOF
@@ -445,12 +431,65 @@ We create **different** root and intermediate CAs for each mesh, as it was allow
    EOF
    ```
 
+1. Verify exported and imported services and wait until you see the following statuses:
+
+    ```shell
+    kwest get exportedserviceset east-mesh -n istio-system -o jsonpath='{.status}' | jq
+    ```
+    ```json
+    {
+      "exportedServices": [
+        {
+          "exportedName": "httpbin.a.svc.east-mesh-exports.local",
+          "localService": {
+            "hostname": "httpbin.a.svc.cluster.local",
+            "name": "httpbin",
+            "namespace": "a"
+          }
+        },
+        {
+          "exportedName": "httpbin.b.svc.east-mesh-exports.local",
+          "localService": {
+            "hostname": "httpbin.b.svc.cluster.local",
+            "name": "httpbin",
+            "namespace": "b"
+          }
+        }
+      ]
+    }
+    ```
+    ```shell
+    keast get importedserviceset west-mesh -n istio-system -o jsonpath='{.status}' | jq
+    ```
+    ```json
+    {
+      "importedServices": [
+        {
+          "exportedName": "httpbin.a.svc.east-mesh-exports.local",
+          "localService": {
+            "hostname": "httpbin.a.svc.west-mesh-imports.local",
+            "name": "httpbin",
+            "namespace": "a"
+          }
+        },
+        {
+          "exportedName": "httpbin.b.svc.east-mesh-exports.local",
+          "localService": {
+            "hostname": "httpbin.b.svc.cluster.local",
+            "name": "httpbin",
+            "namespace": "b"
+          }
+        }
+      ]
+    }
+    ```
+
 1. Verify connectivity:
 
-```shell
-keast exec -n client deploy/curl -c curl -- curl -v httpbin.a.svc.west-mesh-imports.local:8000/headers
-keast exec -n client deploy/curl -c curl -- curl -v httpbin.b.svc.cluster.local:8000/headers
-```
+    ```shell
+    keast exec -n client deploy/curl -c curl -- curl -v httpbin.a.svc.west-mesh-imports.local:8000/headers
+    keast exec -n client deploy/curl -c curl -- curl -v httpbin.b.svc.cluster.local:8000/headers
+    ```
 
 ### Migration steps
 
