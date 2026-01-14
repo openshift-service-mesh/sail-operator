@@ -259,7 +259,7 @@ For the purpose of this demo, we created **different** root and intermediate CAs
 
    ```shell
    kwest create cm east-mesh-ca-root-cert -n istio-system \
-     --from-file=root-cert.pem=east/root-cert.pem
+     --from-file=root-cert.pem=$EAST_CERT_DIR/root-cert.pem
    ```
    ```shell
    EAST_INGRESS_IP=$(keast get svc federation-ingress -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
@@ -295,7 +295,7 @@ For the purpose of this demo, we created **different** root and intermediate CAs
 
    ```shell
    keast create cm west-mesh-ca-root-cert -n istio-system \
-     --from-file=root-cert.pem=west/root-cert.pem
+     --from-file=root-cert.pem=$WEST_CERT_DIR/root-cert.pem
    ```
    ```shell
    WEST_INGRESS_IP=$(kwest get svc federation-ingress -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
