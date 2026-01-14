@@ -78,59 +78,29 @@ For this demo, we'll use two clusters referred to as "East" and "West". You'll n
    kwest get nodes
    ```
 
-### Setup Certificates
+### CA certificates
 
-We create **different** root and intermediate CAs for each mesh, as it was allowed in OSSM 2 federation.
-
-1. Download the certificate generation tools from the Istio repository:
-
-   ```bash
-   wget https://raw.githubusercontent.com/istio/istio/release-1.22/tools/certs/common.mk -O common.mk
-   wget https://raw.githubusercontent.com/istio/istio/release-1.22/tools/certs/Makefile.selfsigned.mk -O Makefile.selfsigned.mk
-   ```
-
-1. Generate certificates for each cluster:
-
-   ```bash
-   # east
-   make -f Makefile.selfsigned.mk \
-     ROOTCA_CN="East Root CA" \
-     ROOTCA_ORG=my-company.org \
-     root-ca
-   make -f Makefile.selfsigned.mk \
-     INTERMEDIATE_CN="East Intermediate CA" \
-     INTERMEDIATE_ORG=my-company.org \
-     east-cacerts
-   make -f common.mk clean
-   # west
-   make -f Makefile.selfsigned.mk \
-     ROOTCA_CN="West Root CA" \
-     ROOTCA_ORG=my-company.org \
-     root-ca
-   make -f Makefile.selfsigned.mk \
-     INTERMEDIATE_CN="West Intermediate CA" \
-     INTERMEDIATE_ORG=my-company.org \
-     west-cacerts
-   make -f common.mk clean
-   ```
+For the purpose of this demo, we created **different** root and intermediate CAs for each mesh.
 
 1. Create the certificate secrets in both clusters:
 
    ```bash
    # east
+   EAST_CERT_DIR=docs/ossm/ossm2-migration/federation/east
    keast create namespace istio-system
    keast create secret generic cacerts -n istio-system \
-     --from-file=root-cert.pem=east/root-cert.pem \
-     --from-file=ca-cert.pem=east/ca-cert.pem \
-     --from-file=ca-key.pem=east/ca-key.pem \
-     --from-file=cert-chain.pem=east/cert-chain.pem
+     --from-file=root-cert.pem=$EAST_CERT_DIR/root-cert.pem \
+     --from-file=ca-cert.pem=$EAST_CERT_DIR/ca-cert.pem \
+     --from-file=ca-key.pem=$EAST_CERT_DIR/ca-key.pem \
+     --from-file=cert-chain.pem=$EAST_CERT_DIR/cert-chain.pem
    # west
+   WEST_CERT_DIR=docs/ossm/ossm2-migration/federation/west
    kwest create namespace istio-system
    kwest create secret generic cacerts -n istio-system \
-     --from-file=root-cert.pem=west/root-cert.pem \
-     --from-file=ca-cert.pem=west/ca-cert.pem \
-     --from-file=ca-key.pem=west/ca-key.pem \
-     --from-file=cert-chain.pem=west/cert-chain.pem
+     --from-file=root-cert.pem=$WEST_CERT_DIR/root-cert.pem \
+     --from-file=ca-cert.pem=$WEST_CERT_DIR/ca-cert.pem \
+     --from-file=ca-key.pem=$WEST_CERT_DIR/ca-key.pem \
+     --from-file=cert-chain.pem=$WEST_CERT_DIR/cert-chain.pem
    ```
 
 ### Install Service Mesh 2
@@ -988,3 +958,12 @@ The `istio-remote` gateway is used by Istio to populate WorkloadEntry addresses 
 
 Now, when all proxies and gateways are managed by the new control plane, you can delete all OSSM 2-related resources.
 See [Cleaning of OpenShift Service Mesh 2.6 after migration](../cleaning-2.6/README.md#remove-26-control-planes) for detailed instructions.
+
+#### Re-enable validation webhooks
+
+After removing OSSM 2 control planes, you can re-enable validation webhooks by removing the `VALIDATION_WEBHOOK_CONFIG_NAME` environment variable from the Istio resources:
+
+```shell
+keast patch istio default --type=json -p='[{"op": "remove", "path": "/spec/values/pilot/env/VALIDATION_WEBHOOK_CONFIG_NAME"}]'
+kwest patch istio default --type=json -p='[{"op": "remove", "path": "/spec/values/pilot/env/VALIDATION_WEBHOOK_CONFIG_NAME"}]'
+```
