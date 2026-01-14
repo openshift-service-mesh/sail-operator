@@ -622,7 +622,7 @@ To prepare the mesh for disabling the federation feature, configure the followin
      name: remote-gateway-network-west-mesh
      namespace: istio-system
      labels:
-       topology.istio.io/network: network-west-mesh
+       topology.istio.io/network: west-network
    spec:
      gatewayClassName: istio-remote
      addresses:
@@ -640,6 +640,11 @@ To prepare the mesh for disabling the federation feature, configure the followin
 
    The `istio-remote` gateway is used by Istio to automatically populate WorkloadEntry addresses that point to the network managed by the gateway.
 
+> [!IMPORTANT]
+> The `istio-remote` gateway must use a network name (`topology.istio.io/network` label) that is different from the one used by the remote `federation-ingress` gateway. In this example, we use `west-network` instead of `network-west-mesh`. If the same network name is used, the `federation-ingress` gateway address will be overwritten by the `istio-remote` gateway address in Istio's internal registry. This will break communication with imported services while ServiceEntries and WorkloadEntries are not yet configured, as traffic would be routed to the wrong gateway.
+>
+> Note that network names do not need to match between clusters. For example, locally we use `west-network`, while in the west cluster it is `network-west-mesh`. This is acceptable in manual service discovery because the network name only needs to be different from the local one to avoid routing traffic from a local client to a local service via the remote gateway.
+
 1. Create a ServiceEntry and WorkloadEntry for each imported service:
 
    ```shell
@@ -648,8 +653,10 @@ To prepare the mesh for disabling the federation feature, configure the followin
    kind: ServiceEntry
    metadata:
      name: httpbin-b-svc-cluster-local
-     namespace: client
+     namespace: istio-system
    spec:
+     exportTo:
+     - client
      hosts:
      - httpbin.b.svc.cluster.local
      location: MESH_INTERNAL
@@ -668,12 +675,12 @@ To prepare the mesh for disabling the federation feature, configure the followin
    kind: WorkloadEntry
    metadata:
      name: httpbin-cluster-local-west-mesh
-     namespace: client
+     namespace: istio-system
      labels:
        app: httpbin-cluster-local
        security.istio.io/tlsMode: istio
    spec:
-     network: network-west-mesh
+     network: west-network
    EOF
    ```
    
@@ -683,8 +690,10 @@ To prepare the mesh for disabling the federation feature, configure the followin
    kind: ServiceEntry
    metadata:
      name: httpbin-west-mesh-imports
-     namespace: client
+     namespace: istio-system
    spec:
+     exportTo:
+     - client
      hosts:
      - httpbin.a.svc.west-mesh-imports.local
      location: MESH_INTERNAL
@@ -703,22 +712,23 @@ To prepare the mesh for disabling the federation feature, configure the followin
    kind: WorkloadEntry
    metadata:
      name: httpbin-west-mesh-imports
-     namespace: client
+     namespace: istio-system
      labels:
        app: httpbin-west-imports
        security.istio.io/tlsMode: istio
    spec:
-     network: network-west-mesh
+     network: west-network
    EOF
    ```
 
-> [!IMPORTANT]
+> [!NOTE]
 > - `security.istio.io/tlsMode: istio` enforces Istio mTLS for the endpoint specified by the WorkloadEntry
 > - `subjectAltNames` specifies the expected service identity
 > - `network` must match `topology.istio.io/network` specified in the `istio-remote` gateway to ensure the correct address is assigned to the endpoint.
 
-> [!NOTE]
-> In some cases, endpoints may not be immediately pushed to the client proxy. You can verify whether the endpoints have been configured by running:
+> [!IMPORTANT]
+> During migration, endpoints from ServiceEntries may not be immediately pushed to the client proxy due to conflicts with existing entries in Istio's internal service registry.
+> To verify that endpoints have been configured, run:
 >
 > ```shell
 > ieast pc endpoints deploy/curl -n client | grep httpbin
