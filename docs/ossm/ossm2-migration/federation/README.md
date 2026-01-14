@@ -961,14 +961,39 @@ To prepare the mesh for disabling the federation feature, configure the followin
 
 #### Post-migration steps
 
-Once all proxies and gateways are managed by the new control plane, you can delete all OSSM 2-related resources.
-See [Cleaning up OpenShift Service Mesh 2.6 after migration](../cleaning-2.6/README.md#remove-26-control-planes) for detailed instructions.
+1. **Resource cleanup** - once all proxies and gateways are managed by the new control plane, you can delete all OSSM 2-related resources. See [Cleaning up OpenShift Service Mesh 2.6 after migration](../cleaning-2.6/README.md#remove-26-control-planes) for detailed instructions.
 
-#### Re-enable validation webhooks
-
-After removing OSSM 2 control planes, you can re-enable validation webhooks by removing the `VALIDATION_WEBHOOK_CONFIG_NAME` environment variable from the Istio resources:
+2. **Re-enable validation webhooks** - after removing OSSM 2 control planes, you can re-enable validation webhooks by removing the `VALIDATION_WEBHOOK_CONFIG_NAME` environment variable from the Istio resources:
 
    ```shell
    keast patch istio default --type=json -p='[{"op": "remove", "path": "/spec/values/pilot/env/VALIDATION_WEBHOOK_CONFIG_NAME"}]'
    kwest patch istio default --type=json -p='[{"op": "remove", "path": "/spec/values/pilot/env/VALIDATION_WEBHOOK_CONFIG_NAME"}]'
+   ```
+
+3. Apply authorization policies - now when you no longer use OSSM 2 Federation, you can apply `AuthorizationPolicy` for fine-grained access control on the server side. It was not possible in OSSM 2 Federation, which terminated TLS at egress and ingress gateways effectively hiding client identities.
+
+   ```shell
+   kwest apply -f - <<EOF
+   apiVersion: security.istio.io/v1
+   kind: AuthorizationPolicy
+   metadata:
+     name: httpbin-allow-curl-from-east
+     namespace: b
+   spec:
+     selector:
+       matchLabels:
+         app: httpbin
+     action: ALLOW
+     rules:
+     - from:
+       - source:
+           principals:
+           - "east.local/ns/client/sa/curl"
+       to:
+       - operation:
+           ports:
+           - "8080"
+           paths:
+           - "/headers"
+   EOF
    ```
