@@ -14,7 +14,7 @@ This documentation is specific to the OpenShift Service Mesh product and may dif
 - [Multiple Istio Control Planes in a Single Cluster](./multi-control-planes/README.md)
 - [Security Mutual TLS Configuration](./security/security-mTLS-configuration.md)
 - [2.X to 3.0 migration guide](./ossm2-migration/README.md)
-  - [Federation to Multi-cluster Migration](./ossm2-migration/federation-to-multicluster/README.md)
+  - [Federation to Multi-cluster Migration](./ossm2-migration/federation/README.md)
 - [Quickstart: OSSM3 with Kiali, Tempo, Bookinfo](./quickstarts/ossm3-kiali-tempo-bookinfo/README.MD)
 - [Kiali - multi-cluster](./kiali-multi-cluster/README.md)
 - [Installing istioctl tool](./istioctl/README.md)
