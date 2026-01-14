@@ -970,7 +970,7 @@ To prepare the mesh for disabling the federation feature, configure the followin
    kwest patch istio default --type=json -p='[{"op": "remove", "path": "/spec/values/pilot/env/VALIDATION_WEBHOOK_CONFIG_NAME"}]'
    ```
 
-3. Apply authorization policies - now when you no longer use OSSM 2 Federation, you can apply `AuthorizationPolicy` for fine-grained access control on the server side. It was not possible in OSSM 2 Federation, which terminated TLS at egress and ingress gateways effectively hiding client identities.
+3. **Apply authorization policies** - now when you no longer use OSSM 2 Federation, you can apply `AuthorizationPolicy` for fine-grained access control on the server side. It was not possible in OSSM 2 Federation, which terminated TLS at egress and ingress gateways effectively hiding client identities.
 
    ```shell
    kwest apply -f - <<EOF
