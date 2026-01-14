@@ -1,11 +1,11 @@
-# Federation-to–Multi-Cluster Migration Guide
+# Federation-to-Multi-Cluster Migration Guide
 
 ## Introduction
 
 This document provides instructions for migrating from federation in OpenShift Service Mesh 2 to multi-cluster with **manual service discovery** in OpenShift Service Mesh 3.
 
 > [!NOTE]
-> While `federation` is a type of multi-cluster topology, we avoid using this term in the Service Mesh 3 to avoid confusion with the Federation feature available in OSSM 2, which used custom resources that are no longer available in OSSM 3.
+> While `federation` is a type of multi-cluster topology, we avoid using this term in Service Mesh 3 to prevent confusion with the Federation feature in OSSM 2, which relied on custom resources that are no longer available in OSSM 3.
 
 The key differences between the two approaches are:
 
@@ -24,7 +24,7 @@ The key differences between the two approaches are:
 
 This guide will help you transition from the federation model to the multi-cluster model with minimal disruption to your services.
 
-## Why manual service discovery
+## Why manual service discovery?
 
 Automatic service discovery is supported in Istio multi-primary deployments.
 However, this guide focuses on scenarios where meshes do not maintain identical namespace and service definitions across clusters.
@@ -327,7 +327,7 @@ For the purpose of this demo, we created **different** root and intermediate CAs
    EOF
    ```
 
-1. Verify ServiceMeshPeer Status
+1. Verify the ServiceMeshPeer status:
 
    ```shell
    keast get servicemeshpeer west-mesh -n istio-system -o jsonpath='{.status}' | jq
@@ -464,15 +464,17 @@ For the purpose of this demo, we created **different** root and intermediate CAs
 
 #### Configure control plane v2.6
 
-To prepare the mesh for disabling the federation feature, you have to configure the following properties:
+To prepare the mesh for disabling the federation feature, configure the following properties that enable cross-cluster communication without relying on federation-specific resources:
 
-1. `techPreview.meshConfig.trustDomainAliases` - required for enabling communication between identities from different trust domains.
-2. `PILOT_MULTI_NETWORK_DISCOVER_GATEWAY_API` - the feature flag required to enable multi-cluster routing with Kubernetes Gateway API.
-3. `cluster.network` - specifies local network name, which is used by `istio-remote` gateways.
-4. `security.manageNetworkPolicy` - controls default network policies; needs to be disabled to skip federation egress gateway on the connection path.
+- `techPreview.meshConfig.trustDomainAliases` - allows the mesh to accept identities from a different trust domain.
+- `PILOT_MULTI_NETWORK_DISCOVER_GATEWAY_API` - enables Istiod to automatically discover gateway addresses using the Kubernetes Gateway API. This simplifies managing WorkloadEntries for federated services through automatic address injection. When a gateway address changes, updating the Gateway resource automatically propagates the change to all related WorkloadEntries.
+- `cluster.network` - defines the local network name. This is required for `istio-remote` Gateway to work correctly.
+- `security.manageNetworkPolicy` - must be disabled to allow direct communication to the new east-west gateway, bypassing the federation egress gateway.
 
-    ```shell
-    keast patch smcp basic -n istio-system --type=merge -p '{
+1. Patch the control planes in both clusters:
+
+   ```shell
+   keast patch smcp basic -n istio-system --type=merge -p '{
       "spec": {
         "techPreview": {
           "meshConfig": {
@@ -574,14 +576,13 @@ To prepare the mesh for disabling the federation feature, you have to configure 
    ```
 
 > [!NOTE]
-> We apply two gateway configurations:
+> Two gateway configurations are applied here:
 >
-> 1. A **Kubernetes Gateway**, used to leverage Istio’s deployment controller so that we do not need to manually manage the underlying `Service`, `Deployment`, and related resources.
-> 2. An **Istio Gateway**, used to selectively expose specific services.
+> 1. A **Kubernetes Gateway** leverages Istio's deployment controller, eliminating the need to manually manage the underlying `Service`, `Deployment`, and related resources.
+> 2. An **Istio Gateway** selectively exposes specific services.
 >
+> The hostname `fake-hostname-to-block-all-by-default` is a placeholder that matches no real FQDN in the cluster. This workaround is necessary because the Kubernetes Gateway API only supports a single hostname per listener.
 > If you want to export all local services, you can omit the Istio Gateway and configure the Kubernetes Gateway with `hostname: "*"`.
->
-> Both APIs are required because the Kubernetes Gateway API does not support configuring multiple hostnames on a single Gateway, and wildcard matching is not always sufficient.
 
 1. Create ServiceEntry for each service that was imported **without** `importAsLocal` in other clusters:
 
@@ -637,9 +638,9 @@ To prepare the mesh for disabling the federation feature, you have to configure 
    EOF
    ```
 
-The `istio-remote` gateway is used by Istio to populate WorkloadEntry addresses that point to the network managed by the gateway.
+   The `istio-remote` gateway is used by Istio to automatically populate WorkloadEntry addresses that point to the network managed by the gateway.
 
-1. Create ServiceEntry for each imported service:
+1. Create a ServiceEntry and WorkloadEntry for each imported service:
 
    ```shell
    keast apply -f - <<EOF
@@ -716,14 +717,18 @@ The `istio-remote` gateway is used by Istio to populate WorkloadEntry addresses 
 > - `subjectAltNames` specifies the expected service identity
 > - `network` must match `topology.istio.io/network` specified in the `istio-remote` gateway to ensure the correct address is assigned to the endpoint.
 
-1. TODO: Investigate why sometimes `httpbin` endpoints are not pushed to `curl` proxy. A temporary workaround is pod restart when endpoints were not pushed:
-
-    ```shell
-    ieast pc endpoints deploy/curl -n client | grep httpbin
-    ```
-    ```shell
-    keast rollout restart deploy/curl -n client
-    ```
+> [!NOTE]
+> In some cases, endpoints may not be immediately pushed to the client proxy. You can verify whether the endpoints have been configured by running:
+>
+> ```shell
+> ieast pc endpoints deploy/curl -n client | grep httpbin
+> ```
+>
+> If no endpoints are shown, restart the client pod to trigger endpoint synchronization:
+>
+> ```shell
+> keast rollout restart deploy/curl -n client
+> ```
 
 #### Verification steps
 
@@ -750,7 +755,7 @@ The `istio-remote` gateway is used by Istio to populate WorkloadEntry addresses 
    kwest patch servicemeshcontrolplane basic -n istio-system --type=json -p='[{"op": "remove", "path": "/spec/gateways/additionalIngress"}, {"op": "remove", "path": "/spec/gateways/additionalEgress"}]'
    ```
 
-1. Verify connectivity once again:
+1. Verify that cross-cluster connectivity still works after removing the federation resources:
 
    ```shell
    keast exec -n client deploy/curl -c curl -- curl -v httpbin.a.svc.west-mesh-imports.local:8000/headers
@@ -913,9 +918,9 @@ The `istio-remote` gateway is used by Istio to populate WorkloadEntry addresses 
    EOF
    ```
 
-#### Migrate proxies and gateway
+#### Migrate proxies and gateways
 
-1. Update namespace labels and restart deployments to trigger sidecar injection managed by the new control plane:
+1. Update namespace labels and restart deployments to trigger sidecar injection by the new control plane:
 
     ```shell
     # east
@@ -956,14 +961,14 @@ The `istio-remote` gateway is used by Istio to populate WorkloadEntry addresses 
 
 #### Post-migration steps
 
-Now, when all proxies and gateways are managed by the new control plane, you can delete all OSSM 2-related resources.
-See [Cleaning of OpenShift Service Mesh 2.6 after migration](../cleaning-2.6/README.md#remove-26-control-planes) for detailed instructions.
+Once all proxies and gateways are managed by the new control plane, you can delete all OSSM 2-related resources.
+See [Cleaning up OpenShift Service Mesh 2.6 after migration](../cleaning-2.6/README.md#remove-26-control-planes) for detailed instructions.
 
 #### Re-enable validation webhooks
 
 After removing OSSM 2 control planes, you can re-enable validation webhooks by removing the `VALIDATION_WEBHOOK_CONFIG_NAME` environment variable from the Istio resources:
 
-```shell
-keast patch istio default --type=json -p='[{"op": "remove", "path": "/spec/values/pilot/env/VALIDATION_WEBHOOK_CONFIG_NAME"}]'
-kwest patch istio default --type=json -p='[{"op": "remove", "path": "/spec/values/pilot/env/VALIDATION_WEBHOOK_CONFIG_NAME"}]'
-```
+   ```shell
+   keast patch istio default --type=json -p='[{"op": "remove", "path": "/spec/values/pilot/env/VALIDATION_WEBHOOK_CONFIG_NAME"}]'
+   kwest patch istio default --type=json -p='[{"op": "remove", "path": "/spec/values/pilot/env/VALIDATION_WEBHOOK_CONFIG_NAME"}]'
+   ```
