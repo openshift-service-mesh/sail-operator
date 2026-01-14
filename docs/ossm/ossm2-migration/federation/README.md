@@ -1007,3 +1007,16 @@ To prepare the mesh for disabling the federation feature, configure the followin
            - "/headers"
    EOF
    ```
+
+## Caveats
+
+### AuthorizationPolicy limitations with trustDomainAliases
+
+When `trustDomainAliases` is configured, Istio treats identities from aliased trust domains as equivalent to identities from the local trust domain. This means that AuthorizationPolicies cannot distinguish between workloads from different meshes if they share the same namespace and service account name.
+
+For example, if you have two meshes with trust domains `east.local` and `west.local`, and each mesh has a namespace `foo` with a service account `bar`, the following limitation applies:
+
+- An AuthorizationPolicy that allows traffic from `west.local/ns/foo/sa/bar` will **also** allow traffic from `east.local/ns/foo/sa/bar`
+- This is because Istio automatically expands the policy to include all trust domain aliases
+
+This behavior is by design in Istio's trust domain aliasing mechanism. If you require strict isolation between identities from different meshes, consider using distinct namespace or service account names across meshes.
