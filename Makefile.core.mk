@@ -19,7 +19,7 @@ OLD_VARS := $(.VARIABLES)
 # Use `make print-variables` to inspect the values of the variables
 -include Makefile.vendor.mk
 
-VERSION ?= 1.28.0
+VERSION ?= 1.29.0
 MINOR_VERSION := $(shell echo "${VERSION}" | cut -f1,2 -d'.')
 
 # This version will be used to generate the OLM upgrade graph in the FBC as a version to be replaced by the new operator version defined in $VERSION.
@@ -30,7 +30,7 @@ MINOR_VERSION := $(shell echo "${VERSION}" | cut -f1,2 -d'.')
 # There are also GH workflows defined to release nightly and stable operators.
 # There is no need to define `replaces` and `skipRange` fields in the CSV as those fields are defined in the FBC and CSV values are ignored.
 # FBC is source of truth for OLM upgrade graph.
-PREVIOUS_VERSION ?= 1.27.0
+PREVIOUS_VERSION ?= 1.28.1
 
 OPERATOR_NAME ?= sailoperator
 VERSIONS_YAML_DIR ?= pkg/istioversion
@@ -88,6 +88,11 @@ NAMESPACE ?= sail-operator
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION ?= 1.30.0
 
+# ARTIFACTS is the directory where test artifacts (logs, junit reports, etc.) are stored
+ifndef ARTIFACTS
+ARTIFACTS = $(REPO_ROOT)/out
+endif
+
 ifeq ($(findstring gen-check,$(MAKECMDGOALS)),gen-check)
 FORCE_DOWNLOADS := true
 else
@@ -97,7 +102,7 @@ endif
 # Set DOCKER_BUILD_FLAGS to specify flags to pass to 'docker build', default to empty. Example: --platform=linux/arm64
 DOCKER_BUILD_FLAGS ?= "--platform=$(TARGET_OS)/$(TARGET_ARCH)"
 
-GOTEST_FLAGS := $(if $(VERBOSE),-v) $(if $(COVERAGE),-coverprofile=$(REPO_ROOT)/out/coverage-unit.out)
+GOTEST_FLAGS := $(if $(VERBOSE),-v) $(if $(CI),-v) $(if $(COVERAGE),-coverprofile=$(REPO_ROOT)/out/coverage-unit.out)
 GINKGO_FLAGS ?= $(if $(VERBOSE),-v) $(if $(CI),--no-color) $(if $(COVERAGE),-coverprofile=coverage-integration.out -coverpkg=./... --output-dir=out)
 
 # Fail fast when keeping the environment on failure, to make sure we don't contaminate it with other resources. Also make sure to skip cleanup so it won't be deleted.
@@ -112,7 +117,7 @@ KIND_IMAGE ?=
 ifeq ($(KIND_IMAGE),)
   ifeq ($(LOCAL_OS),Darwin)
     # If the OS is Darwin, set the image.
-    KIND_IMAGE := docker.io/kindest/node:v1.34.0
+    KIND_IMAGE := docker.io/kindest/node:v1.35.0
   endif
   # For other OS, KIND_IMAGE remains empty, which default to the upstream default image.
 endif
@@ -202,16 +207,15 @@ test: test.unit test.integration ## Run both unit tests and integration test.
 
 .PHONY: test.unit
 test.unit: envtest  ## Run unit tests.
-ifdef COVERAGE
-	if [ ! -d "$(REPO_ROOT)/out" ]; then mkdir $(REPO_ROOT)/out; fi
-endif
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-	go test $(GOTEST_FLAGS) ./...
+	@mkdir -p "$(ARTIFACTS)"; \
+	set -o pipefail; KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+	go test $(GOTEST_FLAGS) ./... | tee >(go-junit-report -set-exit-code > "$(ARTIFACTS)/junit-unit.xml")
 
 .PHONY: test.integration
 test.integration: envtest ## Run integration tests located in the tests/integration directory.
+	@mkdir -p "$(ARTIFACTS)"; \
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-	go run github.com/onsi/ginkgo/v2/ginkgo --tags=integration $(GINKGO_FLAGS) ./tests/integration/...
+	go run github.com/onsi/ginkgo/v2/ginkgo --tags=integration --junit-report=junit-integration.xml --output-dir="$(ARTIFACTS)" $(GINKGO_FLAGS) ./tests/integration/...
 
 .PHONY: test.scorecard
 test.scorecard: operator-sdk ## Run the operator scorecard test.
@@ -564,14 +568,14 @@ MISSPELL ?= $(LOCALBIN)/misspell
 
 ## Tool Versions
 OPERATOR_SDK_VERSION ?= v1.42.0
-HELM_VERSION ?= v3.19.2
-CONTROLLER_TOOLS_VERSION ?= v0.19.0
+HELM_VERSION ?= v3.19.5
+CONTROLLER_TOOLS_VERSION ?= v0.20.0
 CONTROLLER_RUNTIME_BRANCH ?= release-0.22
 OPM_VERSION ?= v1.61.0
 OLM_VERSION ?= v0.38.0
-GITLEAKS_VERSION ?= v8.29.1
+GITLEAKS_VERSION ?= v8.30.0
 ISTIOCTL_VERSION ?= 1.26.2
-RUNME_VERSION ?= 3.16.1
+RUNME_VERSION ?= 3.16.4
 MISSPELL_VERSION ?= v0.3.4
 
 .PHONY: helm $(HELM)

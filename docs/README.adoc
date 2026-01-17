@@ -1,9 +1,9 @@
 // Variables embedded for GitHub compatibility
-:istio_latest_version: 1.28.0
-:istio_latest_version_revision_format: 1-28-0
+:istio_latest_version: 1.28.2
+:istio_latest_version_revision_format: 1-28-2
 :istio_latest_tag: v1.28-latest
-:istio_latest_minus_one_version: 1.27.3
-:istio_latest_minus_one_version_revision_format: 1-27-3
+:istio_latest_minus_one_version: 1.28.1
+:istio_latest_minus_one_version_revision_format: 1-28-1
 
 link:../[Return to Project Root]
 
@@ -289,7 +289,7 @@ All of the Sail Operator API resources have a `status` subresource that contains
 [#conditions]
 ==== Conditions
 
-All resources have a `Ready` condition which is set to `true` as soon as all child resource have been created and are deemed Ready by their respective controllers. To see additional conditions for each of the resources, check the link:api-reference/sailoperator.io.adoc[API reference documentation].
+All resources have a `Ready` condition which is set to `true` as soon as all child resource have been created and are deemed Ready by their respective controllers. To see additional conditions for each of the resources, check the link:api-reference/sailoperator.io.md[API reference documentation].
 
 [#inuse-detection]
 ==== InUse Detection
@@ -319,7 +319,7 @@ The Sail Operator uses InUse detection to determine whether an object is referen
 [#api-reference-documentation]
 == API Reference documentation
 
-The Sail Operator API reference documentation can be found link:api-reference/sailoperator.io.adoc#api-reference[here].
+The Sail Operator API reference documentation can be found link:api-reference/sailoperator.io.md#api-reference[here].
 
 == AI Agents Guide
 
