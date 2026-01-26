@@ -40,6 +40,7 @@ var (
 	istioCSRNamespace            = env.Get("ISTIO_CSR_NS", "istio-csr")
 	istioName                    = env.Get("ISTIO_NAME", "default")
 	istioCniNamespace            = env.Get("ISTIOCNI_NAMESPACE", "istio-cni")
+	ztunnelNamespace             = common.ZtunnelNamespace
 	istioCniName                 = env.Get("ISTIOCNI_NAME", "default")
 
 	k kubectl.Kubectl
