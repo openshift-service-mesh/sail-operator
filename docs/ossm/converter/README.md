@@ -171,7 +171,7 @@ You can debug tests using two approaches:
      -test.run TestTraffic/externalname/routed/auto-http \
      --istio.test.ci \
      --istio.test.pullpolicy=IfNotPresent \
-     --istio.test.work_dir=/home/user/istio/prow/artifacts \
+     --istio.test.work_dir=<your-istio-repo-path>/artifacts \
      --istio.test.skipTProxy=true \
      --istio.test.skipVM=true \
      --istio.test.kube.helm.values=global.platform=openshift \
@@ -180,7 +180,7 @@ You can debug tests using two approaches:
      --istio.test.tag=istio-testing \
      --istio.test.openshift \
      --istio.test.kube.deploy=false \
-     --istio.test.kube.controlPlaneInstaller=/home/user/istio/prow/setup/sail-operator-setup.sh
+     --istio.test.kube.controlPlaneInstaller=<your-istio-repo-path>/setup/sail-operator-setup.sh
    ```
 
 5. **Attach debugger in VSCode**:
@@ -197,7 +197,12 @@ This approach allows you to select a test function name in VSCode and debug it d
 2. **Add launch configuration** to `.vscode/launch.json`:
 
    Update paths for `controlPlaneInstaller` and `istio.test.work_dir` to match your local setup.
-   Also, do not forget to add additional args if needed, e.g. `--istio.test.ambient` for ambient tests, or extend helm values if necessary. (which is done by `integ-suite-ocp.sh` script)
+
+   **Important Configuration Notes:**
+   - **Test-specific arguments**: Add suite-specific flags as needed (e.g., `--istio.test.ambient` for ambient tests)
+   - **Helm values**: Extend `--istio.test.kube.helm.values` if required (e.g., ambient tests need `pilot.trustedZtunnelNamespace=ztunnel`)
+   - **Environment variables**: Set the `env` section with variables required by `sail-operator-setup.sh` (see example below)
+   - **Reference**: Check what `integ-suite-ocp.sh` <ins>uses for your specific test suite and replicate those settings here</ins>. Also some additional setting can be needed. (e.g. for ambient, you need to Set local gateway mode for Ambient.)
 
    **How this configuration works:**
    - `${fileDirname}` - Automatically uses the directory of the currently open test file as the test package
@@ -220,18 +225,28 @@ This approach allows you to select a test function name in VSCode and debug it d
                    "-test.run", "${selectedText}",
                    "--istio.test.ci",
                    "--istio.test.pullpolicy=IfNotPresent",
-                   "--istio.test.work_dir=/home/user/istio/prow/artifacts",
+                   "--istio.test.work_dir=<your-istio-repo-path>/prow/artifacts",
                    "--istio.test.skipTProxy=true",
                    "--istio.test.skipVM=true",
-                   "--istio.test.kube.helm.values=global.platform=openshift",
+                   "--istio.test.kube.helm.values=global.platform=openshift,pilot.trustedZtunnelNamespace=ztunnel",
                    "--istio.test.istio.enableCNI=true",
-                   "--istio.test.hub=image-registry.openshift-image-registry.svc:5000/istio-system",
-                   "--istio.test.tag=istio-testing",
-                   "--istio.test.openshift",
+                   "--istio.test.kube.deployGatewayAPI=false",
                    "--istio.test.kube.deploy=false",
-                   "--istio.test.kube.controlPlaneInstaller=/home/user/istio/prow/setup/sail-operator-setup.sh"
+                   "--istio.test.hub=docker.io/istio",
+                   "--istio.test.tag=1.27.3",
+                   "--istio.test.openshift",
+                   "--istio.test.ambient",
+                   "--istio.test.kube.deploy=false",
+                   "--istio.test.kube.controlPlaneInstaller=<your-istio-repo-path>/prow/setup/sail-operator-setup.sh"
                ],
-               "buildFlags": "-tags=integ"
+               "buildFlags": "-tags=integ",
+               "env": {
+                   "CONTROL_PLANE_SOURCE": "sail",
+                   "ISTIO_VERSION": "v1.27.3",
+                   "TAG": "1.27.3",
+                   "TEST_HUB": "docker.io/istio",
+                   "AMBIENT": "true"
+               }
            }
        ]
    }
