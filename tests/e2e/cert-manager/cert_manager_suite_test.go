@@ -42,11 +42,15 @@ var (
 	istioCniNamespace            = env.Get("ISTIOCNI_NAMESPACE", "istio-cni")
 	ztunnelNamespace             = common.ZtunnelNamespace
 	istioCniName                 = env.Get("ISTIOCNI_NAME", "default")
+	multicluster                 = env.GetBool("MULTICLUSTER", false)
 
 	k kubectl.Kubectl
 )
 
 func TestCertManager(t *testing.T) {
+	if multicluster {
+		t.Skip("Skipping test for multicluster")
+	}
 	RegisterFailHandler(Fail)
 	setup()
 	RunSpecs(t, "Cert Manager Test Suite")
