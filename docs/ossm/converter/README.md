@@ -74,44 +74,106 @@ The log file is created under the execution directory, which is set by --istio.t
 The following is an example of the folder where you can find artifacts created in test execution:
 https://gcsweb-ci.apps.ci.l2s4.p1.openshiftapps.com/gcs/test-platform-results/pr-logs/pull/openshift-service-mesh_istio/374/pull-ci-openshift-service-mesh-istio-master-istio-integration-sail-pilot/1920053129898889216/artifacts/istio-integration-sail-pilot/integ-sail-pilot-test-run/artifacts/pilot-4def8a9fdff144de8e4f22463/_suite_context/istio-deployment-611939208/
 
-### Debugging test with dlv + vscode:
+### Debugging test with dlv + VSCode:
 #### Prerequisites:
-    - To debug test/s in integration test suite you need to have Sail Operator installed in the cluster
+- To debug test/s in integration test suite you need to have Sail Operator installed in the cluster
+- Be sure you use the latest delve version (`go install github.com/go-delve/delve/cmd/dlv@latest`)
+  - Verify delve version with `dlv version` (e.g. needs v1.25+ for Go 1.25.6)
+  - If the newly installed dlv is not used, ensure `$HOME/go/bin` is in your PATH before other Go bin directories
 
-#### Executing Debugger
-    - Put your breakpoints on desired test in vscode
-    - Add following launch config to .vscode/launch.json
-        ```json
+You can run tests externally via terminal and connect to debugger via VSCode or you can run and debug tests inside the VSCode
+
+#### Executing tests via command line and attaching to debugger
+- Put your breakpoints on desired test in VSCode
+- Add following launch config to `.vscode/launch.json` (or extend your `.vscode/launch.json` config about new configuration).
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
         {
-            "version": "0.2.0",
-            "configurations": [
-                {
-                    "name": "Attach to Delve",
-                    "type": "go",
-                    "request": "attach",
-                    "mode": "remote",
-                    "port": 2345,
-                    "host": "127.0.0.1",
-                    "apiVersion": 2
-                }
-            ]
+            "name": "Attach to Delve",
+            "type": "go",
+            "request": "attach",
+            "mode": "remote",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "apiVersion": 2
         }
-        ```
-    - Execute following dlv command on terminal with modifying -test.run as desired
-        ```sh
-        dlv test --headless --listen=:2345 --api-version=2 --log --build-flags "-tags=integ" -- \
-        -test.v -test.count=1 -test.timeout=60m -test.run TestTraffic/externalname/routed/auto-http \
-        --istio.test.ci \
-        --istio.test.pullpolicy=IfNotPresent \
-        --istio.test.work_dir=/home/ubuntu/istio_ossm/prow/artifacts \
-        --istio.test.skipTProxy=true \
-        --istio.test.skipVM=true \
-        --istio.test.kube.helm.values=global.platform=openshift \
-        --istio.test.istio.enableCNI=true \
-        --istio.test.hub=image-registry.openshift-image-registry.svc:5000/istio-system \
-        --istio.test.tag=istio-testing \
-        --istio.test.openshift \
-        --istio.test.kube.deploy=false \
-        --istio.test.kube.controlPlaneInstaller=/home/ubuntu/istio_ossm/prow/setup/sail-operator-setup.sh
-        ```
-    - When the dlv command starts go to vscode and execute "Attach to Delve" debugger
+    ]
+}
+```
+- Go to the desired test directory (this is important - `dlv test` must be run from within the test package directory).
+```sh
+cd ./tests/integration/pilot
+```
+- Execute following dlv command on terminal with modifying `-test.run` as desired and update paths for `controlPlaneInstaller` and `istio.test.work_dir` to match your local setup.
+```sh
+dlv test --headless --listen=:2345 --api-version=2 --log --build-flags "-tags=integ" -- \
+-test.v -test.count=1 -test.timeout=60m -test.run TestTraffic/externalname/routed/auto-http \
+--istio.test.ci \
+--istio.test.pullpolicy=IfNotPresent \
+--istio.test.work_dir=<your-istio-repo-path>/prow/artifacts \
+--istio.test.skipTProxy=true \
+--istio.test.skipVM=true \
+--istio.test.kube.helm.values=global.platform=openshift \
+--istio.test.istio.enableCNI=true \
+--istio.test.hub=image-registry.openshift-image-registry.svc:5000/istio-system \
+--istio.test.tag=istio-testing \
+--istio.test.openshift \
+--istio.test.kube.deploy=false \
+--istio.test.kube.controlPlaneInstaller=<your-istio-repo-path>/prow/setup/sail-operator-setup.sh
+```
+- When the dlv command starts go to VSCode and:
+  - Open `Run and Debug` view (SHIFT+ALT+F9 or Ctrl+Shift+D)
+  - Select `Attach to Delve` from the dropdown
+  - Press F5 or click the green play button to start debugging
+
+#### Executing tests directly in VSCode by selecting a specific test function name
+- Put your breakpoints on desired test in VSCode
+- Add following launch config to `.vscode/launch.json` (or extend your `.vscode/launch.json` config about new configuration).
+- Update paths for `controlPlaneInstaller` and `istio.test.work_dir` to match your local setup.
+
+**How this configuration works:**
+- `${fileDirname}` - Automatically uses the directory of the currently open test file as the test package
+- `${selectedText}` - Uses the text you select/highlight in VSCode as the test name to run
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Selected Test",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${fileDirname}",
+            "args": [
+                "-test.v",
+                "-test.count=1",
+                "-test.timeout=60m",
+                "-test.run", "${selectedText}",
+                "--istio.test.ci",
+                "--istio.test.pullpolicy=IfNotPresent",
+                "--istio.test.work_dir=<your-istio-repo-path>/prow/artifacts",
+                "--istio.test.skipTProxy=true",
+                "--istio.test.skipVM=true",
+                "--istio.test.kube.helm.values=global.platform=openshift",
+                "--istio.test.istio.enableCNI=true",
+                "--istio.test.hub=image-registry.openshift-image-registry.svc:5000/istio-system",
+                "--istio.test.tag=istio-testing",
+                "--istio.test.openshift",
+                "--istio.test.kube.deploy=false",
+                "--istio.test.kube.controlPlaneInstaller=<your-istio-repo-path>/prow/setup/sail-operator-setup.sh"
+            ],
+            "buildFlags": "-tags=integ"
+        }
+    ]
+}
+```
+
+**To use this configuration:**
+1. Open the test file in VSCode (e.g., `waypoint_test.go`)
+2. Double-click to select the test function name (e.g., `TestCrossNamespaceWaypointRequestAuth`)
+3. Open `Run and Debug` view (SHIFT+ALT+F9 or Ctrl+Shift+D)
+4. Select `Debug Selected Test` from the dropdown
+5. Press F5 or click the green play button to start debugging
