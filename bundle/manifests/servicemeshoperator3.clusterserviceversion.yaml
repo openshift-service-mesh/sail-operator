@@ -180,16 +180,13 @@ spec:
         specDescriptors:
           - description: |-
               Defines the version of Istio to install.
-              Must be one of: v1.28-latest, v1.28.3, v1.28.2, v1.28.1, v1.28.0, v1.27-latest, v1.27.5, v1.27.4, v1.27.3, v1.27.2, v1.27.1, v1.27.0, v1.26-latest, v1.26.8, v1.26.7, v1.26.6, v1.26.5, v1.26.4, v1.26.3, v1.26.2, v1.26.1, v1.26.0.
+              Must be one of: v1.28-latest, v1.28.3 v1.27-latest, v1.27.5, v1.27.4, v1.27.3, v1.27.2, v1.27.1, v1.27.0, v1.26-latest, v1.26.8, v1.26.7, v1.26.6, v1.26.5, v1.26.4, v1.26.3, v1.26.2, v1.26.1, v1.26.0.
             displayName: Istio Version
             path: version
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:General
               - urn:alm:descriptor:com.tectonic.ui:select:v1.28-latest
               - urn:alm:descriptor:com.tectonic.ui:select:v1.28.3
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.2
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.1
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.0
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27-latest
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.5
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.4
@@ -244,15 +241,13 @@ spec:
         specDescriptors:
           - description: |-
               Defines the version of Istio to install.
-              Must be one of: v1.28.3, v1.28.2, v1.28.1, v1.28.0, v1.27.5, v1.27.4, v1.27.3, v1.27.2, v1.27.1, v1.27.0, v1.26.8, v1.26.7, v1.26.6, v1.26.5, v1.26.4, v1.26.3, v1.26.2, v1.26.1, v1.26.0.
+              Must be one of: v1.28-latest, v1.28.3, v1.27.5, v1.27.4, v1.27.3, v1.27.2, v1.27.1, v1.27.0, v1.26.8, v1.26.7, v1.26.6, v1.26.5, v1.26.4, v1.26.3, v1.26.2, v1.26.1, v1.26.0.
             displayName: Istio Version
             path: version
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:General
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.28-latest
               - urn:alm:descriptor:com.tectonic.ui:select:v1.28.3
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.2
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.1
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.0
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.5
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.4
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.3
@@ -302,16 +297,13 @@ spec:
               - urn:alm:descriptor:com.tectonic.ui:select:RevisionBased
           - description: |-
               Defines the version of Istio to install.
-              Must be one of: v1.28-latest, v1.28.3, v1.28.2, v1.28.1, v1.28.0, v1.27-latest, v1.27.5, v1.27.4, v1.27.3, v1.27.2, v1.27.1, v1.27.0, v1.26-latest, v1.26.8, v1.26.7, v1.26.6, v1.26.5, v1.26.4, v1.26.3, v1.26.2, v1.26.1, v1.26.0.
+              Must be one of: v1.28-latest, v1.28.3, v1.27-latest, v1.27.5, v1.27.4, v1.27.3, v1.27.2, v1.27.1, v1.27.0, v1.26-latest, v1.26.8, v1.26.7, v1.26.6, v1.26.5, v1.26.4, v1.26.3, v1.26.2, v1.26.1, v1.26.0.
             displayName: Istio Version
             path: version
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:General
               - urn:alm:descriptor:com.tectonic.ui:select:v1.28-latest
               - urn:alm:descriptor:com.tectonic.ui:select:v1.28.3
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.2
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.1
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.0
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27-latest
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.5
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.4
@@ -384,16 +376,13 @@ spec:
         specDescriptors:
           - description: |-
               Defines the version of Istio to install.
-              Must be one of: v1.28-latest, v1.28.3, v1.28.2, v1.28.1, v1.28.0, v1.27-latest, v1.27.5, v1.27.4, v1.27.3, v1.27.2, v1.27.1, v1.27.0, v1.26-latest, v1.26.8, v1.26.7, v1.26.6, v1.26.5, v1.26.4, v1.26.3, v1.26.2, v1.26.1, v1.26.0.
+              Must be one of: v1.28-latest, v1.28.3, v1.27-latest, v1.27.5, v1.27.4, v1.27.3, v1.27.2, v1.27.1, v1.27.0, v1.26-latest, v1.26.8, v1.26.7, v1.26.6, v1.26.5, v1.26.4, v1.26.3, v1.26.2, v1.26.1, v1.26.0.
             displayName: Istio Version
             path: version
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:General
               - urn:alm:descriptor:com.tectonic.ui:select:v1.28-latest
               - urn:alm:descriptor:com.tectonic.ui:select:v1.28.3
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.2
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.1
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.0
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27-latest
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.5
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.4
@@ -819,21 +808,6 @@ spec:
                   images.v1_27_5.must-gather: ${OSSM_V1_27_5_MUST_GATHER}
                   images.v1_27_5.proxy: ${OSSM_V1_27_5_PROXY}
                   images.v1_27_5.ztunnel: ${OSSM_V1_27_5_ZTUNNEL}
-                  images.v1_28_0.cni: ${OSSM_V1_28_0_CNI}
-                  images.v1_28_0.istiod: ${OSSM_V1_28_0_ISTIOD}
-                  images.v1_28_0.must-gather: ${OSSM_V1_28_0_MUST_GATHER}
-                  images.v1_28_0.proxy: ${OSSM_V1_28_0_PROXY}
-                  images.v1_28_0.ztunnel: ${OSSM_V1_28_0_ZTUNNEL}
-                  images.v1_28_1.cni: ${OSSM_V1_28_1_CNI}
-                  images.v1_28_1.istiod: ${OSSM_V1_28_1_ISTIOD}
-                  images.v1_28_1.must-gather: ${OSSM_V1_28_1_MUST_GATHER}
-                  images.v1_28_1.proxy: ${OSSM_V1_28_1_PROXY}
-                  images.v1_28_1.ztunnel: ${OSSM_V1_28_1_ZTUNNEL}
-                  images.v1_28_2.cni: ${OSSM_V1_28_2_CNI}
-                  images.v1_28_2.istiod: ${OSSM_V1_28_2_ISTIOD}
-                  images.v1_28_2.must-gather: ${OSSM_V1_28_2_MUST_GATHER}
-                  images.v1_28_2.proxy: ${OSSM_V1_28_2_PROXY}
-                  images.v1_28_2.ztunnel: ${OSSM_V1_28_2_ZTUNNEL}
                   images.v1_28_3.cni: ${OSSM_V1_28_3_CNI}
                   images.v1_28_3.istiod: ${OSSM_V1_28_3_ISTIOD}
                   images.v1_28_3.must-gather: ${OSSM_V1_28_3_MUST_GATHER}
