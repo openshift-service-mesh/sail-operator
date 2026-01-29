@@ -28,30 +28,18 @@ deployment:
     images.v1_26_6.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:8a21e30593e51f2fd2e51d9ab1d0ed2fc43eaa9b98173d7fb74f799d6b2f163d
     images.v1_26_6.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:47100186c27934adeda3002bb04cac28980ca8854eee7d6e4f4b3f85562e9a8e
     images.v1_26_6.ztunnel: registry.redhat.io/openshift-service-mesh-tech-preview/istio-ztunnel-rhel9@sha256:f39e2c28ef36fce9f808f3946cc4e4126047e142ad84cb18c222cecceae29730
-    # TODO: 1.26.8 images - update with actual image references when available
-    images.v1_26_8.cni: PLACEHOLDER
-    images.v1_26_8.istiod: PLACEHOLDER
-    images.v1_26_8.must-gather: PLACEHOLDER
-    images.v1_26_8.proxy: PLACEHOLDER
-    images.v1_26_8.ztunnel: PLACEHOLDER
     # 1.27.3 images
     images.v1_27_3.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:ddadd677161ad8c1077dd156821d6b4e32742ccbb210e9c14696fa66a58c0867
     images.v1_27_3.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:0850242436e88f7d82f0f2126de064c7e0f09844f31d8ff0f53dc8d3908075d9
     images.v1_27_3.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:742bc084c26769ff57cb3aa47b7a35c2b94684c3f67a9388da07a0490a942e5c
     images.v1_27_3.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:7d15cebf9b62f3f235c0eab5158ac8ff2fda86a1d193490dc94c301402c99da8
     images.v1_27_3.ztunnel: registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:b2b3216a05f6136ed9ddb71d72d493030c6d6b431682dddffa692c760b6c9ba1
-    # TODO: 1.27.5 images - update with actual image references when available
-    images.v1_27_5.cni: PLACEHOLDER
-    images.v1_27_5.istiod: PLACEHOLDER
-    images.v1_27_5.must-gather: PLACEHOLDER
-    images.v1_27_5.proxy: PLACEHOLDER
-    images.v1_27_5.ztunnel: PLACEHOLDER
-    # TODO: 1.28.3 images - update with actual image references when available
-    images.v1_28_3.cni: PLACEHOLDER
-    images.v1_28_3.istiod: PLACEHOLDER
-    images.v1_28_3.must-gather: PLACEHOLDER
-    images.v1_28_3.proxy: PLACEHOLDER
-    images.v1_28_3.ztunnel: PLACEHOLDER
+    # 1.28.3 images
+    images.v1_28_3.cni: ${ISTIO_CNI_1_28}
+    images.v1_28_3.istiod: ${ISTIO_PILOT_1_28}
+    images.v1_28_3.must-gather: ${OSSM_MUST_GATHER_3_3}
+    images.v1_28_3.proxy: ${ISTIO_PROXY_1_28}
+    images.v1_28_3.ztunnel: ${ISTIO_ZTUNNEL_1_28}
 service:
   port: 8443
 serviceAccountName: servicemesh-operator3
