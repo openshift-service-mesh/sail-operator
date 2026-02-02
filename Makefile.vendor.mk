@@ -1,12 +1,12 @@
-VERSION = 3.2.2
+VERSION = 3.3.0
 OPERATOR_NAME = servicemeshoperator3
-CHANNELS = "stable,stable-3.2"
+CHANNELS = "stable,stable-3.3"
 DEFAULT_CHANNEL=stable
 HELM_VALUES_FILE = ossm/values.yaml
 VERSIONS_YAML_FILE ?= versions.ossm.yaml
 USE_IMAGE_DIGESTS = false
 PATCH_HELM_VALUES = false
-IMAGE ?= $$\{OSSM_OPERATOR_3_2\}
+IMAGE ?= $$\{OSSM_OPERATOR_3_3\}
 
 .PHONY: build-fips
 build-fips: ## Build sail-operator binary for FIPS mode.
