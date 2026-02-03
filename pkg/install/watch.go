@@ -80,7 +80,7 @@ func (i *Installer) GetWatchSpecs(opts Options) ([]WatchSpec, error) {
 		return nil, fmt.Errorf("invalid version %q: %w", opts.Version, err)
 	}
 
-	// Prepare values
+	// Prepare values with required fields
 	values := prepareValues(opts.Values, opts.Namespace, opts.Revision)
 	helmValues := helm.FromValues(values)
 
