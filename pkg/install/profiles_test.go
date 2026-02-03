@@ -50,6 +50,10 @@ func TestGatewayAPIDefaults(t *testing.T) {
 	assert.Equal(t, "true", defaults.Pilot.Env["PILOT_ENABLE_GATEWAY_API_CA_CERT_ONLY"])
 	assert.Equal(t, "false", defaults.Pilot.Env["PILOT_ENABLE_GATEWAY_API_COPY_LABELS_ANNOTATIONS"])
 
+	// Check resource filtering env vars (X_ prefixed until Istio feature is ready)
+	assert.Equal(t, GatewayAPIIgnoreResources, defaults.Pilot.Env[EnvPilotIgnoreResources])
+	assert.Equal(t, GatewayAPIIncludeResources, defaults.Pilot.Env[EnvPilotIncludeResources])
+
 	// Check SidecarInjectorWebhook settings
 	require.NotNil(t, defaults.SidecarInjectorWebhook)
 	assert.Equal(t, false, *defaults.SidecarInjectorWebhook.EnableNamespacesByDefault)

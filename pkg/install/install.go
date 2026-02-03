@@ -63,6 +63,12 @@ type Options struct {
 	// OwnerRef is an optional owner reference for garbage collection.
 	// If set, installed resources will be owned by this resource.
 	OwnerRef *metav1.OwnerReference
+
+	// ManageCRDs controls whether the installer manages Istio CRDs.
+	// When true (default), CRDs for resources in PILOT_INCLUDE_RESOURCES will be
+	// installed if they don't exist. Existing CRDs are left alone.
+	// Set to false to skip CRD management entirely.
+	ManageCRDs *bool
 }
 
 // applyDefaults fills in default values for Options
@@ -76,13 +82,16 @@ func (o *Options) applyDefaults() {
 	if o.Revision == "" {
 		o.Revision = defaultRevision
 	}
+	if o.ManageCRDs == nil {
+		o.ManageCRDs = ptr.To(true)
+	}
 }
 
 // Installer provides one-shot istiod installation for OpenShift.
 type Installer struct {
 	chartManager *helm.ChartManager
 	resourceFS   fs.FS
-	client       client.Client
+	client       client.Client // for CRD operations
 }
 
 // NewInstaller creates a new Installer.
@@ -134,6 +143,13 @@ func (i *Installer) Install(ctx context.Context, opts Options) error {
 
 	// Prepare values with required fields (namespace, revision)
 	values := prepareValues(opts.Values, opts.Namespace, opts.Revision)
+
+	// Ensure required CRDs are installed (based on PILOT_INCLUDE_RESOURCES)
+	if ptr.Deref(opts.ManageCRDs, true) {
+		if err := i.ensureCRDs(ctx, values); err != nil {
+			return fmt.Errorf("CRD management failed: %w", err)
+		}
+	}
 
 	// Create reconciler config
 	reconcilerCfg := sharedreconcile.Config{
