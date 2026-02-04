@@ -64,6 +64,10 @@ type WatchSpec struct {
 
 	// WatchType indicates how events should be handled.
 	WatchType WatchType
+
+	// ClusterScoped indicates if this is a cluster-scoped resource (vs namespaced).
+	// Cluster-scoped resources require a different informer factory setup.
+	ClusterScoped bool
 }
 
 // GetWatchSpecs renders the istiod Helm charts and extracts the GVKs
@@ -127,15 +131,17 @@ func (i *Installer) GetWatchSpecs(opts Options) ([]WatchSpec, error) {
 	specs := make([]WatchSpec, 0, len(gvkSet)+1)
 	for gvk := range gvkSet {
 		specs = append(specs, WatchSpec{
-			GVK:       gvk,
-			WatchType: WatchTypeOwned,
+			GVK:           gvk,
+			WatchType:     WatchTypeOwned,
+			ClusterScoped: isClusterScoped(gvk),
 		})
 	}
 
 	// Add Namespace watch
 	specs = append(specs, WatchSpec{
-		GVK:       corev1.SchemeGroupVersion.WithKind("Namespace"),
-		WatchType: WatchTypeNamespace,
+		GVK:           corev1.SchemeGroupVersion.WithKind("Namespace"),
+		WatchType:     WatchTypeNamespace,
+		ClusterScoped: true, // Namespaces are cluster-scoped
 	})
 
 	// Sort for deterministic output
@@ -209,4 +215,20 @@ func parseAPIVersionKind(apiVersion, kind string) schema.GroupVersionKind {
 		}
 	}
 	return gv.WithKind(kind)
+}
+
+// isClusterScoped returns true if the given GVK is a cluster-scoped resource.
+// This is based on the known cluster-scoped kinds used in Istio charts.
+func isClusterScoped(gvk schema.GroupVersionKind) bool {
+	// Known cluster-scoped kinds from Istio charts
+	clusterScopedKinds := map[string]bool{
+		"Namespace":                      true,
+		"ClusterRole":                    true,
+		"ClusterRoleBinding":             true,
+		"CustomResourceDefinition":       true,
+		"MutatingWebhookConfiguration":   true,
+		"ValidatingWebhookConfiguration": true,
+	}
+
+	return clusterScopedKinds[gvk.Kind]
 }

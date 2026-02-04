@@ -92,6 +92,7 @@ func (o *Options) applyDefaults() {
 type Installer struct {
 	chartManager *helm.ChartManager
 	resourceFS   fs.FS
+	kubeConfig   *rest.Config
 	client       client.Client // for CRD operations
 }
 
@@ -117,6 +118,7 @@ func NewInstaller(kubeConfig *rest.Config, resourceFS fs.FS) (*Installer, error)
 	return &Installer{
 		chartManager: helm.NewChartManager(kubeConfig, defaultHelmDriver),
 		resourceFS:   resourceFS,
+		kubeConfig:   kubeConfig,
 		client:       cl,
 	}, nil
 }
@@ -127,19 +129,21 @@ func NewInstaller(kubeConfig *rest.Config, resourceFS fs.FS) (*Installer, error)
 //   - Resolves the Istio version
 //   - Computes final values (digests, vendor defaults, profiles, FIPS, overrides)
 //   - Installs both the base chart (CRDs) and istiod chart
+//   - Returns a DriftReconciler for optional drift detection
 //
 // For Gateway API mode, use GatewayAPIDefaults() to get pre-configured values:
 //
 //	values := install.GatewayAPIDefaults()
 //	values.Pilot.Env["PILOT_GATEWAY_API_CONTROLLER_NAME"] = "my-controller"
-//	installer.Install(ctx, Options{Values: values})
-func (i *Installer) Install(ctx context.Context, opts Options) error {
+//	reconciler, _ := installer.Install(ctx, Options{Values: values})
+//	reconciler.Start(ctx)  // Optional: start drift detection
+func (i *Installer) Install(ctx context.Context, opts Options) (*DriftReconciler, error) {
 	opts.applyDefaults()
 
 	// Resolve version alias to actual version
 	resolvedVersion, err := istioversion.Resolve(opts.Version)
 	if err != nil {
-		return fmt.Errorf("invalid version %q: %w", opts.Version, err)
+		return nil, fmt.Errorf("invalid version %q: %w", opts.Version, err)
 	}
 
 	// Compute final values using the same pipeline as the Operator:
@@ -159,13 +163,13 @@ func (i *Installer) Install(ctx context.Context, opts Options) error {
 		opts.Revision,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to compute values: %w", err)
+		return nil, fmt.Errorf("failed to compute values: %w", err)
 	}
 
 	// Ensure required CRDs are installed (based on PILOT_INCLUDE_RESOURCES)
 	if ptr.Deref(opts.ManageCRDs, true) {
 		if err := i.ensureCRDs(ctx, values); err != nil {
-			return fmt.Errorf("CRD management failed: %w", err)
+			return nil, fmt.Errorf("CRD management failed: %w", err)
 		}
 	}
 
@@ -183,15 +187,21 @@ func (i *Installer) Install(ctx context.Context, opts Options) error {
 
 	// Validate (version, namespace, values, target namespace exists)
 	if err := istiodReconciler.Validate(ctx, resolvedVersion, opts.Namespace, values); err != nil {
-		return fmt.Errorf("validation failed: %w", err)
+		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
 	// Install
 	if err := istiodReconciler.Install(ctx, resolvedVersion, opts.Namespace, values, opts.Revision, opts.OwnerRef); err != nil {
-		return fmt.Errorf("installation failed: %w", err)
+		return nil, fmt.Errorf("installation failed: %w", err)
 	}
 
-	return nil
+	// Create and return drift reconciler with the same options used for installation
+	driftReconciler, err := newDriftReconciler(i, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create drift reconciler: %w", err)
+	}
+
+	return driftReconciler, nil
 }
 
 // Uninstall removes the istiod installation from the specified namespace.
