@@ -18,7 +18,6 @@ import (
 	"testing"
 	"testing/fstest"
 
-	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 	"github.com/istio-ecosystem/sail-operator/pkg/istioversion"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/rest"
@@ -132,89 +131,5 @@ func TestOptionsApplyDefaults(t *testing.T) {
 	}
 }
 
-func TestPrepareValues(t *testing.T) {
-	tests := []struct {
-		name             string
-		userValues       *v1.Values
-		namespace        string
-		revision         string
-		expectedRevision string
-	}{
-		{
-			name:             "nil values with default revision",
-			userValues:       nil,
-			namespace:        "istio-system",
-			revision:         "default",
-			expectedRevision: "", // default revision maps to empty string
-		},
-		{
-			name:             "empty values with custom revision",
-			userValues:       &v1.Values{},
-			namespace:        "custom-ns",
-			revision:         "canary",
-			expectedRevision: "canary",
-		},
-		{
-			name: "values with existing global",
-			userValues: &v1.Values{
-				Global: &v1.GlobalConfig{
-					Hub: ptr.To("custom-hub"),
-				},
-			},
-			namespace:        "istio-system",
-			revision:         "default",
-			expectedRevision: "",
-		},
-		{
-			name: "values with pilot config and non-default revision",
-			userValues: &v1.Values{
-				Pilot: &v1.PilotConfig{
-					Enabled: ptr.To(true),
-				},
-			},
-			namespace:        "test-ns",
-			revision:         "stable",
-			expectedRevision: "stable",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := prepareValues(tt.userValues, tt.namespace, tt.revision)
-
-			// Check required fields are set
-			assert.NotNil(t, result)
-			assert.NotNil(t, result.Global)
-			assert.NotNil(t, result.Global.IstioNamespace)
-			assert.Equal(t, tt.namespace, *result.Global.IstioNamespace)
-			assert.NotNil(t, result.Revision)
-			assert.Equal(t, tt.expectedRevision, *result.Revision)
-
-			// Check that user values are preserved
-			if tt.userValues != nil && tt.userValues.Global != nil && tt.userValues.Global.Hub != nil {
-				assert.Equal(t, *tt.userValues.Global.Hub, *result.Global.Hub)
-			}
-			if tt.userValues != nil && tt.userValues.Pilot != nil {
-				assert.NotNil(t, result.Pilot)
-			}
-		})
-	}
-}
-
-func TestPrepareValuesDoesNotMutateOriginal(t *testing.T) {
-	original := &v1.Values{
-		Global: &v1.GlobalConfig{
-			Hub: ptr.To("original-hub"),
-		},
-	}
-
-	result := prepareValues(original, "test-ns", "default")
-
-	// Original should not be modified
-	assert.Nil(t, original.Revision)
-	assert.Nil(t, original.Global.IstioNamespace)
-
-	// Result should have the new values
-	assert.NotNil(t, result.Revision)
-	assert.NotNil(t, result.Global.IstioNamespace)
-}
+// Note: Value computation tests are in pkg/revision and pkg/istiovalues packages.
+// The Install() method uses revision.ComputeValues() which is tested there.

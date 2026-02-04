@@ -21,10 +21,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	"github.com/istio-ecosystem/sail-operator/pkg/constants"
 	sharedreconcile "github.com/istio-ecosystem/sail-operator/pkg/reconcile"
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
 	"github.com/istio-ecosystem/sail-operator/pkg/istioversion"
+	"github.com/istio-ecosystem/sail-operator/pkg/revision"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -80,8 +82,20 @@ func (i *Installer) GetWatchSpecs(opts Options) ([]WatchSpec, error) {
 		return nil, fmt.Errorf("invalid version %q: %w", opts.Version, err)
 	}
 
-	// Prepare values with required fields
-	values := prepareValues(opts.Values, opts.Namespace, opts.Revision)
+	// Compute values using the same pipeline as Install()
+	values, err := revision.ComputeValues(
+		opts.Values,
+		opts.Namespace,
+		resolvedVersion,
+		config.PlatformOpenShift,
+		defaultProfile,
+		"",
+		i.resourceFS,
+		opts.Revision,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute values: %w", err)
+	}
 	helmValues := helm.FromValues(values)
 
 	// Collect GVKs from both charts

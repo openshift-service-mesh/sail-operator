@@ -28,6 +28,7 @@ import (
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
 	"github.com/istio-ecosystem/sail-operator/pkg/istioversion"
 	sharedreconcile "github.com/istio-ecosystem/sail-operator/pkg/reconcile"
+	"github.com/istio-ecosystem/sail-operator/pkg/revision"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
@@ -124,7 +125,7 @@ func NewInstaller(kubeConfig *rest.Config, resourceFS fs.FS) (*Installer, error)
 //
 // This method:
 //   - Resolves the Istio version
-//   - Prepares values with required fields (namespace, revision)
+//   - Computes final values (digests, vendor defaults, profiles, FIPS, overrides)
 //   - Installs both the base chart (CRDs) and istiod chart
 //
 // For Gateway API mode, use GatewayAPIDefaults() to get pre-configured values:
@@ -141,8 +142,25 @@ func (i *Installer) Install(ctx context.Context, opts Options) error {
 		return fmt.Errorf("invalid version %q: %w", opts.Version, err)
 	}
 
-	// Prepare values with required fields (namespace, revision)
-	values := prepareValues(opts.Values, opts.Namespace, opts.Revision)
+	// Compute final values using the same pipeline as the Operator:
+	// - applies image digests from configuration
+	// - applies vendor-specific default values
+	// - applies profiles and platform defaults
+	// - applies FIPS values
+	// - applies overrides (namespace, revision)
+	values, err := revision.ComputeValues(
+		opts.Values,
+		opts.Namespace,
+		resolvedVersion,
+		config.PlatformOpenShift,
+		defaultProfile, // "openshift" YAML profile
+		"",             // no user profile for library
+		i.resourceFS,
+		opts.Revision,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to compute values: %w", err)
+	}
 
 	// Ensure required CRDs are installed (based on PILOT_INCLUDE_RESOURCES)
 	if ptr.Deref(opts.ManageCRDs, true) {
@@ -203,36 +221,6 @@ func (i *Installer) Uninstall(ctx context.Context, namespace, revision string) e
 	}
 
 	return nil
-}
-
-// prepareValues ensures the values have required fields set.
-// It sets global.istioNamespace and revision if not already set.
-func prepareValues(userValues *v1.Values, namespace, revision string) *v1.Values {
-	if userValues == nil {
-		userValues = &v1.Values{}
-	}
-
-	// Deep copy to avoid modifying the original
-	values := userValues.DeepCopy()
-
-	// Ensure Global is set
-	if values.Global == nil {
-		values.Global = &v1.GlobalConfig{}
-	}
-
-	// Set istioNamespace to match target namespace
-	values.Global.IstioNamespace = ptr.To(namespace)
-
-	// Set revision value based on revision name
-	// For "default" revision, values.revision must be empty string
-	// For other revisions, values.revision must match the revision name
-	if revision == v1.DefaultRevision {
-		values.Revision = ptr.To("")
-	} else {
-		values.Revision = ptr.To(revision)
-	}
-
-	return values
 }
 
 // FromDirectory creates an fs.FS from a filesystem directory path.
