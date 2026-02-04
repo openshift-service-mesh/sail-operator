@@ -29,7 +29,6 @@ rotation, and management of secure, verifiable identities for workloads.
 *** <<ztwim-deploy-operands,Deploy ZTWIM Operands (CRs)>>
 **** <<spire-server,Create SpireServer CR>>
 **** <<spire-agent,Create SpireAgent CR>>
-**** <<patch-spire-agent-configmap,Patch Spire Agent ConfigMap>>
 **** <<csi-driver,Create SpiffeCSIDriver CR>>
 **** <<oidc-discovery,Create SpireOIDCDiscoveryProvider CR>>
 **** <<verify-ztwim-installation,Verify ZTWIM installation>>
@@ -160,22 +159,6 @@ EOF
 until oc get daemonset/spire-agent -n "${ZTWIM_NS}" &> /dev/null; do sleep 3; done
 kubectl rollout status daemonset/spire-agent -n "${ZTWIM_NS}" --timeout=300s
 ----
-[[patch-spire-agent-configmap]]
-Patch the Spire Agent config map, and change the agent socket path value from
-`"socket_path": "/tmp/spire-agent/public/spire-agent.sock"` to `"socket_path": "/tmp/spire-agent/public/socket"`
-This will allow Istio's proxy (Envoy) to properly discover (SDS) Spiffe Workload API socket
-[source,bash]
-----
-# Patch spire-agent socket path to match istio SDS
-oc patch \
-  configmap spire-agent -n "${ZTWIM_NS}" \
-  -p "$(oc get configmap spire-agent  \
-  -n "${ZTWIM_NS}" -o json | \
-  jq '{data: {"agent.conf": (.data."agent.conf" | fromjson | .agent.socket_path = "/tmp/spire-agent/public/socket" | tostring)}}')"
-
-oc rollout restart daemonset/spire-agent -n "${ZTWIM_NS}"
-kubectl rollout status daemonset/spire-agent -n "${ZTWIM_NS}" --timeout=300s
-----
 
 [[csi-driver]]
 Deploy https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-spire-csidriver-config_zero-trust-manager-install[SpiffeCSIDriver]
@@ -215,12 +198,6 @@ spec:
 EOF
 # wait for the deployment being created
 until oc get deployment spire-spiffe-oidc-discovery-provider -n "${ZTWIM_NS}" &> /dev/null; do sleep 3; done
-# patch configuration
-export PATCH_PAYLOAD=$(kubectl get configmap ${OIDC_DISCOVERY_CONFIG_MAP} -n "${ZTWIM_NS}" -o json | \
-  jq -r '.data["oidc-discovery-provider.conf"] | fromjson | .workload_api.socket_path = "/spiffe-workload-api/socket" | tojson | {data: {"oidc-discovery-provider.conf": .}}')
-kubectl patch configmap ${OIDC_DISCOVERY_CONFIG_MAP} -n "${ZTWIM_NS}" --patch "$PATCH_PAYLOAD"
-# rollout restart
-kubectl rollout restart deployment/spire-spiffe-oidc-discovery-provider -n "${ZTWIM_NS}"
 # wait for deployment to be ready
 oc wait --for=condition=Available deployment/spire-spiffe-oidc-discovery-provider -n "${ZTWIM_NS}" --timeout=300s
 ----
@@ -251,7 +228,7 @@ spec:
         - name: client
           image: ghcr.io/spiffe/spire-agent:1.5.1
           command: ["/opt/spire/bin/spire-agent"]
-          args: [ "api", "watch",  "-socketPath", "/run/spire/sockets/socket" ]
+          args: [ "api", "watch",  "-socketPath", "/run/spire/sockets/spire-agent.sock" ]
           volumeMounts:
             - mountPath: /run/spire/sockets
               name: spiffe-workload-api
@@ -276,7 +253,7 @@ oc exec -it \
       -n default \
    )" -n default -- \
   /opt/spire/bin/spire-agent \
-    api fetch -socketPath /run/spire/sockets/socket
+    api fetch -socketPath /run/spire/sockets/spire-agent.sock
 ----
 If ZTWIM was deployed and configured correctly, you should get something like this
 [source,text]
@@ -300,7 +277,7 @@ oc exec -it \
       -n default \
    )" -n default -- \
   /opt/spire/bin/spire-agent \
-    api fetch jwt -audience=sample-aud -socketPath /run/spire/sockets/socket
+    api fetch jwt -audience=sample-aud -socketPath /run/spire/sockets/spire-agent.sock
 ----
 
 If ZTWIM was deployed and configured correctly, you should get something like this
@@ -388,6 +365,9 @@ ${EXTRA_ROOT_CA}
         PILOT_JWT_ENABLE_REMOTE_JWKS: "true"
     meshConfig:
       trustDomain: $TRUST_DOMAIN
+      defaultConfig:
+        proxyMetadata:
+          WORKLOAD_IDENTITY_SOCKET_FILE: "spire-agent.sock"
     sidecarInjectorWebhook:
       templates:
         spire: |
