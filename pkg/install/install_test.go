@@ -18,7 +18,6 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/istio-ecosystem/sail-operator/pkg/istioversion"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
@@ -62,7 +61,7 @@ func TestOptionsApplyDefaults(t *testing.T) {
 			name:               "all defaults",
 			opts:               Options{},
 			expectedNamespace:  "istio-system",
-			expectedVersion:    istioversion.Default,
+			expectedVersion:    "",
 			expectedRevision:   "default",
 			expectedManageCRDs: true,
 		},
@@ -72,7 +71,7 @@ func TestOptionsApplyDefaults(t *testing.T) {
 				Namespace: "custom-ns",
 			},
 			expectedNamespace:  "custom-ns",
-			expectedVersion:    istioversion.Default,
+			expectedVersion:    "",
 			expectedRevision:   "default",
 			expectedManageCRDs: true,
 		},
@@ -92,7 +91,7 @@ func TestOptionsApplyDefaults(t *testing.T) {
 				Revision: "canary",
 			},
 			expectedNamespace:  "istio-system",
-			expectedVersion:    istioversion.Default,
+			expectedVersion:    "",
 			expectedRevision:   "canary",
 			expectedManageCRDs: true,
 		},
@@ -114,7 +113,7 @@ func TestOptionsApplyDefaults(t *testing.T) {
 				ManageCRDs: ptr.To(false),
 			},
 			expectedNamespace:  "istio-system",
-			expectedVersion:    istioversion.Default,
+			expectedVersion:    "",
 			expectedRevision:   "default",
 			expectedManageCRDs: false,
 		},

@@ -26,7 +26,6 @@ import (
 	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
-	"github.com/istio-ecosystem/sail-operator/pkg/istioversion"
 	sharedreconcile "github.com/istio-ecosystem/sail-operator/pkg/reconcile"
 	"github.com/istio-ecosystem/sail-operator/pkg/revision"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,13 +71,12 @@ type Options struct {
 	ManageCRDs *bool
 }
 
-// applyDefaults fills in default values for Options
+// applyDefaults fills in default values for Options.
+// Version is not defaulted here — it requires access to the resource FS,
+// so it is resolved in Install() via DefaultVersion().
 func (o *Options) applyDefaults() {
 	if o.Namespace == "" {
 		o.Namespace = defaultNamespace
-	}
-	if o.Version == "" {
-		o.Version = istioversion.Default
 	}
 	if o.Revision == "" {
 		o.Revision = defaultRevision
@@ -150,11 +148,20 @@ func NewInstaller(kubeConfig *rest.Config, resourceFS fs.FS) (*Installer, error)
 func (i *Installer) Install(ctx context.Context, opts Options) (*DriftReconciler, error) {
 	opts.applyDefaults()
 
-	// Resolve version alias to actual version
-	resolvedVersion, err := istioversion.Resolve(opts.Version)
-	if err != nil {
+	// Default version from FS if not specified
+	if opts.Version == "" {
+		v, err := DefaultVersion(i.resourceFS)
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine default version: %w", err)
+		}
+		opts.Version = v
+	}
+
+	// Validate version directory exists in the resource FS
+	if err := ValidateVersion(i.resourceFS, opts.Version); err != nil {
 		return nil, fmt.Errorf("invalid version %q: %w", opts.Version, err)
 	}
+	resolvedVersion := opts.Version
 
 	// Compute final values using the same pipeline as the Operator:
 	// - applies image digests from configuration

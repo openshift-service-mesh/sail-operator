@@ -25,7 +25,6 @@ import (
 	"github.com/istio-ecosystem/sail-operator/pkg/constants"
 	sharedreconcile "github.com/istio-ecosystem/sail-operator/pkg/reconcile"
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
-	"github.com/istio-ecosystem/sail-operator/pkg/istioversion"
 	"github.com/istio-ecosystem/sail-operator/pkg/revision"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -80,11 +79,11 @@ type WatchSpec struct {
 func (i *Installer) GetWatchSpecs(opts Options) ([]WatchSpec, error) {
 	opts.applyDefaults()
 
-	// Resolve version
-	resolvedVersion, err := istioversion.Resolve(opts.Version)
-	if err != nil {
+	// Validate version directory exists in the resource FS
+	if err := ValidateVersion(i.resourceFS, opts.Version); err != nil {
 		return nil, fmt.Errorf("invalid version %q: %w", opts.Version, err)
 	}
+	resolvedVersion := opts.Version
 
 	// Compute values using the same pipeline as Install()
 	values, err := revision.ComputeValues(
