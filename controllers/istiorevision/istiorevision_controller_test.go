@@ -17,6 +17,7 @@ package istiorevision
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	"github.com/istio-ecosystem/sail-operator/pkg/constants"
 	"github.com/istio-ecosystem/sail-operator/pkg/istioversion"
+	sharedreconcile "github.com/istio-ecosystem/sail-operator/pkg/reconcile"
 	"github.com/istio-ecosystem/sail-operator/pkg/scheme"
 	. "github.com/onsi/gomega"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -86,7 +88,7 @@ func TestValidate(t *testing.T) {
 				},
 			},
 			objects:   []client.Object{ns},
-			expectErr: "spec.version not set",
+			expectErr: "version not set",
 		},
 		{
 			name: "no namespace",
@@ -99,7 +101,7 @@ func TestValidate(t *testing.T) {
 				},
 			},
 			objects:   []client.Object{ns},
-			expectErr: "spec.namespace not set",
+			expectErr: "namespace not set",
 		},
 		{
 			name: "namespace not found",
@@ -110,6 +112,11 @@ func TestValidate(t *testing.T) {
 				Spec: v1.IstioRevisionSpec{
 					Version:   istioversion.Default,
 					Namespace: "istio-system",
+					Values: &v1.Values{
+						Global: &v1.GlobalConfig{
+							IstioNamespace: ptr.Of("istio-system"),
+						},
+					},
 				},
 			},
 			objects:   []client.Object{},
@@ -127,7 +134,7 @@ func TestValidate(t *testing.T) {
 				},
 			},
 			objects:   []client.Object{ns},
-			expectErr: "spec.values not set",
+			expectErr: "values not set",
 		},
 		{
 			name: "invalid istioNamespace",
@@ -146,7 +153,7 @@ func TestValidate(t *testing.T) {
 				},
 			},
 			objects:   []client.Object{ns},
-			expectErr: "spec.values.global.istioNamespace does not match spec.namespace",
+			expectErr: "values.global.istioNamespace does not match namespace",
 		},
 		{
 			name: "invalid revision default",
@@ -166,7 +173,7 @@ func TestValidate(t *testing.T) {
 				},
 			},
 			objects:   []client.Object{ns},
-			expectErr: `spec.values.revision must be "" when IstioRevision name is default`,
+			expectErr: `values.revision must be "" when revision name is default`,
 		},
 		{
 			name: "invalid revision non-default",
@@ -186,16 +193,35 @@ func TestValidate(t *testing.T) {
 				},
 			},
 			objects:   []client.Object{ns},
-			expectErr: `spec.values.revision does not match IstioRevision name`,
+			expectErr: `values.revision does not match revision name`,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			g := NewWithT(t)
 			cl := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(tc.objects...).Build()
-			r := NewReconciler(cfg, cl, scheme.Scheme, nil)
 
-			err := r.validate(context.TODO(), tc.rev)
+			// Create controller reconciler for CRD-specific validations
+			reconciler := &Reconciler{
+				Client: cl,
+				Config: cfg,
+			}
+
+			// Run CRD-specific validations (same order as doReconcile)
+			var err error
+			if err = reconciler.validateRevisionConsistency(tc.rev); err == nil {
+				if err = reconciler.validateNoTagConflict(context.TODO(), tc.rev); err == nil {
+					// Run general validations
+					istiodReconciler := sharedreconcile.NewIstiodReconciler(sharedreconcile.Config{
+						ResourceFS:        cfg.ResourceFS,
+						Platform:          cfg.Platform,
+						DefaultProfile:    cfg.DefaultProfile,
+						OperatorNamespace: cfg.OperatorNamespace,
+					}, cl)
+					err = istiodReconciler.Validate(context.TODO(), tc.rev.Spec.Version, tc.rev.Spec.Namespace, tc.rev.Spec.Values)
+				}
+			}
+
 			if tc.expectErr == "" {
 				g.Expect(err).ToNot(HaveOccurred())
 			} else {
@@ -1053,7 +1079,7 @@ func TestIgnoreStatusChangePredicate(t *testing.T) {
 
 func newReconcilerTestConfig(t *testing.T) config.ReconcilerConfig {
 	return config.ReconcilerConfig{
-		ResourceDirectory:       t.TempDir(),
+		ResourceFS:              os.DirFS(t.TempDir()),
 		Platform:                config.PlatformKubernetes,
 		DefaultProfile:          "",
 		MaxConcurrentReconciles: 1,
