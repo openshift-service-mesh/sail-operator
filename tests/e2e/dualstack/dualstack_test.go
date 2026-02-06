@@ -119,12 +119,12 @@ values:
 
 					It("uses the correct image", func(ctx SpecContext) {
 						Expect(common.GetObject(ctx, cl, kube.Key("istiod", controlPlaneNamespace), &appsv1.Deployment{})).
-							To(HaveContainersThat(HaveEach(ImageFromRegistry(expectedRegistry))))
+							To(common.HaveContainersThat(HaveEach(common.ImageFromRegistry(expectedRegistry))))
 					})
 
 					It("has ISTIO_DUAL_STACK env variable set", func(ctx SpecContext) {
 						Expect(common.GetObject(ctx, cl, kube.Key("istiod", controlPlaneNamespace), &appsv1.Deployment{})).
-							To(HaveContainersThat(ContainElement(WithTransform(getEnvVars, ContainElement(corev1.EnvVar{Name: "ISTIO_DUAL_STACK", Value: "true"})))),
+							To(common.HaveContainersThat(ContainElement(WithTransform(getEnvVars, ContainElement(corev1.EnvVar{Name: "ISTIO_DUAL_STACK", Value: "true"})))),
 								"Expected ISTIO_DUAL_STACK to be set to true, but not found")
 					})
 
@@ -256,10 +256,6 @@ values:
 
 func HaveContainersThat(matcher types.GomegaMatcher) types.GomegaMatcher {
 	return HaveField("Spec.Template.Spec.Containers", matcher)
-}
-
-func ImageFromRegistry(regexp string) types.GomegaMatcher {
-	return HaveField("Image", MatchRegexp(regexp))
 }
 
 func getEnvVars(container corev1.Container) []corev1.EnvVar {
