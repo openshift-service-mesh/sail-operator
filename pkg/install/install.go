@@ -115,6 +115,16 @@ func NewInstaller(kubeConfig *rest.Config, resourceFS fs.FS) (*Installer, error)
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
+	// Populate default image refs from the provided FS (no-op if already set by config.Read)
+	if err := SetImageDefaults(resourceFS, defaultRegistry, ImageNames{
+		Istiod:  defaultIstiodImage,
+		Proxy:   defaultProxyImage,
+		CNI:     defaultCNIImage,
+		ZTunnel: defaultZTunnelImage,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to set image defaults: %w", err)
+	}
+
 	return &Installer{
 		chartManager: helm.NewChartManager(kubeConfig, defaultHelmDriver),
 		resourceFS:   resourceFS,
