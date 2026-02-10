@@ -148,4 +148,22 @@ func TestMergeValues(t *testing.T) {
 
 		assert.Equal(t, "base-hub", *base.Global.Hub)
 	})
+
+	t.Run("lists are replaced not merged", func(t *testing.T) {
+		base := &v1.Values{
+			Pilot: &v1.PilotConfig{
+				ExtraContainerArgs: []string{"--foo", "--bar"},
+			},
+		}
+		overlay := &v1.Values{
+			Pilot: &v1.PilotConfig{
+				ExtraContainerArgs: []string{"--baz"},
+			},
+		}
+
+		result := MergeValues(base, overlay)
+
+		// Lists are replaced entirely, not merged (matches Helm semantics)
+		assert.Equal(t, []string{"--baz"}, result.Pilot.ExtraContainerArgs)
+	})
 }
