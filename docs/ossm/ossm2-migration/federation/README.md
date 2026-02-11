@@ -47,7 +47,7 @@ Before beginning the migration, ensure you have:
 
 - Two OpenShift 4.19+ clusters with cluster-admin access. OpenShift 4.19 and newer versions include built-in support for the Kubernetes Gateway API, which is required for this migration.
 - Network connectivity between clusters for cross-cluster communication
-- OSSM 2.6 and OSSM 3.2.1+ operators installed in both clusters
+- OSSM 2.6.13+ and OSSM 3.2.1+ operators installed in both clusters
 
 ### Environment Setup
 
@@ -845,7 +845,6 @@ To prepare the mesh for disabling the federation feature, configure the followin
        pilot:
          env:
            ISTIO_MULTIROOT_MESH: "true"
-           VALIDATION_WEBHOOK_CONFIG_NAME: "" # validation webhook will be enabled after removing SMCP
        global:
          network: network-east-mesh
    EOF
@@ -922,7 +921,6 @@ To prepare the mesh for disabling the federation feature, configure the followin
        pilot:
          env:
            ISTIO_MULTIROOT_MESH: "true"
-           VALIDATION_WEBHOOK_CONFIG_NAME: "" # validation webhook will be enabled after removing SMCP
        global:
          network: network-west-mesh
    EOF
@@ -973,14 +971,7 @@ To prepare the mesh for disabling the federation feature, configure the followin
 
 1. **Resource cleanup** - once all proxies and gateways are managed by the new control plane, you can delete all OSSM 2-related resources. See [Cleaning up OpenShift Service Mesh 2.6 after migration](../cleaning-2.6/README.md#remove-26-control-planes) for detailed instructions.
 
-2. **Re-enable validation webhooks** - after removing OSSM 2 control planes, you can re-enable validation webhooks by removing the `VALIDATION_WEBHOOK_CONFIG_NAME` environment variable from the Istio resources:
-
-   ```shell
-   keast patch istio default --type=json -p='[{"op": "remove", "path": "/spec/values/pilot/env/VALIDATION_WEBHOOK_CONFIG_NAME"}]'
-   kwest patch istio default --type=json -p='[{"op": "remove", "path": "/spec/values/pilot/env/VALIDATION_WEBHOOK_CONFIG_NAME"}]'
-   ```
-
-3. **Apply authorization policies** - now when you no longer use OSSM 2 Federation, you can apply `AuthorizationPolicy` for fine-grained access control on the server side. It was not possible in OSSM 2 Federation, which terminated TLS at egress and ingress gateways effectively hiding client identities.
+1. **Apply authorization policies** - now when you no longer use OSSM 2 Federation, you can apply `AuthorizationPolicy` for fine-grained access control on the server side. It was not possible in OSSM 2 Federation, which terminated TLS at egress and ingress gateways effectively hiding client identities.
 
    ```shell
    kwest apply -f - <<EOF
