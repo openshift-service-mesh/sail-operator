@@ -140,8 +140,8 @@ metadata:
 		{
 			name: "skip empty and notes",
 			rendered: map[string]string{
-				"templates/NOTES.txt":      "Some notes",
-				"templates/empty.yaml":     "",
+				"templates/NOTES.txt":  "Some notes",
+				"templates/empty.yaml": "",
 				"templates/configmap.yaml": `apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -201,6 +201,101 @@ metadata:
 			}
 
 			assert.ElementsMatch(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGVKToGVR(t *testing.T) {
+	tests := []struct {
+		name     string
+		gvk      schema.GroupVersionKind
+		expected schema.GroupVersionResource
+	}{
+		{
+			name: "Service",
+			gvk:  schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Service"},
+			expected: schema.GroupVersionResource{
+				Group:    "",
+				Version:  "v1",
+				Resource: "services",
+			},
+		},
+		{
+			name: "ConfigMap",
+			gvk:  schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"},
+			expected: schema.GroupVersionResource{
+				Group:    "",
+				Version:  "v1",
+				Resource: "configmaps",
+			},
+		},
+		{
+			name: "Deployment",
+			gvk:  schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
+			expected: schema.GroupVersionResource{
+				Group:    "apps",
+				Version:  "v1",
+				Resource: "deployments",
+			},
+		},
+		{
+			name: "ClusterRole",
+			gvk:  schema.GroupVersionKind{Group: "rbac.authorization.k8s.io", Version: "v1", Kind: "ClusterRole"},
+			expected: schema.GroupVersionResource{
+				Group:    "rbac.authorization.k8s.io",
+				Version:  "v1",
+				Resource: "clusterroles",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := gvkToGVR(tt.gvk)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestIsClusterScoped(t *testing.T) {
+	tests := []struct {
+		gvk      schema.GroupVersionKind
+		expected bool
+	}{
+		{
+			gvk:      schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"},
+			expected: true,
+		},
+		{
+			gvk:      schema.GroupVersionKind{Group: "rbac.authorization.k8s.io", Version: "v1", Kind: "ClusterRole"},
+			expected: true,
+		},
+		{
+			gvk:      schema.GroupVersionKind{Group: "rbac.authorization.k8s.io", Version: "v1", Kind: "ClusterRoleBinding"},
+			expected: true,
+		},
+		{
+			gvk:      schema.GroupVersionKind{Group: "admissionregistration.k8s.io", Version: "v1", Kind: "MutatingWebhookConfiguration"},
+			expected: true,
+		},
+		{
+			gvk:      schema.GroupVersionKind{Group: "admissionregistration.k8s.io", Version: "v1", Kind: "ValidatingWebhookConfiguration"},
+			expected: true,
+		},
+		{
+			gvk:      schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Service"},
+			expected: false,
+		},
+		{
+			gvk:      schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.gvk.Kind, func(t *testing.T) {
+			result := isClusterScoped(tt.gvk)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

@@ -317,7 +317,7 @@ func aggregateCRDState(infos []CRDInfo) CRDManagementState {
 
 // manageCRDs classifies target CRDs and installs/updates them if we own them (or none exist).
 // Returns the aggregate state, per-CRD info, and any error.
-func (i *Installer) manageCRDs(ctx context.Context, values *v1.Values, includeAllCRDs bool) (CRDManagementState, []CRDInfo, string, error) {
+func (l *Library) manageCRDs(ctx context.Context, values *v1.Values, includeAllCRDs bool) (CRDManagementState, []CRDInfo, string, error) {
 	targets, err := targetCRDsFromValues(values, includeAllCRDs)
 	if err != nil {
 		return CRDNoneExist, nil, "", fmt.Errorf("failed to determine target CRDs: %w", err)
@@ -326,12 +326,12 @@ func (i *Installer) manageCRDs(ctx context.Context, values *v1.Values, includeAl
 		return CRDNoneExist, nil, "no target CRDs configured", nil
 	}
 
-	state, infos := classifyCRDs(ctx, i.client, targets)
+	state, infos := classifyCRDs(ctx, l.cl, targets)
 
 	switch state {
 	case CRDNoneExist:
 		// Install all with CIO labels
-		if err := i.installCRDs(ctx, targets); err != nil {
+		if err := l.installCRDs(ctx, targets); err != nil {
 			return state, infos, "", fmt.Errorf("failed to install CRDs: %w", err)
 		}
 		// Update infos to reflect new state
@@ -343,7 +343,7 @@ func (i *Installer) manageCRDs(ctx context.Context, values *v1.Values, includeAl
 
 	case CRDManagedByCIO:
 		// Update all
-		if err := i.updateCRDs(ctx, targets); err != nil {
+		if err := l.updateCRDs(ctx, targets); err != nil {
 			return state, infos, "", fmt.Errorf("failed to update CRDs: %w", err)
 		}
 		return CRDManagedByCIO, infos, "CRDs updated by CIO", nil
@@ -384,14 +384,14 @@ func missingCRDNames(infos []CRDInfo) []string {
 }
 
 // installCRDs installs all target CRDs with CIO ownership labels and Helm keep annotation.
-func (i *Installer) installCRDs(ctx context.Context, targets []string) error {
+func (l *Library) installCRDs(ctx context.Context, targets []string) error {
 	for _, resource := range targets {
 		crd, err := loadCRD(resource)
 		if err != nil {
 			return err
 		}
 		applyCIOLabels(crd)
-		if err := i.client.Create(ctx, crd); err != nil {
+		if err := l.cl.Create(ctx, crd); err != nil {
 			return fmt.Errorf("failed to create CRD %s: %w", crd.Name, err)
 		}
 	}
@@ -399,7 +399,7 @@ func (i *Installer) installCRDs(ctx context.Context, targets []string) error {
 }
 
 // updateCRDs updates all CIO-owned target CRDs to the version from the embedded FS.
-func (i *Installer) updateCRDs(ctx context.Context, targets []string) error {
+func (l *Library) updateCRDs(ctx context.Context, targets []string) error {
 	for _, resource := range targets {
 		crd, err := loadCRD(resource)
 		if err != nil {
@@ -409,11 +409,11 @@ func (i *Installer) updateCRDs(ctx context.Context, targets []string) error {
 
 		// Get existing to preserve resourceVersion for update
 		existing := &apiextensionsv1.CustomResourceDefinition{}
-		if err := i.client.Get(ctx, client.ObjectKey{Name: crd.Name}, existing); err != nil {
+		if err := l.cl.Get(ctx, client.ObjectKey{Name: crd.Name}, existing); err != nil {
 			return fmt.Errorf("failed to get existing CRD %s: %w", crd.Name, err)
 		}
 		crd.ResourceVersion = existing.ResourceVersion
-		if err := i.client.Update(ctx, crd); err != nil {
+		if err := l.cl.Update(ctx, crd); err != nil {
 			return fmt.Errorf("failed to update CRD %s: %w", crd.Name, err)
 		}
 	}

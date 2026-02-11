@@ -12,9 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package install provides a simplified API for one-shot istiod installation.
+// Package install provides a library for managing istiod installations.
 // It is designed for embedding in other operators (like OpenShift Ingress)
-// that need to install Istio without running a continuous controller.
+// that need to install and maintain Istio without running a separate operator.
+//
+// The Library runs as an independent actor: the consumer sends desired state
+// via Apply(), and reads the result via Status(). A notification channel
+// returned by Start() signals when the Library has reconciled.
+//
+// Usage:
+//
+//	lib, _ := install.New(kubeConfig, resourceFS)
+//	notifyCh := lib.Start(ctx)
+//
+//	// In controller reconcile:
+//	lib.Apply(install.Options{Values: values, Namespace: "openshift-ingress"})
+//	status := lib.Status()
+//	// update GatewayClass conditions from status
+//
+//	// In a goroutine or source.Channel watch:
+//	for range notifyCh {
+//	    status := lib.Status()
+//	    // ...
+//	}
 package install
 
 import (
@@ -22,14 +42,24 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"reflect"
+	"sync"
+	"time"
 
 	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
 	sharedreconcile "github.com/istio-ecosystem/sail-operator/pkg/reconcile"
 	"github.com/istio-ecosystem/sail-operator/pkg/revision"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -39,9 +69,17 @@ const (
 	defaultProfile    = "openshift"
 	defaultHelmDriver = "secret"
 	defaultRevision   = v1.DefaultRevision
+
+	// reconcileKey is the single key used in the workqueue.
+	// Since we always reconcile the entire installation, we use a single key
+	// to coalesce multiple events into one reconciliation.
+	reconcileKey = "reconcile"
+
+	// defaultResyncPeriod is the default resync period for informers.
+	defaultResyncPeriod = 30 * time.Minute
 )
 
-// Status represents the result of an Install operation, covering both
+// Status represents the result of a reconciliation, covering both
 // CRD management and Helm installation.
 type Status struct {
 	// CRDState is the aggregate ownership state of the target Istio CRDs.
@@ -65,7 +103,7 @@ type Status struct {
 	Error error
 }
 
-// Options for installing istiod
+// Options for installing istiod.
 type Options struct {
 	// Namespace is the target namespace for installation.
 	// Defaults to "istio-system" if not specified.
@@ -88,7 +126,7 @@ type Options struct {
 	// If set, installed resources will be owned by this resource.
 	OwnerRef *metav1.OwnerReference
 
-	// ManageCRDs controls whether the installer manages Istio CRDs.
+	// ManageCRDs controls whether the Library manages Istio CRDs.
 	// When true (default), CRDs are classified by ownership and installed/updated
 	// if we own them or none exist.
 	// Set to false to skip CRD management entirely.
@@ -102,7 +140,7 @@ type Options struct {
 
 // applyDefaults fills in default values for Options.
 // Version is not defaulted here — it requires access to the resource FS,
-// so it is resolved in Install() via DefaultVersion().
+// so it is resolved during reconciliation via DefaultVersion().
 func (o *Options) applyDefaults() {
 	if o.Namespace == "" {
 		o.Namespace = defaultNamespace
@@ -118,21 +156,38 @@ func (o *Options) applyDefaults() {
 	}
 }
 
-// Installer provides one-shot istiod installation for OpenShift.
-type Installer struct {
+// Library manages the lifecycle of an istiod installation. It runs as an
+// independent actor: the consumer sends desired state via Apply() and reads
+// the result via Status(). Start() returns a notification channel that
+// signals when the Library has reconciled (drift repair, CRD change, or
+// a new Apply).
+type Library struct {
+	// Infrastructure
 	chartManager *helm.ChartManager
 	resourceFS   fs.FS
 	kubeConfig   *rest.Config
-	client       client.Client // for CRD operations
+	cl           client.Client
+	dynamicCl    dynamic.Interface
+
+	// Desired state (set by Apply, read by worker)
+	mu          sync.RWMutex
+	desiredOpts *Options // nil until first Apply()
+
+	// Latest status (written by worker, read by Status())
+	statusMu sync.RWMutex
+	status   Status
+
+	// Internal workqueue
+	workqueue workqueue.TypedRateLimitingInterface[string]
 }
 
-// NewInstaller creates a new Installer.
+// New creates a new Library.
 //
 // Parameters:
 //   - kubeConfig: Kubernetes client configuration (required)
 //   - resourceFS: Filesystem containing Helm charts and profiles (required).
 //     Use resources.FS for embedded resources or FromDirectory() for a filesystem path.
-func NewInstaller(kubeConfig *rest.Config, resourceFS fs.FS) (*Installer, error) {
+func New(kubeConfig *rest.Config, resourceFS fs.FS) (*Library, error) {
 	if kubeConfig == nil {
 		return nil, fmt.Errorf("kubeConfig is required")
 	}
@@ -145,6 +200,11 @@ func NewInstaller(kubeConfig *rest.Config, resourceFS fs.FS) (*Installer, error)
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
+	dynamicCl, err := dynamic.NewForConfig(kubeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
+	}
+
 	// Populate default image refs from the provided FS (no-op if already set by config.Read)
 	if err := SetImageDefaults(resourceFS, defaultRegistry, ImageNames{
 		Istiod:  defaultIstiodImage,
@@ -155,60 +215,214 @@ func NewInstaller(kubeConfig *rest.Config, resourceFS fs.FS) (*Installer, error)
 		return nil, fmt.Errorf("failed to set image defaults: %w", err)
 	}
 
-	return &Installer{
+	return &Library{
 		chartManager: helm.NewChartManager(kubeConfig, defaultHelmDriver),
 		resourceFS:   resourceFS,
 		kubeConfig:   kubeConfig,
-		client:       cl,
+		cl:           cl,
+		dynamicCl:    dynamicCl,
 	}, nil
 }
 
-// Install installs or upgrades istiod with the specified options.
+// Start begins the Library's internal reconciliation loop. It returns a
+// notification channel that receives a signal every time the Library
+// finishes a reconciliation (whether triggered by Apply, drift detection,
+// or CRD changes).
 //
-// This method:
-//   - Resolves the Istio version
-//   - Classifies and manages CRDs (if ManageCRDs is true)
-//   - Computes final values (digests, vendor defaults, profiles, FIPS, overrides)
-//   - Installs both the base chart and istiod chart via Helm
-//   - Returns a DriftReconciler for optional drift detection and a Status
+// The channel is owned by the Library and closed when ctx is cancelled.
+// Buffer of 1 with non-blocking write: if the consumer hasn't drained
+// the previous notification, the new one is dropped (latest-wins).
 //
-// CRD ownership problems are reported in Status.Error but do not prevent
-// the Helm installation from being attempted.
-//
-// For Gateway API mode, use GatewayAPIDefaults() to get pre-configured values:
-//
-//	values := install.GatewayAPIDefaults()
-//	values.Pilot.Env["PILOT_GATEWAY_API_CONTROLLER_NAME"] = "my-controller"
-//	reconciler, status := installer.Install(ctx, Options{Values: values})
-//	if status.Error != nil { /* handle */ }
-//	reconciler.Start(ctx)  // Optional: start drift detection
-func (i *Installer) Install(ctx context.Context, opts Options) (*DriftReconciler, Status) {
-	status := i.doInstall(ctx, opts)
+// Start is non-blocking — it launches goroutines internally and returns
+// immediately. The Library sits idle until the first Apply() call.
+func (l *Library) Start(ctx context.Context) <-chan struct{} {
+	notifyCh := make(chan struct{}, 1)
+	l.workqueue = workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]())
 
-	if !status.Installed {
-		return nil, status
-	}
+	// Start worker goroutine
+	go l.run(ctx, notifyCh)
 
-	// Create drift reconciler with the same options used for installation
-	driftReconciler, err := newDriftReconciler(i, opts)
-	if err != nil {
-		status.Error = combineErrors(status.Error, fmt.Errorf("failed to create drift reconciler: %w", err))
-		return nil, status
-	}
-
-	return driftReconciler, status
+	return notifyCh
 }
 
-// doInstall is the internal implementation that does CRDs + Helm.
-// Used by both Install() (public) and the drift reconciler (internal).
-func (i *Installer) doInstall(ctx context.Context, opts Options) Status {
+// Apply sets the desired installation state. If the options differ from
+// the previously applied options, a reconciliation is enqueued. If they
+// are the same, this is a no-op.
+//
+// Apply is non-blocking. The result of the reconciliation will be
+// available via Status() after the notification channel signals.
+func (l *Library) Apply(opts Options) {
 	opts.applyDefaults()
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.desiredOpts != nil && optionsEqual(*l.desiredOpts, opts) {
+		return // no change
+	}
+
+	copied := opts
+	l.desiredOpts = &copied
+	l.enqueue()
+}
+
+// Status returns the latest reconciliation result. This is safe to call
+// from any goroutine. Returns a zero-value Status if no reconciliation
+// has completed yet.
+func (l *Library) Status() Status {
+	l.statusMu.RLock()
+	defer l.statusMu.RUnlock()
+	return l.status
+}
+
+// Uninstall removes the istiod installation from the specified namespace.
+// This is a synchronous operation for the shutdown path.
+// If revision is empty, it defaults to "default".
+func (l *Library) Uninstall(ctx context.Context, namespace, revision string) error {
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+	if revision == "" {
+		revision = defaultRevision
+	}
+
+	reconcilerCfg := sharedreconcile.Config{
+		ResourceFS:        l.resourceFS,
+		Platform:          config.PlatformOpenShift,
+		DefaultProfile:    defaultProfile,
+		OperatorNamespace: namespace,
+		ChartManager:      l.chartManager,
+	}
+
+	istiodReconciler := sharedreconcile.NewIstiodReconciler(reconcilerCfg, l.cl)
+	if err := istiodReconciler.Uninstall(ctx, namespace, revision); err != nil {
+		return fmt.Errorf("uninstallation failed: %w", err)
+	}
+
+	return nil
+}
+
+// run is the main loop. It starts informers (after first Apply), processes
+// the workqueue, and shuts down when ctx is cancelled.
+func (l *Library) run(ctx context.Context, notifyCh chan<- struct{}) {
+	defer close(notifyCh)
+	defer l.workqueue.ShutDown()
+
+	// Wait for the first Apply before setting up watches
+	if !l.waitForDesiredState(ctx) {
+		return // ctx cancelled
+	}
+
+	// Set up informers for drift detection
+	stopCh := make(chan struct{})
+	go func() {
+		<-ctx.Done()
+		close(stopCh)
+	}()
+
+	l.setupInformers(stopCh)
+
+	// Process work items until shutdown
+	for {
+		key, shutdown := l.workqueue.Get()
+		if shutdown {
+			return
+		}
+
+		status := l.reconcile(ctx)
+		l.setStatus(status)
+
+		// Non-blocking notify
+		select {
+		case notifyCh <- struct{}{}:
+		default:
+		}
+
+		if status.Error != nil {
+			l.workqueue.AddRateLimited(key)
+		} else {
+			l.workqueue.Forget(key)
+		}
+		l.workqueue.Done(key)
+	}
+}
+
+// waitForDesiredState blocks until Apply() has been called or ctx is cancelled.
+func (l *Library) waitForDesiredState(ctx context.Context) bool {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-ticker.C:
+			l.mu.RLock()
+			hasOpts := l.desiredOpts != nil
+			l.mu.RUnlock()
+			if hasOpts {
+				return true
+			}
+		}
+	}
+}
+
+// setupInformers creates dynamic informers for Helm resources based on
+// the current desired options.
+func (l *Library) setupInformers(stopCh <-chan struct{}) {
+	l.mu.RLock()
+	opts := *l.desiredOpts
+	l.mu.RUnlock()
+
+	specs, err := l.getWatchSpecs(opts)
+	if err != nil {
+		// Can't set up watches; reconciliation will still work via workqueue
+		return
+	}
+
+	namespacedFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+		l.dynamicCl,
+		defaultResyncPeriod,
+		opts.Namespace,
+		nil,
+	)
+	clusterScopedFactory := dynamicinformer.NewDynamicSharedInformerFactory(
+		l.dynamicCl,
+		defaultResyncPeriod,
+	)
+
+	for _, spec := range specs {
+		var informer cache.SharedIndexInformer
+		gvr := gvkToGVR(spec.GVK)
+
+		if spec.ClusterScoped {
+			informer = clusterScopedFactory.ForResource(gvr).Informer()
+		} else {
+			informer = namespacedFactory.ForResource(gvr).Informer()
+		}
+
+		handler := l.makeEventHandler(spec)
+		if _, err := informer.AddEventHandler(handler); err != nil {
+			continue // skip this resource, others still work
+		}
+	}
+
+	namespacedFactory.Start(stopCh)
+	clusterScopedFactory.Start(stopCh)
+	namespacedFactory.WaitForCacheSync(stopCh)
+	clusterScopedFactory.WaitForCacheSync(stopCh)
+}
+
+// reconcile does the actual work: CRDs + Helm.
+func (l *Library) reconcile(ctx context.Context) Status {
+	l.mu.RLock()
+	opts := *l.desiredOpts
+	l.mu.RUnlock()
 
 	status := Status{}
 
 	// Default version from FS if not specified
 	if opts.Version == "" {
-		v, err := DefaultVersion(i.resourceFS)
+		v, err := DefaultVersion(l.resourceFS)
 		if err != nil {
 			status.Error = fmt.Errorf("failed to determine default version: %w", err)
 			return status
@@ -216,27 +430,22 @@ func (i *Installer) doInstall(ctx context.Context, opts Options) Status {
 		opts.Version = v
 	}
 
-	// Validate version directory exists in the resource FS
-	if err := ValidateVersion(i.resourceFS, opts.Version); err != nil {
+	// Validate version
+	if err := ValidateVersion(l.resourceFS, opts.Version); err != nil {
 		status.Error = fmt.Errorf("invalid version %q: %w", opts.Version, err)
 		return status
 	}
 	status.Version = opts.Version
 
-	// Compute final values using the same pipeline as the Operator:
-	// - applies image digests from configuration
-	// - applies vendor-specific default values
-	// - applies profiles and platform defaults
-	// - applies FIPS values
-	// - applies overrides (namespace, revision)
+	// Compute values
 	values, err := revision.ComputeValues(
 		opts.Values,
 		opts.Namespace,
 		opts.Version,
 		config.PlatformOpenShift,
-		defaultProfile, // "openshift" YAML profile
-		"",             // no user profile for library
-		i.resourceFS,
+		defaultProfile,
+		"",
+		l.resourceFS,
 		opts.Revision,
 	)
 	if err != nil {
@@ -244,37 +453,33 @@ func (i *Installer) doInstall(ctx context.Context, opts Options) Status {
 		return status
 	}
 
-	// Manage CRDs (classify ownership, install/update if appropriate)
+	// Manage CRDs
 	if ptr.Deref(opts.ManageCRDs, true) {
-		crdState, crdInfos, crdMsg, crdErr := i.manageCRDs(ctx, values, ptr.Deref(opts.IncludeAllCRDs, false))
+		crdState, crdInfos, crdMsg, crdErr := l.manageCRDs(ctx, values, ptr.Deref(opts.IncludeAllCRDs, false))
 		status.CRDState = crdState
 		status.CRDs = crdInfos
 		status.CRDMessage = crdMsg
 		if crdErr != nil {
-			// CRD errors are recorded but don't prevent Helm installation
 			status.Error = crdErr
 		}
 	}
 
-	// Create reconciler config
+	// Helm install
 	reconcilerCfg := sharedreconcile.Config{
-		ResourceFS:        i.resourceFS,
+		ResourceFS:        l.resourceFS,
 		Platform:          config.PlatformOpenShift,
-		DefaultProfile:    defaultProfile, // always "openshift" YAML profile
-		OperatorNamespace: opts.Namespace, // base chart goes to same namespace
-		ChartManager:      i.chartManager,
+		DefaultProfile:    defaultProfile,
+		OperatorNamespace: opts.Namespace,
+		ChartManager:      l.chartManager,
 	}
 
-	// Create IstiodReconciler and install
-	istiodReconciler := sharedreconcile.NewIstiodReconciler(reconcilerCfg, i.client)
+	istiodReconciler := sharedreconcile.NewIstiodReconciler(reconcilerCfg, l.cl)
 
-	// Validate (version, namespace, values, target namespace exists)
 	if err := istiodReconciler.Validate(ctx, opts.Version, opts.Namespace, values); err != nil {
 		status.Error = combineErrors(status.Error, fmt.Errorf("validation failed: %w", err))
 		return status
 	}
 
-	// Install
 	if err := istiodReconciler.Install(ctx, opts.Version, opts.Namespace, values, opts.Revision, opts.OwnerRef); err != nil {
 		status.Error = combineErrors(status.Error, fmt.Errorf("installation failed: %w", err))
 		return status
@@ -284,44 +489,162 @@ func (i *Installer) doInstall(ctx context.Context, opts Options) Status {
 	return status
 }
 
-// combineErrors returns the first non-nil error, or wraps both if both are non-nil.
-func combineErrors(existing, new error) error {
-	if existing == nil {
-		return new
-	}
-	if new == nil {
-		return existing
-	}
-	return fmt.Errorf("%w; %w", existing, new)
+// setStatus atomically updates the stored status.
+func (l *Library) setStatus(s Status) {
+	l.statusMu.Lock()
+	defer l.statusMu.Unlock()
+	l.status = s
 }
 
-// Uninstall removes the istiod installation from the specified namespace.
-// If revision is empty, it defaults to "default".
-func (i *Installer) Uninstall(ctx context.Context, namespace, revision string) error {
-	if namespace == "" {
-		namespace = defaultNamespace
+// enqueue adds a reconciliation request to the workqueue.
+func (l *Library) enqueue() {
+	if l.workqueue != nil {
+		l.workqueue.Add(reconcileKey)
 	}
-	if revision == "" {
-		revision = defaultRevision
+}
+
+// makeEventHandler creates a cache.ResourceEventHandler that filters events
+// and enqueues reconciliation requests.
+func (l *Library) makeEventHandler(spec WatchSpec) cache.ResourceEventHandler {
+	return cache.ResourceEventHandlerFuncs{
+		// Add events fire during initial cache sync — ignore them.
+		AddFunc: func(obj interface{}) {},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldU, ok := oldObj.(*unstructured.Unstructured)
+			if !ok {
+				return
+			}
+			newU, ok := newObj.(*unstructured.Unstructured)
+			if !ok {
+				return
+			}
+
+			if !shouldReconcileOnUpdate(spec.GVK, oldU, newU) {
+				return
+			}
+
+			if spec.WatchType == WatchTypeOwned && !l.isOwnedResource(newU) {
+				return
+			}
+
+			l.enqueue()
+		},
+		DeleteFunc: func(obj interface{}) {
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+
+			u, ok := obj.(*unstructured.Unstructured)
+			if !ok {
+				return
+			}
+
+			if !shouldReconcileOnDelete(u) {
+				return
+			}
+
+			if spec.WatchType == WatchTypeOwned && !l.isOwnedResource(u) {
+				return
+			}
+
+			l.enqueue()
+		},
+	}
+}
+
+// isOwnedResource checks if the resource is owned by our installation.
+func (l *Library) isOwnedResource(obj *unstructured.Unstructured) bool {
+	l.mu.RLock()
+	opts := l.desiredOpts
+	l.mu.RUnlock()
+
+	if opts == nil {
+		return false
 	}
 
-	// Create reconciler config
-	reconcilerCfg := sharedreconcile.Config{
-		ResourceFS:        i.resourceFS,
-		Platform:          config.PlatformOpenShift,
-		DefaultProfile:    defaultProfile,
-		OperatorNamespace: namespace,
-		ChartManager:      i.chartManager,
+	// Check owner reference
+	if opts.OwnerRef != nil {
+		if hasMatchingOwnerRef(obj, opts.OwnerRef) {
+			return true
+		}
 	}
 
-	// Create IstiodReconciler and uninstall
-	istiodReconciler := sharedreconcile.NewIstiodReconciler(reconcilerCfg, i.client)
-
-	if err := istiodReconciler.Uninstall(ctx, namespace, revision); err != nil {
-		return fmt.Errorf("uninstallation failed: %w", err)
+	// Check Istio labels
+	labels := obj.GetLabels()
+	if labels == nil {
+		return false
 	}
 
-	return nil
+	if rev, ok := labels["istio.io/rev"]; ok {
+		expectedRev := opts.Revision
+		if expectedRev == defaultRevision {
+			expectedRev = "default"
+		}
+		return rev == expectedRev
+	}
+
+	if _, ok := labels["operator.istio.io/component"]; ok {
+		return true
+	}
+
+	if managedBy, ok := labels["app.kubernetes.io/managed-by"]; ok {
+		return managedBy == "Helm" || managedBy == "sail-operator"
+	}
+
+	return false
+}
+
+// hasMatchingOwnerRef checks if the object has an owner reference matching the expected one.
+func hasMatchingOwnerRef(obj *unstructured.Unstructured, expected *metav1.OwnerReference) bool {
+	for _, ref := range obj.GetOwnerReferences() {
+		if ref.APIVersion == expected.APIVersion &&
+			ref.Kind == expected.Kind &&
+			ref.Name == expected.Name {
+			if expected.UID == "" || ref.UID == expected.UID {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// optionsEqual compares two Options for equality.
+// Used by Apply() to skip no-op updates.
+func optionsEqual(a, b Options) bool {
+	if a.Namespace != b.Namespace ||
+		a.Version != b.Version ||
+		a.Revision != b.Revision ||
+		ptr.Deref(a.ManageCRDs, true) != ptr.Deref(b.ManageCRDs, true) ||
+		ptr.Deref(a.IncludeAllCRDs, false) != ptr.Deref(b.IncludeAllCRDs, false) {
+		return false
+	}
+
+	// Compare OwnerRef
+	if !reflect.DeepEqual(a.OwnerRef, b.OwnerRef) {
+		return false
+	}
+
+	// Compare Values via map conversion for deep equality
+	aMap := helm.FromValues(a.Values)
+	bMap := helm.FromValues(b.Values)
+	return reflect.DeepEqual(aMap, bMap)
+}
+
+// combineErrors returns the first non-nil error, or wraps both if both are non-nil.
+func combineErrors(existing, newErr error) error {
+	if existing == nil {
+		return newErr
+	}
+	if newErr == nil {
+		return existing
+	}
+	return fmt.Errorf("%w; %w", existing, newErr)
+}
+
+// gvkToGVR converts a GroupVersionKind to a GroupVersionResource.
+func gvkToGVR(gvk schema.GroupVersionKind) schema.GroupVersionResource {
+	plural, _ := meta.UnsafeGuessKindToResource(gvk)
+	return plural
 }
 
 // FromDirectory creates an fs.FS from a filesystem directory path.
@@ -330,7 +653,7 @@ func (i *Installer) Uninstall(ctx context.Context, namespace, revision string) e
 //
 // Example:
 //
-//	installer, _ := install.NewInstaller(kubeConfig, install.FromDirectory("/var/lib/sail-operator/resources"))
+//	lib, _ := install.New(kubeConfig, install.FromDirectory("/var/lib/sail-operator/resources"))
 func FromDirectory(path string) fs.FS {
 	return os.DirFS(path)
 }

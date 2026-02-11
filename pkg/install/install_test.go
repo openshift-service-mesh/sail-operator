@@ -19,33 +19,39 @@ import (
 	"testing"
 	"testing/fstest"
 
+	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
+	"github.com/istio-ecosystem/sail-operator/pkg/helm"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
 )
 
-func TestNewInstaller(t *testing.T) {
+func TestNew(t *testing.T) {
 	testFS := fstest.MapFS{}
 	testConfig := &rest.Config{}
 
 	t.Run("missing kubeConfig", func(t *testing.T) {
-		installer, err := NewInstaller(nil, testFS)
+		lib, err := New(nil, testFS)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "kubeConfig is required")
-		assert.Nil(t, installer)
+		assert.Nil(t, lib)
 	})
 
 	t.Run("missing resourceFS", func(t *testing.T) {
-		installer, err := NewInstaller(testConfig, nil)
+		lib, err := New(testConfig, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "resourceFS is required")
-		assert.Nil(t, installer)
+		assert.Nil(t, lib)
 	})
 
 	t.Run("valid inputs", func(t *testing.T) {
-		installer, err := NewInstaller(testConfig, testFS)
+		lib, err := New(testConfig, testFS)
 		assert.NoError(t, err)
-		assert.NotNil(t, installer)
+		assert.NotNil(t, lib)
 	})
 }
 
@@ -150,6 +156,111 @@ func TestOptionsApplyDefaults(t *testing.T) {
 	}
 }
 
+func TestOptionsEqual(t *testing.T) {
+	base := Options{
+		Namespace:      "ns",
+		Version:        "1.24.0",
+		Revision:       "default",
+		ManageCRDs:     ptr.To(true),
+		IncludeAllCRDs: ptr.To(false),
+		Values: &v1.Values{
+			Global: &v1.GlobalConfig{
+				Hub: ptr.To("docker.io/istio"),
+			},
+		},
+	}
+
+	t.Run("identical options", func(t *testing.T) {
+		other := Options{
+			Namespace:      "ns",
+			Version:        "1.24.0",
+			Revision:       "default",
+			ManageCRDs:     ptr.To(true),
+			IncludeAllCRDs: ptr.To(false),
+			Values: &v1.Values{
+				Global: &v1.GlobalConfig{
+					Hub: ptr.To("docker.io/istio"),
+				},
+			},
+		}
+		assert.True(t, optionsEqual(base, other))
+	})
+
+	t.Run("different namespace", func(t *testing.T) {
+		other := base
+		other.Namespace = "different"
+		assert.False(t, optionsEqual(base, other))
+	})
+
+	t.Run("different values", func(t *testing.T) {
+		other := Options{
+			Namespace:      "ns",
+			Version:        "1.24.0",
+			Revision:       "default",
+			ManageCRDs:     ptr.To(true),
+			IncludeAllCRDs: ptr.To(false),
+			Values: &v1.Values{
+				Global: &v1.GlobalConfig{
+					Hub: ptr.To("quay.io/other"),
+				},
+			},
+		}
+		assert.False(t, optionsEqual(base, other))
+	})
+
+	t.Run("nil values equal", func(t *testing.T) {
+		a := Options{Namespace: "ns", Version: "1.24.0", Revision: "default", ManageCRDs: ptr.To(true), IncludeAllCRDs: ptr.To(false)}
+		b := Options{Namespace: "ns", Version: "1.24.0", Revision: "default", ManageCRDs: ptr.To(true), IncludeAllCRDs: ptr.To(false)}
+		assert.True(t, optionsEqual(a, b))
+	})
+}
+
+func TestApplyIdempotency(t *testing.T) {
+	lib := &Library{
+		workqueue: workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+	}
+	defer lib.workqueue.ShutDown()
+
+	opts := Options{
+		Namespace: "test-ns",
+		Version:   "1.24.0",
+	}
+
+	// First Apply should store and enqueue
+	lib.Apply(opts)
+	assert.NotNil(t, lib.desiredOpts)
+
+	// Drain the queue
+	key, _ := lib.workqueue.Get()
+	lib.workqueue.Done(key)
+
+	// Second Apply with same opts should be a no-op
+	lib.Apply(opts)
+	// Queue should be empty (len check via shutdown trick not possible, so just verify desiredOpts unchanged)
+	assert.Equal(t, opts.Namespace, lib.desiredOpts.Namespace)
+}
+
+func TestStatusReadWrite(t *testing.T) {
+	lib := &Library{}
+
+	// Initial status is zero value
+	status := lib.Status()
+	assert.False(t, status.Installed)
+	assert.Empty(t, status.Version)
+
+	// Set status
+	lib.setStatus(Status{
+		Installed: true,
+		Version:   "1.24.0",
+		CRDState:  CRDManagedByCIO,
+	})
+
+	status = lib.Status()
+	assert.True(t, status.Installed)
+	assert.Equal(t, "1.24.0", status.Version)
+	assert.Equal(t, CRDManagedByCIO, status.CRDState)
+}
+
 func TestCombineErrors(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -193,5 +304,273 @@ func TestCombineErrors(t *testing.T) {
 	}
 }
 
+func TestIsOwnedResource(t *testing.T) {
+	tests := []struct {
+		name     string
+		labels   map[string]string
+		revision string
+		expected bool
+	}{
+		{
+			name:     "no labels",
+			labels:   nil,
+			revision: "default",
+			expected: false,
+		},
+		{
+			name:     "istio rev label matches default",
+			labels:   map[string]string{"istio.io/rev": "default"},
+			revision: "default",
+			expected: true,
+		},
+		{
+			name:     "istio rev label matches custom",
+			labels:   map[string]string{"istio.io/rev": "canary"},
+			revision: "canary",
+			expected: true,
+		},
+		{
+			name:     "istio rev label does not match",
+			labels:   map[string]string{"istio.io/rev": "other"},
+			revision: "default",
+			expected: false,
+		},
+		{
+			name:     "operator component label",
+			labels:   map[string]string{"operator.istio.io/component": "pilot"},
+			revision: "default",
+			expected: true,
+		},
+		{
+			name:     "managed by Helm",
+			labels:   map[string]string{"app.kubernetes.io/managed-by": "Helm"},
+			revision: "default",
+			expected: true,
+		},
+		{
+			name:     "managed by sail-operator",
+			labels:   map[string]string{"app.kubernetes.io/managed-by": "sail-operator"},
+			revision: "default",
+			expected: true,
+		},
+		{
+			name:     "managed by something else",
+			labels:   map[string]string{"app.kubernetes.io/managed-by": "other"},
+			revision: "default",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lib := &Library{}
+			opts := Options{Revision: tt.revision}
+			opts.applyDefaults()
+			lib.desiredOpts = &opts
+
+			obj := &unstructured.Unstructured{}
+			obj.SetLabels(tt.labels)
+
+			result := lib.isOwnedResource(obj)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestIsOwnedResourceWithOwnerRef(t *testing.T) {
+	expectedOwnerRef := &metav1.OwnerReference{
+		APIVersion: "gateway.networking.k8s.io/v1",
+		Kind:       "GatewayClass",
+		Name:       "istio",
+		UID:        types.UID("test-uid-123"),
+	}
+
+	tests := []struct {
+		name      string
+		ownerRefs []metav1.OwnerReference
+		ownerRef  *metav1.OwnerReference
+		labels    map[string]string
+		expected  bool
+	}{
+		{
+			name:      "matching owner ref",
+			ownerRefs: []metav1.OwnerReference{*expectedOwnerRef},
+			ownerRef:  expectedOwnerRef,
+			labels:    nil,
+			expected:  true,
+		},
+		{
+			name: "matching owner ref without UID check",
+			ownerRefs: []metav1.OwnerReference{{
+				APIVersion: "gateway.networking.k8s.io/v1",
+				Kind:       "GatewayClass",
+				Name:       "istio",
+				UID:        types.UID("different-uid"),
+			}},
+			ownerRef: &metav1.OwnerReference{
+				APIVersion: "gateway.networking.k8s.io/v1",
+				Kind:       "GatewayClass",
+				Name:       "istio",
+			},
+			labels:   nil,
+			expected: true,
+		},
+		{
+			name:      "non-matching owner ref - different name",
+			ownerRefs: []metav1.OwnerReference{*expectedOwnerRef},
+			ownerRef: &metav1.OwnerReference{
+				APIVersion: "gateway.networking.k8s.io/v1",
+				Kind:       "GatewayClass",
+				Name:       "other",
+			},
+			labels:   nil,
+			expected: false,
+		},
+		{
+			name:      "no owner ref configured - falls back to labels",
+			ownerRefs: []metav1.OwnerReference{*expectedOwnerRef},
+			ownerRef:  nil,
+			labels:    map[string]string{"app.kubernetes.io/managed-by": "Helm"},
+			expected:  true,
+		},
+		{
+			name:      "no owner ref configured - no matching labels",
+			ownerRefs: []metav1.OwnerReference{*expectedOwnerRef},
+			ownerRef:  nil,
+			labels:    nil,
+			expected:  false,
+		},
+		{
+			name:      "owner ref configured but object has no refs - falls back to labels",
+			ownerRefs: nil,
+			ownerRef:  expectedOwnerRef,
+			labels:    map[string]string{"istio.io/rev": "default"},
+			expected:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lib := &Library{}
+			opts := Options{
+				Revision: "default",
+				OwnerRef: tt.ownerRef,
+			}
+			opts.applyDefaults()
+			lib.desiredOpts = &opts
+
+			obj := &unstructured.Unstructured{}
+			obj.SetOwnerReferences(tt.ownerRefs)
+			obj.SetLabels(tt.labels)
+
+			result := lib.isOwnedResource(obj)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestHasMatchingOwnerRef(t *testing.T) {
+	tests := []struct {
+		name      string
+		ownerRefs []metav1.OwnerReference
+		expected  *metav1.OwnerReference
+		matches   bool
+	}{
+		{
+			name: "exact match",
+			ownerRefs: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       "test",
+				UID:        "uid-123",
+			}},
+			expected: &metav1.OwnerReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       "test",
+				UID:        "uid-123",
+			},
+			matches: true,
+		},
+		{
+			name: "match without UID",
+			ownerRefs: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       "test",
+				UID:        "uid-123",
+			}},
+			expected: &metav1.OwnerReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       "test",
+			},
+			matches: true,
+		},
+		{
+			name: "no match - different kind",
+			ownerRefs: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Secret",
+				Name:       "test",
+			}},
+			expected: &metav1.OwnerReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       "test",
+			},
+			matches: false,
+		},
+		{
+			name:      "no owner refs",
+			ownerRefs: nil,
+			expected: &metav1.OwnerReference{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+				Name:       "test",
+			},
+			matches: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := &unstructured.Unstructured{}
+			obj.SetOwnerReferences(tt.ownerRefs)
+
+			result := hasMatchingOwnerRef(obj, tt.expected)
+			assert.Equal(t, tt.matches, result)
+		})
+	}
+}
+
+// TestOptionsEqualWithNilValues verifies that optionsEqual handles nil Values by
+// comparing the map representation (both nil Values produce equal empty maps).
+func TestOptionsEqualWithNilValues(t *testing.T) {
+	a := Options{Namespace: "ns", ManageCRDs: ptr.To(true), IncludeAllCRDs: ptr.To(false)}
+	b := Options{Namespace: "ns", ManageCRDs: ptr.To(true), IncludeAllCRDs: ptr.To(false)}
+	a.applyDefaults()
+	b.applyDefaults()
+
+	// Both nil Values should be equal
+	assert.True(t, optionsEqual(a, b))
+
+	// nil vs non-nil Values should differ (non-nil with content)
+	b.Values = &v1.Values{Global: &v1.GlobalConfig{Hub: ptr.To("test")}}
+	assert.False(t, optionsEqual(a, b))
+}
+
+// TestFromValuesRoundTrip verifies that helm.FromValues produces comparable maps.
+func TestFromValuesRoundTrip(t *testing.T) {
+	v := &v1.Values{
+		Global: &v1.GlobalConfig{
+			Hub: ptr.To("docker.io/istio"),
+		},
+	}
+	m1 := helm.FromValues(v)
+	m2 := helm.FromValues(v)
+	assert.Equal(t, m1, m2)
+}
+
 // Note: Value computation tests are in pkg/revision and pkg/istiovalues packages.
-// The doInstall() method uses revision.ComputeValues() which is tested there.
+// The reconcile() method uses revision.ComputeValues() which is tested there.
