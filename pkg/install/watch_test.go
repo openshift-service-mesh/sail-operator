@@ -29,6 +29,7 @@ func TestWatchTypeString(t *testing.T) {
 	}{
 		{WatchTypeOwned, "Owned"},
 		{WatchTypeNamespace, "Namespace"},
+		{WatchTypeCRD, "CRD"},
 		{WatchType(99), "Unknown(99)"},
 	}
 

@@ -366,16 +366,29 @@ func (l *Library) waitForDesiredState(ctx context.Context) bool {
 	}
 }
 
-// setupInformers creates dynamic informers for Helm resources based on
-// the current desired options.
+// setupInformers creates dynamic informers for Helm resources and CRDs
+// based on the current desired options.
 func (l *Library) setupInformers(stopCh <-chan struct{}) {
 	l.mu.RLock()
 	opts := *l.desiredOpts
 	l.mu.RUnlock()
 
+	// Helm resource watches (drift detection)
 	specs, err := l.getWatchSpecs(opts)
 	if err != nil {
 		// Can't set up watches; reconciliation will still work via workqueue
+		specs = nil
+	}
+
+	// CRD watches (ownership changes, creation, deletion)
+	if ptr.Deref(opts.ManageCRDs, true) {
+		crdSpec := l.buildCRDWatchSpec(opts)
+		if crdSpec != nil {
+			specs = append(specs, *crdSpec)
+		}
+	}
+
+	if len(specs) == 0 {
 		return
 	}
 
@@ -410,6 +423,58 @@ func (l *Library) setupInformers(stopCh <-chan struct{}) {
 	clusterScopedFactory.Start(stopCh)
 	namespacedFactory.WaitForCacheSync(stopCh)
 	clusterScopedFactory.WaitForCacheSync(stopCh)
+}
+
+// buildCRDWatchSpec computes a WatchSpec for Istio CRDs based on the current options.
+// Returns nil if the target CRD set cannot be determined.
+func (l *Library) buildCRDWatchSpec(opts Options) *WatchSpec {
+	// We need computed values to determine target CRDs when not using IncludeAllCRDs.
+	// Resolve version first.
+	version := opts.Version
+	if version == "" {
+		v, err := DefaultVersion(l.resourceFS)
+		if err != nil {
+			return nil
+		}
+		version = v
+	}
+
+	var targetNames map[string]struct{}
+
+	if ptr.Deref(opts.IncludeAllCRDs, false) {
+		crds, err := allIstioCRDs()
+		if err != nil {
+			return nil
+		}
+		targetNames = make(map[string]struct{}, len(crds))
+		for _, name := range crds {
+			targetNames[name] = struct{}{}
+		}
+	} else {
+		// Need values to determine filtered CRDs
+		values := opts.Values
+		if values != nil && values.Pilot != nil && values.Pilot.Env != nil {
+			targets, err := targetCRDsFromValues(values, false)
+			if err != nil || len(targets) == 0 {
+				return nil
+			}
+			targetNames = make(map[string]struct{}, len(targets))
+			for _, name := range targets {
+				targetNames[name] = struct{}{}
+			}
+		}
+	}
+
+	if len(targetNames) == 0 {
+		return nil
+	}
+
+	return &WatchSpec{
+		GVK:           crdGVK,
+		WatchType:     WatchTypeCRD,
+		ClusterScoped: true,
+		TargetNames:   targetNames,
+	}
 }
 
 // reconcile does the actual work: CRDs + Helm.
@@ -506,6 +571,14 @@ func (l *Library) enqueue() {
 // makeEventHandler creates a cache.ResourceEventHandler that filters events
 // and enqueues reconciliation requests.
 func (l *Library) makeEventHandler(spec WatchSpec) cache.ResourceEventHandler {
+	if spec.WatchType == WatchTypeCRD {
+		return l.makeCRDEventHandler(spec)
+	}
+	return l.makeOwnedEventHandler(spec)
+}
+
+// makeOwnedEventHandler handles events for Helm-managed and namespace resources.
+func (l *Library) makeOwnedEventHandler(spec WatchSpec) cache.ResourceEventHandler {
 	return cache.ResourceEventHandlerFuncs{
 		// Add events fire during initial cache sync — ignore them.
 		AddFunc: func(obj interface{}) {},
@@ -550,6 +623,66 @@ func (l *Library) makeEventHandler(spec WatchSpec) cache.ResourceEventHandler {
 			l.enqueue()
 		},
 	}
+}
+
+// makeCRDEventHandler handles events for CRD resources. Unlike owned resources,
+// CRD events trigger on create (new CRD appeared), delete (CRD removed), and
+// label/annotation changes (ownership transfer). Events are filtered by name
+// to only watch target Istio CRDs.
+func (l *Library) makeCRDEventHandler(spec WatchSpec) cache.ResourceEventHandler {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			u, ok := obj.(*unstructured.Unstructured)
+			if !ok {
+				return
+			}
+			if !isTargetCRD(u, spec.TargetNames) {
+				return
+			}
+			// CRD appeared — re-classify ownership
+			l.enqueue()
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldU, ok := oldObj.(*unstructured.Unstructured)
+			if !ok {
+				return
+			}
+			newU, ok := newObj.(*unstructured.Unstructured)
+			if !ok {
+				return
+			}
+			if !isTargetCRD(newU, spec.TargetNames) {
+				return
+			}
+			if !shouldReconcileCRDOnUpdate(oldU, newU) {
+				return
+			}
+			l.enqueue()
+		},
+		DeleteFunc: func(obj interface{}) {
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			u, ok := obj.(*unstructured.Unstructured)
+			if !ok {
+				return
+			}
+			if !isTargetCRD(u, spec.TargetNames) {
+				return
+			}
+			// CRD deleted — re-classify ownership
+			l.enqueue()
+		},
+	}
+}
+
+// isTargetCRD checks if an unstructured CRD object's name is in the target set.
+func isTargetCRD(obj *unstructured.Unstructured, targets map[string]struct{}) bool {
+	if len(targets) == 0 {
+		return false
+	}
+	_, ok := targets[obj.GetName()]
+	return ok
 }
 
 // isOwnedResource checks if the resource is owned by our installation.

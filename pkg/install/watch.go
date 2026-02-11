@@ -42,6 +42,11 @@ const (
 	// WatchTypeNamespace indicates namespace resources should be watched.
 	// Used to detect when the target namespace is created/deleted.
 	WatchTypeNamespace
+
+	// WatchTypeCRD indicates CRD resources that should be watched for ownership changes.
+	// Events are filtered by TargetNames and trigger on label/annotation changes,
+	// creation, or deletion — allowing the Library to re-classify CRD ownership.
+	WatchTypeCRD
 )
 
 // String returns the string representation of the WatchType.
@@ -51,6 +56,8 @@ func (w WatchType) String() string {
 		return "Owned"
 	case WatchTypeNamespace:
 		return "Namespace"
+	case WatchTypeCRD:
+		return "CRD"
 	default:
 		return fmt.Sprintf("Unknown(%d)", w)
 	}
@@ -67,6 +74,11 @@ type WatchSpec struct {
 	// ClusterScoped indicates if this is a cluster-scoped resource (vs namespaced).
 	// Cluster-scoped resources require a different informer factory setup.
 	ClusterScoped bool
+
+	// TargetNames is an optional set of resource names to filter on.
+	// Only used with WatchTypeCRD to limit events to specific CRDs.
+	// When nil or empty, all resources of this GVK are watched.
+	TargetNames map[string]struct{}
 }
 
 // getWatchSpecs renders the istiod Helm charts and extracts the GVKs

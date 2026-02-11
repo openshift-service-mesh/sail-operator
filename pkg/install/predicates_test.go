@@ -120,9 +120,9 @@ func TestIsStatusOnlyChange(t *testing.T) {
 	gvk := schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Service"}
 
 	tests := []struct {
-		name       string
-		setupOld   func(*unstructured.Unstructured)
-		setupNew   func(*unstructured.Unstructured)
+		name         string
+		setupOld     func(*unstructured.Unstructured)
+		setupNew     func(*unstructured.Unstructured)
 		isStatusOnly bool
 	}{
 		{
@@ -250,6 +250,141 @@ func TestNeedsStatusChangeFilter(t *testing.T) {
 		t.Run(tt.gvk.Kind, func(t *testing.T) {
 			result := needsStatusChangeFilter(tt.gvk)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestShouldReconcileCRDOnUpdate(t *testing.T) {
+	tests := []struct {
+		name     string
+		setupOld func(*unstructured.Unstructured)
+		setupNew func(*unstructured.Unstructured)
+		expected bool
+	}{
+		{
+			name: "no changes",
+			setupOld: func(obj *unstructured.Unstructured) {
+				obj.SetGeneration(1)
+				obj.SetLabels(map[string]string{"foo": "bar"})
+			},
+			setupNew: func(obj *unstructured.Unstructured) {
+				obj.SetGeneration(1)
+				obj.SetLabels(map[string]string{"foo": "bar"})
+			},
+			expected: false,
+		},
+		{
+			name: "label added",
+			setupOld: func(obj *unstructured.Unstructured) {
+				obj.SetGeneration(1)
+			},
+			setupNew: func(obj *unstructured.Unstructured) {
+				obj.SetGeneration(1)
+				obj.SetLabels(map[string]string{"ingress.operator.openshift.io/owned": "true"})
+			},
+			expected: true,
+		},
+		{
+			name: "label removed",
+			setupOld: func(obj *unstructured.Unstructured) {
+				obj.SetGeneration(1)
+				obj.SetLabels(map[string]string{"ingress.operator.openshift.io/owned": "true"})
+			},
+			setupNew: func(obj *unstructured.Unstructured) {
+				obj.SetGeneration(1)
+			},
+			expected: true,
+		},
+		{
+			name: "annotation changed",
+			setupOld: func(obj *unstructured.Unstructured) {
+				obj.SetGeneration(1)
+			},
+			setupNew: func(obj *unstructured.Unstructured) {
+				obj.SetGeneration(1)
+				obj.SetAnnotations(map[string]string{"helm.sh/resource-policy": "keep"})
+			},
+			expected: true,
+		},
+		{
+			name: "generation changed (spec update)",
+			setupOld: func(obj *unstructured.Unstructured) {
+				obj.SetGeneration(1)
+			},
+			setupNew: func(obj *unstructured.Unstructured) {
+				obj.SetGeneration(2)
+			},
+			expected: true,
+		},
+		{
+			name: "only resourceVersion changed (status-like)",
+			setupOld: func(obj *unstructured.Unstructured) {
+				obj.SetGeneration(1)
+				obj.SetResourceVersion("100")
+			},
+			setupNew: func(obj *unstructured.Unstructured) {
+				obj.SetGeneration(1)
+				obj.SetResourceVersion("101")
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldObj := &unstructured.Unstructured{Object: map[string]interface{}{}}
+			newObj := &unstructured.Unstructured{Object: map[string]interface{}{}}
+			tt.setupOld(oldObj)
+			tt.setupNew(newObj)
+			assert.Equal(t, tt.expected, shouldReconcileCRDOnUpdate(oldObj, newObj))
+		})
+	}
+}
+
+func TestIsTargetCRD(t *testing.T) {
+	targets := map[string]struct{}{
+		"wasmplugins.extensions.istio.io":      {},
+		"destinationrules.networking.istio.io": {},
+		"envoyfilters.networking.istio.io":     {},
+	}
+
+	tests := []struct {
+		name     string
+		crdName  string
+		targets  map[string]struct{}
+		expected bool
+	}{
+		{
+			name:     "matching target",
+			crdName:  "wasmplugins.extensions.istio.io",
+			targets:  targets,
+			expected: true,
+		},
+		{
+			name:     "not a target",
+			crdName:  "gateways.gateway.networking.k8s.io",
+			targets:  targets,
+			expected: false,
+		},
+		{
+			name:     "empty targets",
+			crdName:  "wasmplugins.extensions.istio.io",
+			targets:  nil,
+			expected: false,
+		},
+		{
+			name:     "empty name",
+			crdName:  "",
+			targets:  targets,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := &unstructured.Unstructured{}
+			obj.SetName(tt.crdName)
+			assert.Equal(t, tt.expected, isTargetCRD(obj, tt.targets))
 		})
 	}
 }
