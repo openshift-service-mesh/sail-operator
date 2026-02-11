@@ -17,7 +17,9 @@ package install
 import (
 	"testing"
 
+	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResourceToCRDFilename(t *testing.T) {
@@ -66,6 +68,37 @@ func TestResourceToCRDFilename(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := resourceToCRDFilename(tt.resource)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestCRDFilenameToResource(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{
+			name:     "wasmplugins",
+			filename: "extensions.istio.io_wasmplugins.yaml",
+			expected: "wasmplugins.extensions.istio.io",
+		},
+		{
+			name:     "envoyfilters",
+			filename: "networking.istio.io_envoyfilters.yaml",
+			expected: "envoyfilters.networking.istio.io",
+		},
+		{
+			name:     "no underscore",
+			filename: "invalid.yaml",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := crdFilenameToResource(tt.filename)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -280,4 +313,165 @@ func TestGatewayAPIFiltersWorkTogether(t *testing.T) {
 	// Non-istio resources should be managed (not matched by IGNORE)
 	assert.True(t, shouldManageResource("gateways.gateway.networking.k8s.io", GatewayAPIIgnoreResources, GatewayAPIIncludeResources),
 		"k8s gateway resources should be managed (not in IGNORE)")
+}
+
+func TestAggregateCRDState(t *testing.T) {
+	tests := []struct {
+		name     string
+		infos    []CRDInfo
+		expected CRDManagementState
+	}{
+		{
+			name:     "empty list",
+			infos:    []CRDInfo{},
+			expected: CRDNoneExist,
+		},
+		{
+			name: "all not found",
+			infos: []CRDInfo{
+				{Name: "a.istio.io", Found: false},
+				{Name: "b.istio.io", Found: false},
+			},
+			expected: CRDNoneExist,
+		},
+		{
+			name: "all CIO",
+			infos: []CRDInfo{
+				{Name: "a.istio.io", Found: true, State: CRDManagedByCIO},
+				{Name: "b.istio.io", Found: true, State: CRDManagedByCIO},
+			},
+			expected: CRDManagedByCIO,
+		},
+		{
+			name: "all OLM",
+			infos: []CRDInfo{
+				{Name: "a.istio.io", Found: true, State: CRDManagedByOLM},
+				{Name: "b.istio.io", Found: true, State: CRDManagedByOLM},
+			},
+			expected: CRDManagedByOLM,
+		},
+		{
+			name: "any unknown",
+			infos: []CRDInfo{
+				{Name: "a.istio.io", Found: true, State: CRDManagedByCIO},
+				{Name: "b.istio.io", Found: true, State: CRDUnknownManagement},
+			},
+			expected: CRDUnknownManagement,
+		},
+		{
+			name: "CIO and OLM mix",
+			infos: []CRDInfo{
+				{Name: "a.istio.io", Found: true, State: CRDManagedByCIO},
+				{Name: "b.istio.io", Found: true, State: CRDManagedByOLM},
+			},
+			expected: CRDMixedOwnership,
+		},
+		{
+			name: "some found some missing",
+			infos: []CRDInfo{
+				{Name: "a.istio.io", Found: true, State: CRDManagedByOLM},
+				{Name: "b.istio.io", Found: false},
+			},
+			expected: CRDMixedOwnership,
+		},
+		{
+			name: "all found but all unknown",
+			infos: []CRDInfo{
+				{Name: "a.istio.io", Found: true, State: CRDUnknownManagement},
+				{Name: "b.istio.io", Found: true, State: CRDUnknownManagement},
+			},
+			expected: CRDUnknownManagement,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := aggregateCRDState(tt.infos)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAllIstioCRDs(t *testing.T) {
+	resources, err := allIstioCRDs()
+	require.NoError(t, err)
+
+	// Should have Istio CRDs but no sailoperator.io CRDs
+	assert.NotEmpty(t, resources)
+	for _, r := range resources {
+		assert.NotContains(t, r, "sailoperator.io", "sailoperator.io CRDs should be excluded")
+		assert.Contains(t, r, "istio.io", "all CRDs should be *.istio.io")
+	}
+
+	// Verify expected CRDs are present
+	assert.Contains(t, resources, "wasmplugins.extensions.istio.io")
+	assert.Contains(t, resources, "envoyfilters.networking.istio.io")
+	assert.Contains(t, resources, "destinationrules.networking.istio.io")
+	assert.Contains(t, resources, "virtualservices.networking.istio.io")
+}
+
+func TestTargetCRDsFromValues(t *testing.T) {
+	t.Run("include all CRDs", func(t *testing.T) {
+		targets, err := targetCRDsFromValues(nil, true)
+		require.NoError(t, err)
+		assert.NotEmpty(t, targets)
+		// Should contain all istio CRDs
+		assert.Contains(t, targets, "wasmplugins.extensions.istio.io")
+	})
+
+	t.Run("filtered by PILOT_INCLUDE_RESOURCES", func(t *testing.T) {
+		values := &v1.Values{
+			Pilot: &v1.PilotConfig{
+				Env: map[string]string{
+					EnvPilotIgnoreResources:  GatewayAPIIgnoreResources,
+					EnvPilotIncludeResources: GatewayAPIIncludeResources,
+				},
+			},
+		}
+		targets, err := targetCRDsFromValues(values, false)
+		require.NoError(t, err)
+		assert.Len(t, targets, 3)
+		assert.Contains(t, targets, "wasmplugins.extensions.istio.io")
+		assert.Contains(t, targets, "envoyfilters.networking.istio.io")
+		assert.Contains(t, targets, "destinationrules.networking.istio.io")
+	})
+
+	t.Run("nil values", func(t *testing.T) {
+		targets, err := targetCRDsFromValues(nil, false)
+		require.NoError(t, err)
+		assert.Empty(t, targets)
+	})
+
+	t.Run("no filters defined", func(t *testing.T) {
+		values := &v1.Values{
+			Pilot: &v1.PilotConfig{
+				Env: map[string]string{},
+			},
+		}
+		targets, err := targetCRDsFromValues(values, false)
+		require.NoError(t, err)
+		assert.Empty(t, targets)
+	})
+}
+
+func TestMissingCRDNames(t *testing.T) {
+	infos := []CRDInfo{
+		{Name: "a.istio.io", Found: true},
+		{Name: "b.istio.io", Found: false},
+		{Name: "c.istio.io", Found: true},
+		{Name: "d.istio.io", Found: false},
+	}
+
+	missing := missingCRDNames(infos)
+	assert.Equal(t, []string{"b.istio.io", "d.istio.io"}, missing)
+}
+
+func TestMissingCRDNamesAllFound(t *testing.T) {
+	infos := []CRDInfo{
+		{Name: "a.istio.io", Found: true},
+		{Name: "b.istio.io", Found: true},
+	}
+
+	missing := missingCRDNames(infos)
+	assert.Empty(t, missing)
 }

@@ -310,9 +310,9 @@ func (d *DriftReconciler) processNextWorkItem(ctx context.Context) bool {
 	}
 	defer d.workqueue.Done(key)
 
-	// Reconcile by calling Install (ignore the returned DriftReconciler)
-	_, err := d.installer.Install(ctx, d.opts)
-	if err != nil {
+	// Reconcile using the internal doInstall (skip creating a new DriftReconciler)
+	status := d.installer.doInstall(ctx, d.opts)
+	if status.Error != nil {
 		// Requeue with rate limiting on error
 		d.workqueue.AddRateLimited(key)
 		return true

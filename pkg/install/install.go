@@ -41,6 +41,30 @@ const (
 	defaultRevision   = v1.DefaultRevision
 )
 
+// Status represents the result of an Install operation, covering both
+// CRD management and Helm installation.
+type Status struct {
+	// CRDState is the aggregate ownership state of the target Istio CRDs.
+	CRDState CRDManagementState
+
+	// CRDMessage is a human-readable description of the CRD state.
+	CRDMessage string
+
+	// CRDs contains per-CRD detail (name, ownership, found on cluster).
+	CRDs []CRDInfo
+
+	// Installed is true if the Helm install/upgrade completed successfully.
+	Installed bool
+
+	// Version is the resolved Istio version (set even if Installed is false).
+	Version string
+
+	// Error is non-nil if something went wrong during CRD management or Helm installation.
+	// CRD ownership problems (UnknownManagement, MixedOwnership) set this but do not
+	// prevent Helm installation from being attempted.
+	Error error
+}
+
 // Options for installing istiod
 type Options struct {
 	// Namespace is the target namespace for installation.
@@ -65,10 +89,15 @@ type Options struct {
 	OwnerRef *metav1.OwnerReference
 
 	// ManageCRDs controls whether the installer manages Istio CRDs.
-	// When true (default), CRDs for resources in PILOT_INCLUDE_RESOURCES will be
-	// installed if they don't exist. Existing CRDs are left alone.
+	// When true (default), CRDs are classified by ownership and installed/updated
+	// if we own them or none exist.
 	// Set to false to skip CRD management entirely.
 	ManageCRDs *bool
+
+	// IncludeAllCRDs controls which CRDs are managed.
+	// When true, all *.istio.io CRDs from the embedded FS are managed.
+	// When false (default), only CRDs matching PILOT_INCLUDE_RESOURCES are managed.
+	IncludeAllCRDs *bool
 }
 
 // applyDefaults fills in default values for Options.
@@ -83,6 +112,9 @@ func (o *Options) applyDefaults() {
 	}
 	if o.ManageCRDs == nil {
 		o.ManageCRDs = ptr.To(true)
+	}
+	if o.IncludeAllCRDs == nil {
+		o.IncludeAllCRDs = ptr.To(false)
 	}
 }
 
@@ -135,33 +167,61 @@ func NewInstaller(kubeConfig *rest.Config, resourceFS fs.FS) (*Installer, error)
 //
 // This method:
 //   - Resolves the Istio version
+//   - Classifies and manages CRDs (if ManageCRDs is true)
 //   - Computes final values (digests, vendor defaults, profiles, FIPS, overrides)
-//   - Installs both the base chart (CRDs) and istiod chart
-//   - Returns a DriftReconciler for optional drift detection
+//   - Installs both the base chart and istiod chart via Helm
+//   - Returns a DriftReconciler for optional drift detection and a Status
+//
+// CRD ownership problems are reported in Status.Error but do not prevent
+// the Helm installation from being attempted.
 //
 // For Gateway API mode, use GatewayAPIDefaults() to get pre-configured values:
 //
 //	values := install.GatewayAPIDefaults()
 //	values.Pilot.Env["PILOT_GATEWAY_API_CONTROLLER_NAME"] = "my-controller"
-//	reconciler, _ := installer.Install(ctx, Options{Values: values})
+//	reconciler, status := installer.Install(ctx, Options{Values: values})
+//	if status.Error != nil { /* handle */ }
 //	reconciler.Start(ctx)  // Optional: start drift detection
-func (i *Installer) Install(ctx context.Context, opts Options) (*DriftReconciler, error) {
+func (i *Installer) Install(ctx context.Context, opts Options) (*DriftReconciler, Status) {
+	status := i.doInstall(ctx, opts)
+
+	if !status.Installed {
+		return nil, status
+	}
+
+	// Create drift reconciler with the same options used for installation
+	driftReconciler, err := newDriftReconciler(i, opts)
+	if err != nil {
+		status.Error = combineErrors(status.Error, fmt.Errorf("failed to create drift reconciler: %w", err))
+		return nil, status
+	}
+
+	return driftReconciler, status
+}
+
+// doInstall is the internal implementation that does CRDs + Helm.
+// Used by both Install() (public) and the drift reconciler (internal).
+func (i *Installer) doInstall(ctx context.Context, opts Options) Status {
 	opts.applyDefaults()
+
+	status := Status{}
 
 	// Default version from FS if not specified
 	if opts.Version == "" {
 		v, err := DefaultVersion(i.resourceFS)
 		if err != nil {
-			return nil, fmt.Errorf("failed to determine default version: %w", err)
+			status.Error = fmt.Errorf("failed to determine default version: %w", err)
+			return status
 		}
 		opts.Version = v
 	}
 
 	// Validate version directory exists in the resource FS
 	if err := ValidateVersion(i.resourceFS, opts.Version); err != nil {
-		return nil, fmt.Errorf("invalid version %q: %w", opts.Version, err)
+		status.Error = fmt.Errorf("invalid version %q: %w", opts.Version, err)
+		return status
 	}
-	resolvedVersion := opts.Version
+	status.Version = opts.Version
 
 	// Compute final values using the same pipeline as the Operator:
 	// - applies image digests from configuration
@@ -172,7 +232,7 @@ func (i *Installer) Install(ctx context.Context, opts Options) (*DriftReconciler
 	values, err := revision.ComputeValues(
 		opts.Values,
 		opts.Namespace,
-		resolvedVersion,
+		opts.Version,
 		config.PlatformOpenShift,
 		defaultProfile, // "openshift" YAML profile
 		"",             // no user profile for library
@@ -180,13 +240,19 @@ func (i *Installer) Install(ctx context.Context, opts Options) (*DriftReconciler
 		opts.Revision,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compute values: %w", err)
+		status.Error = fmt.Errorf("failed to compute values: %w", err)
+		return status
 	}
 
-	// Ensure required CRDs are installed (based on PILOT_INCLUDE_RESOURCES)
+	// Manage CRDs (classify ownership, install/update if appropriate)
 	if ptr.Deref(opts.ManageCRDs, true) {
-		if err := i.ensureCRDs(ctx, values); err != nil {
-			return nil, fmt.Errorf("CRD management failed: %w", err)
+		crdState, crdInfos, crdMsg, crdErr := i.manageCRDs(ctx, values, ptr.Deref(opts.IncludeAllCRDs, false))
+		status.CRDState = crdState
+		status.CRDs = crdInfos
+		status.CRDMessage = crdMsg
+		if crdErr != nil {
+			// CRD errors are recorded but don't prevent Helm installation
+			status.Error = crdErr
 		}
 	}
 
@@ -203,22 +269,30 @@ func (i *Installer) Install(ctx context.Context, opts Options) (*DriftReconciler
 	istiodReconciler := sharedreconcile.NewIstiodReconciler(reconcilerCfg, i.client)
 
 	// Validate (version, namespace, values, target namespace exists)
-	if err := istiodReconciler.Validate(ctx, resolvedVersion, opts.Namespace, values); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
+	if err := istiodReconciler.Validate(ctx, opts.Version, opts.Namespace, values); err != nil {
+		status.Error = combineErrors(status.Error, fmt.Errorf("validation failed: %w", err))
+		return status
 	}
 
 	// Install
-	if err := istiodReconciler.Install(ctx, resolvedVersion, opts.Namespace, values, opts.Revision, opts.OwnerRef); err != nil {
-		return nil, fmt.Errorf("installation failed: %w", err)
+	if err := istiodReconciler.Install(ctx, opts.Version, opts.Namespace, values, opts.Revision, opts.OwnerRef); err != nil {
+		status.Error = combineErrors(status.Error, fmt.Errorf("installation failed: %w", err))
+		return status
 	}
 
-	// Create and return drift reconciler with the same options used for installation
-	driftReconciler, err := newDriftReconciler(i, opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create drift reconciler: %w", err)
-	}
+	status.Installed = true
+	return status
+}
 
-	return driftReconciler, nil
+// combineErrors returns the first non-nil error, or wraps both if both are non-nil.
+func combineErrors(existing, new error) error {
+	if existing == nil {
+		return new
+	}
+	if new == nil {
+		return existing
+	}
+	return fmt.Errorf("%w; %w", existing, new)
 }
 
 // Uninstall removes the istiod installation from the specified namespace.

@@ -15,6 +15,7 @@
 package install
 
 import (
+	"errors"
 	"testing"
 	"testing/fstest"
 
@@ -50,50 +51,55 @@ func TestNewInstaller(t *testing.T) {
 
 func TestOptionsApplyDefaults(t *testing.T) {
 	tests := []struct {
-		name               string
-		opts               Options
-		expectedNamespace  string
-		expectedVersion    string
-		expectedRevision   string
-		expectedManageCRDs bool
+		name                   string
+		opts                   Options
+		expectedNamespace      string
+		expectedVersion        string
+		expectedRevision       string
+		expectedManageCRDs     bool
+		expectedIncludeAllCRDs bool
 	}{
 		{
-			name:               "all defaults",
-			opts:               Options{},
-			expectedNamespace:  "istio-system",
-			expectedVersion:    "",
-			expectedRevision:   "default",
-			expectedManageCRDs: true,
+			name:                   "all defaults",
+			opts:                   Options{},
+			expectedNamespace:      "istio-system",
+			expectedVersion:        "",
+			expectedRevision:       "default",
+			expectedManageCRDs:     true,
+			expectedIncludeAllCRDs: false,
 		},
 		{
 			name: "custom namespace preserved",
 			opts: Options{
 				Namespace: "custom-ns",
 			},
-			expectedNamespace:  "custom-ns",
-			expectedVersion:    "",
-			expectedRevision:   "default",
-			expectedManageCRDs: true,
+			expectedNamespace:      "custom-ns",
+			expectedVersion:        "",
+			expectedRevision:       "default",
+			expectedManageCRDs:     true,
+			expectedIncludeAllCRDs: false,
 		},
 		{
 			name: "custom version preserved",
 			opts: Options{
 				Version: "v1.24.0",
 			},
-			expectedNamespace:  "istio-system",
-			expectedVersion:    "v1.24.0",
-			expectedRevision:   "default",
-			expectedManageCRDs: true,
+			expectedNamespace:      "istio-system",
+			expectedVersion:        "v1.24.0",
+			expectedRevision:       "default",
+			expectedManageCRDs:     true,
+			expectedIncludeAllCRDs: false,
 		},
 		{
 			name: "custom revision preserved",
 			opts: Options{
 				Revision: "canary",
 			},
-			expectedNamespace:  "istio-system",
-			expectedVersion:    "",
-			expectedRevision:   "canary",
-			expectedManageCRDs: true,
+			expectedNamespace:      "istio-system",
+			expectedVersion:        "",
+			expectedRevision:       "canary",
+			expectedManageCRDs:     true,
+			expectedIncludeAllCRDs: false,
 		},
 		{
 			name: "all custom values preserved",
@@ -102,20 +108,33 @@ func TestOptionsApplyDefaults(t *testing.T) {
 				Version:   "v1.23.0",
 				Revision:  "my-revision",
 			},
-			expectedNamespace:  "my-namespace",
-			expectedVersion:    "v1.23.0",
-			expectedRevision:   "my-revision",
-			expectedManageCRDs: true,
+			expectedNamespace:      "my-namespace",
+			expectedVersion:        "v1.23.0",
+			expectedRevision:       "my-revision",
+			expectedManageCRDs:     true,
+			expectedIncludeAllCRDs: false,
 		},
 		{
 			name: "ManageCRDs false preserved",
 			opts: Options{
 				ManageCRDs: ptr.To(false),
 			},
-			expectedNamespace:  "istio-system",
-			expectedVersion:    "",
-			expectedRevision:   "default",
-			expectedManageCRDs: false,
+			expectedNamespace:      "istio-system",
+			expectedVersion:        "",
+			expectedRevision:       "default",
+			expectedManageCRDs:     false,
+			expectedIncludeAllCRDs: false,
+		},
+		{
+			name: "IncludeAllCRDs true preserved",
+			opts: Options{
+				IncludeAllCRDs: ptr.To(true),
+			},
+			expectedNamespace:      "istio-system",
+			expectedVersion:        "",
+			expectedRevision:       "default",
+			expectedManageCRDs:     true,
+			expectedIncludeAllCRDs: true,
 		},
 	}
 
@@ -126,9 +145,53 @@ func TestOptionsApplyDefaults(t *testing.T) {
 			assert.Equal(t, tt.expectedVersion, tt.opts.Version)
 			assert.Equal(t, tt.expectedRevision, tt.opts.Revision)
 			assert.Equal(t, tt.expectedManageCRDs, *tt.opts.ManageCRDs)
+			assert.Equal(t, tt.expectedIncludeAllCRDs, *tt.opts.IncludeAllCRDs)
+		})
+	}
+}
+
+func TestCombineErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		existing error
+		new      error
+		wantNil  bool
+		wantMsg  string
+	}{
+		{
+			name:    "both nil",
+			wantNil: true,
+		},
+		{
+			name:    "existing nil",
+			new:     errors.New("new error"),
+			wantMsg: "new error",
+		},
+		{
+			name:     "new nil",
+			existing: errors.New("existing error"),
+			wantMsg:  "existing error",
+		},
+		{
+			name:     "both non-nil",
+			existing: errors.New("existing"),
+			new:      errors.New("new"),
+			wantMsg:  "existing; new",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := combineErrors(tt.existing, tt.new)
+			if tt.wantNil {
+				assert.NoError(t, result)
+			} else {
+				assert.Error(t, result)
+				assert.Contains(t, result.Error(), tt.wantMsg)
+			}
 		})
 	}
 }
 
 // Note: Value computation tests are in pkg/revision and pkg/istiovalues packages.
-// The Install() method uses revision.ComputeValues() which is tested there.
+// The doInstall() method uses revision.ComputeValues() which is tested there.
