@@ -378,11 +378,10 @@ func (l *Library) run(ctx context.Context, notifyCh chan<- struct{}) {
 		default:
 		}
 
-		if status.Error != nil {
-			l.workqueue.AddRateLimited(key)
-		} else {
-			l.workqueue.Forget(key)
-		}
+		// Don't retry on error — the library is event-driven.
+		// State changes trigger informer events, and Apply() enqueues explicitly.
+		// Retrying permanent errors (CRD classification, bad config) just spins.
+		l.workqueue.Forget(key)
 		l.workqueue.Done(key)
 	}
 }
