@@ -218,8 +218,8 @@ test.integration: envtest ## Run integration tests located in the tests/integrat
 	go run github.com/onsi/ginkgo/v2/ginkgo --tags=integration --junit-report=junit-integration.xml --output-dir="$(ARTIFACTS)" $(GINKGO_FLAGS) ./tests/integration/...
 
 .PHONY: test.scorecard
-test.scorecard: operator-sdk ## Run the operator scorecard test.
-	OPERATOR_SDK=$(OPERATOR_SDK) ${SOURCE_DIR}/tests/scorecard-test.sh
+test.scorecard: operator-sdk ## Run the operator scorecard test. Use OCP=true to run against an existing OCP cluster instead of Kind.
+	OCP=$${OCP:-false} OPERATOR_SDK=$(OPERATOR_SDK) SCORECARD_NAMESPACE="$${SCORECARD_NAMESPACE:-scorecard-test}" ${SOURCE_DIR}/tests/scorecard-test.sh
 
 .PHONY: test.e2e.ocp
 test.e2e.ocp: istioctl ## Run the end-to-end tests against an existing OCP cluster. While running on OCP in downstream you need to set ISTIOCTL_DOWNLOAD_URL to the URL where the istioctl productized binary.
@@ -251,7 +251,7 @@ build: build-$(TARGET_ARCH) ## Build the sail-operator binary.
 
 .PHONY: run
 run: gen ## Run a controller from your host.
-	POD_NAMESPACE=${NAMESPACE} go run ./cmd/main.go --config-file=./hack/config.properties --resource-directory=./resources
+	POD_NAMESPACE=${NAMESPACE} go run ./cmd/main.go --config-file=./hack/config.properties
 
 # docker build -t ${IMAGE} --build-arg GIT_TAG=${GIT_TAG} --build-arg GIT_REVISION=${GIT_REVISION} --build-arg GIT_STATUS=${GIT_STATUS} .
 .PHONY: docker-build
@@ -568,14 +568,14 @@ MISSPELL ?= $(LOCALBIN)/misspell
 
 ## Tool Versions
 OPERATOR_SDK_VERSION ?= v1.42.0
-HELM_VERSION ?= v3.19.5
+HELM_VERSION ?= v3.20.0
 CONTROLLER_TOOLS_VERSION ?= v0.20.0
-CONTROLLER_RUNTIME_BRANCH ?= release-0.22
-OPM_VERSION ?= v1.61.0
-OLM_VERSION ?= v0.38.0
+CONTROLLER_RUNTIME_BRANCH ?= release-0.23
+OPM_VERSION ?= v1.63.0
+OLM_VERSION ?= v0.40.0
 GITLEAKS_VERSION ?= v8.30.0
 ISTIOCTL_VERSION ?= 1.26.2
-RUNME_VERSION ?= 3.16.4
+RUNME_VERSION ?= 3.16.5
 MISSPELL_VERSION ?= v0.3.4
 
 .PHONY: helm $(HELM)
