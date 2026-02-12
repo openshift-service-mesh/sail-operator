@@ -205,6 +205,7 @@ type Library struct {
 	kubeConfig   *rest.Config
 	cl           client.Client
 	dynamicCl    dynamic.Interface
+	crdManager   *CRDManager
 
 	// Desired state (set by Apply, read by worker)
 	mu          sync.RWMutex
@@ -258,6 +259,7 @@ func New(kubeConfig *rest.Config, resourceFS fs.FS) (*Library, error) {
 		kubeConfig:   kubeConfig,
 		cl:           cl,
 		dynamicCl:    dynamicCl,
+		crdManager:   NewCRDManager(cl),
 	}, nil
 }
 
@@ -475,43 +477,7 @@ func (l *Library) setupInformers(stopCh <-chan struct{}) {
 // buildCRDWatchSpec computes a WatchSpec for Istio CRDs based on the current options.
 // Returns nil if the target CRD set cannot be determined.
 func (l *Library) buildCRDWatchSpec(opts Options) *WatchSpec {
-	// We need computed values to determine target CRDs when not using IncludeAllCRDs.
-	// Resolve version first.
-	version := opts.Version
-	if version == "" {
-		v, err := DefaultVersion(l.resourceFS)
-		if err != nil {
-			return nil
-		}
-		version = v
-	}
-
-	var targetNames map[string]struct{}
-
-	if ptr.Deref(opts.IncludeAllCRDs, false) {
-		crds, err := allIstioCRDs()
-		if err != nil {
-			return nil
-		}
-		targetNames = make(map[string]struct{}, len(crds))
-		for _, name := range crds {
-			targetNames[name] = struct{}{}
-		}
-	} else {
-		// Need values to determine filtered CRDs
-		values := opts.Values
-		if values != nil && values.Pilot != nil && values.Pilot.Env != nil {
-			targets, err := targetCRDsFromValues(values, false)
-			if err != nil || len(targets) == 0 {
-				return nil
-			}
-			targetNames = make(map[string]struct{}, len(targets))
-			for _, name := range targets {
-				targetNames[name] = struct{}{}
-			}
-		}
-	}
-
+	targetNames := l.crdManager.WatchTargets(opts.Values, ptr.Deref(opts.IncludeAllCRDs, false))
 	if len(targetNames) == 0 {
 		return nil
 	}
@@ -567,12 +533,12 @@ func (l *Library) reconcile(ctx context.Context) Status {
 
 	// Manage CRDs
 	if ptr.Deref(opts.ManageCRDs, true) {
-		crdState, crdInfos, crdMsg, crdErr := l.manageCRDs(ctx, values, ptr.Deref(opts.IncludeAllCRDs, false))
-		status.CRDState = crdState
-		status.CRDs = crdInfos
-		status.CRDMessage = crdMsg
-		if crdErr != nil {
-			status.Error = crdErr
+		result := l.crdManager.Reconcile(ctx, values, ptr.Deref(opts.IncludeAllCRDs, false))
+		status.CRDState = result.State
+		status.CRDs = result.CRDs
+		status.CRDMessage = result.Message
+		if result.Error != nil {
+			status.Error = result.Error
 		}
 	}
 

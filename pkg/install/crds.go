@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"path/filepath"
 	"strings"
 
 	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
@@ -79,149 +78,37 @@ type CRDInfo struct {
 	Found bool
 }
 
-// resourceToCRDFilename converts a resource name to its CRD filename.
-// The naming convention is: "{plural}.{group}" -> "{group}_{plural}.yaml"
-// Example: "wasmplugins.extensions.istio.io" -> "extensions.istio.io_wasmplugins.yaml"
-func resourceToCRDFilename(resource string) string {
-	parts := strings.SplitN(resource, ".", 2)
-	if len(parts) != 2 {
-		return ""
-	}
-	plural := parts[0] // e.g., "wasmplugins"
-	group := parts[1]  // e.g., "extensions.istio.io"
-	return fmt.Sprintf("%s_%s.yaml", group, plural)
+// CRDResult bundles the outcome of CRD reconciliation.
+type CRDResult struct {
+	// State is the aggregate ownership state of the target Istio CRDs.
+	State CRDManagementState
+
+	// CRDs contains per-CRD detail (name, ownership, found on cluster).
+	CRDs []CRDInfo
+
+	// Message is a human-readable description of the CRD state.
+	Message string
+
+	// Error is non-nil if CRD management encountered a problem.
+	Error error
 }
 
-// crdFilenameToResource converts a CRD filename back to a resource name.
-// The naming convention is: "{group}_{plural}.yaml" -> "{plural}.{group}"
-// Example: "extensions.istio.io_wasmplugins.yaml" -> "wasmplugins.extensions.istio.io"
-func crdFilenameToResource(filename string) string {
-	// Strip .yaml suffix
-	name := strings.TrimSuffix(filename, ".yaml")
-	// Split on underscore: group_plural
-	parts := strings.SplitN(name, "_", 2)
-	if len(parts) != 2 {
-		return ""
-	}
-	group := parts[0]  // e.g., "extensions.istio.io"
-	plural := parts[1] // e.g., "wasmplugins"
-	return fmt.Sprintf("%s.%s", plural, group)
+// CRDManager encapsulates all CRD classification, installation, and update logic.
+// It provides a single entry point (Reconcile) and keeps a client dependency
+// that can be swapped out in tests.
+type CRDManager struct {
+	cl client.Client
 }
 
-// matchesPattern checks if a resource matches a filter pattern.
-// Patterns support glob-style wildcards:
-//   - "*.istio.io" matches "virtualservices.networking.istio.io"
-//   - "virtualservices.networking.istio.io" matches exactly
-//
-// The resource format is "{plural}.{group}" (e.g., "wasmplugins.extensions.istio.io")
-func matchesPattern(resource, pattern string) bool {
-	// Handle glob patterns using filepath.Match
-	// Pattern "*.istio.io" should match "virtualservices.networking.istio.io"
-	matched, err := filepath.Match(pattern, resource)
-	if err != nil {
-		return false
-	}
-	return matched
-}
-
-// matchesAnyPattern checks if a resource matches any pattern in a comma-separated list.
-func matchesAnyPattern(resource, patterns string) bool {
-	if patterns == "" {
-		return false
-	}
-	for _, pattern := range strings.Split(patterns, ",") {
-		pattern = strings.TrimSpace(pattern)
-		if matchesPattern(resource, pattern) {
-			return true
-		}
-	}
-	return false
-}
-
-// shouldManageResource determines if a resource should be managed based on
-// IGNORE and INCLUDE filters. The logic follows Istio's resource filtering:
-//   - If resource matches INCLUDE, manage it (INCLUDE overrides IGNORE)
-//   - If resource matches IGNORE (and not INCLUDE), skip it
-//   - If resource matches neither, manage it (default allow)
-func shouldManageResource(resource, ignorePatterns, includePatterns string) bool {
-	// INCLUDE takes precedence - if explicitly included, always manage
-	if matchesAnyPattern(resource, includePatterns) {
-		return true
-	}
-	// If ignored (and not included), skip
-	if matchesAnyPattern(resource, ignorePatterns) {
-		return false
-	}
-	// Default: manage if not matched by any filter
-	return true
-}
-
-// allIstioCRDs returns all *.istio.io CRD resource names from the embedded CRD filesystem.
-// Sail operator CRDs (sailoperator.io) are excluded since those belong to the Sail operator.
-func allIstioCRDs() ([]string, error) {
-	entries, err := fs.ReadDir(crds.FS, ".")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read CRD directory: %w", err)
-	}
-
-	var resources []string
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
-			continue
-		}
-		// Skip Sail operator CRDs
-		if strings.HasPrefix(entry.Name(), "sailoperator.io_") {
-			continue
-		}
-		resource := crdFilenameToResource(entry.Name())
-		if resource != "" {
-			resources = append(resources, resource)
-		}
-	}
-	return resources, nil
-}
-
-// targetCRDsFromValues determines the target CRD set based on values and options.
-// If includeAllCRDs is true, returns all *.istio.io CRDs.
-// Otherwise, returns CRDs derived from PILOT_INCLUDE_RESOURCES in values.
-func targetCRDsFromValues(values *v1.Values, includeAllCRDs bool) ([]string, error) {
-	if includeAllCRDs {
-		return allIstioCRDs()
-	}
-
-	if values == nil || values.Pilot == nil || values.Pilot.Env == nil {
-		return nil, nil
-	}
-
-	ignorePatterns := values.Pilot.Env[EnvPilotIgnoreResources]
-	includePatterns := values.Pilot.Env[EnvPilotIncludeResources]
-
-	// If no filters defined, nothing to do
-	if ignorePatterns == "" && includePatterns == "" {
-		return nil, nil
-	}
-
-	var targets []string
-	if includePatterns != "" {
-		for _, resource := range strings.Split(includePatterns, ",") {
-			resource = strings.TrimSpace(resource)
-			if !shouldManageResource(resource, ignorePatterns, includePatterns) {
-				continue
-			}
-			// Skip resources that don't map to a valid CRD filename (e.g. wildcards)
-			if resourceToCRDFilename(resource) == "" {
-				continue
-			}
-			targets = append(targets, resource)
-		}
-	}
-	return targets, nil
+// NewCRDManager creates a CRDManager with the given Kubernetes client.
+func NewCRDManager(cl client.Client) *CRDManager {
+	return &CRDManager{cl: cl}
 }
 
 // classifyCRD checks a single CRD on the cluster and returns its ownership state.
-func classifyCRD(ctx context.Context, cl client.Client, crdName string) CRDInfo {
+func (m *CRDManager) classifyCRD(ctx context.Context, crdName string) CRDInfo {
 	existing := &apiextensionsv1.CustomResourceDefinition{}
-	err := cl.Get(ctx, client.ObjectKey{Name: crdName}, existing)
+	err := m.cl.Get(ctx, client.ObjectKey{Name: crdName}, existing)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return CRDInfo{Name: crdName, Found: false}
@@ -247,16 +134,14 @@ func classifyCRD(ctx context.Context, cl client.Client, crdName string) CRDInfo 
 }
 
 // classifyCRDs checks all target CRDs on the cluster and returns the aggregate state.
-func classifyCRDs(ctx context.Context, cl client.Client, targets []string) (CRDManagementState, []CRDInfo) {
+func (m *CRDManager) classifyCRDs(ctx context.Context, targets []string) (CRDManagementState, []CRDInfo) {
 	if len(targets) == 0 {
 		return CRDNoneExist, nil
 	}
 
 	infos := make([]CRDInfo, len(targets))
 	for i, target := range targets {
-		// Derive the CRD name from the resource name.
-		// For "wasmplugins.extensions.istio.io" the CRD name is "wasmplugins.extensions.istio.io" (same as the resource name).
-		infos[i] = classifyCRD(ctx, cl, target)
+		infos[i] = m.classifyCRD(ctx, target)
 	}
 
 	return aggregateCRDState(infos), infos
@@ -319,38 +204,38 @@ func aggregateCRDState(infos []CRDInfo) CRDManagementState {
 	return CRDMixedOwnership
 }
 
-// manageCRDs classifies target CRDs and installs/updates them if we own them (or none exist).
-// Returns the aggregate state, per-CRD info, and any error.
-func (l *Library) manageCRDs(ctx context.Context, values *v1.Values, includeAllCRDs bool) (CRDManagementState, []CRDInfo, string, error) {
+// Reconcile classifies target CRDs and installs/updates them if we own them (or none exist).
+// This is the single entry point for CRD management.
+func (m *CRDManager) Reconcile(ctx context.Context, values *v1.Values, includeAllCRDs bool) CRDResult {
 	targets, err := targetCRDsFromValues(values, includeAllCRDs)
 	if err != nil {
-		return CRDNoneExist, nil, "", fmt.Errorf("failed to determine target CRDs: %w", err)
+		return CRDResult{State: CRDNoneExist, Error: fmt.Errorf("failed to determine target CRDs: %w", err)}
 	}
 	if len(targets) == 0 {
-		return CRDNoneExist, nil, "no target CRDs configured", nil
+		return CRDResult{State: CRDNoneExist, Message: "no target CRDs configured"}
 	}
 
-	state, infos := classifyCRDs(ctx, l.cl, targets)
+	state, infos := m.classifyCRDs(ctx, targets)
 
 	switch state {
 	case CRDNoneExist:
 		// Install all with CIO labels
-		if err := l.installCRDs(ctx, targets); err != nil {
-			return state, infos, "", fmt.Errorf("failed to install CRDs: %w", err)
+		if err := m.installCRDs(ctx, targets); err != nil {
+			return CRDResult{State: state, CRDs: infos, Error: fmt.Errorf("failed to install CRDs: %w", err)}
 		}
 		// Update infos to reflect new state
 		for idx := range infos {
 			infos[idx].Found = true
 			infos[idx].State = CRDManagedByCIO
 		}
-		return CRDManagedByCIO, infos, "CRDs installed by CIO", nil
+		return CRDResult{State: CRDManagedByCIO, CRDs: infos, Message: "CRDs installed by CIO"}
 
 	case CRDManagedByCIO:
 		// Update existing, reinstall missing, re-label unknowns
 		missing := missingCRDNames(infos)
 		unlabeled := unlabeledCRDNames(infos)
-		if err := l.updateCRDs(ctx, targets); err != nil {
-			return state, infos, "", fmt.Errorf("failed to update CRDs: %w", err)
+		if err := m.updateCRDs(ctx, targets); err != nil {
+			return CRDResult{State: state, CRDs: infos, Error: fmt.Errorf("failed to update CRDs: %w", err)}
 		}
 		// Update infos for any previously-missing or unlabeled CRDs
 		for idx := range infos {
@@ -366,10 +251,10 @@ func (l *Library) manageCRDs(ctx context.Context, values *v1.Values, includeAllC
 		if len(unlabeled) > 0 {
 			msg += fmt.Sprintf("; reclaimed: %s", strings.Join(unlabeled, ", "))
 		}
-		return CRDManagedByCIO, infos, msg, nil
+		return CRDResult{State: CRDManagedByCIO, CRDs: infos, Message: msg}
 
 	case CRDManagedByOLM:
-		return CRDManagedByOLM, infos, "CRDs managed by OSSM subscription via OLM", nil
+		return CRDResult{State: CRDManagedByOLM, CRDs: infos, Message: "CRDs managed by OSSM subscription via OLM"}
 
 	case CRDUnknownManagement:
 		missing := missingCRDNames(infos)
@@ -377,7 +262,8 @@ func (l *Library) manageCRDs(ctx context.Context, values *v1.Values, includeAllC
 		if len(missing) > 0 {
 			msg += fmt.Sprintf("; missing from other owner: %s", strings.Join(missing, ", "))
 		}
-		return CRDUnknownManagement, infos, msg, fmt.Errorf("Istio CRDs are managed by an unknown party")
+		return CRDResult{State: CRDUnknownManagement, CRDs: infos, Message: msg,
+			Error: fmt.Errorf("Istio CRDs are managed by an unknown party")}
 
 	case CRDMixedOwnership:
 		missing := missingCRDNames(infos)
@@ -385,11 +271,35 @@ func (l *Library) manageCRDs(ctx context.Context, values *v1.Values, includeAllC
 		if len(missing) > 0 {
 			msg += fmt.Sprintf("; missing: %s", strings.Join(missing, ", "))
 		}
-		return CRDMixedOwnership, infos, msg, fmt.Errorf("Istio CRDs have mixed ownership (CIO/OLM/other)")
+		return CRDResult{State: CRDMixedOwnership, CRDs: infos, Message: msg,
+			Error: fmt.Errorf("Istio CRDs have mixed ownership (CIO/OLM/other)")}
 
 	default:
-		return state, infos, "", nil
+		return CRDResult{State: state, CRDs: infos}
 	}
+}
+
+// WatchTargets computes the set of CRD names that should be watched for changes.
+// Returns nil if the target set cannot be determined.
+func (m *CRDManager) WatchTargets(values *v1.Values, includeAllCRDs bool) map[string]struct{} {
+	var targets []string
+	var err error
+
+	if includeAllCRDs {
+		targets, err = allIstioCRDs()
+	} else if values != nil && values.Pilot != nil && values.Pilot.Env != nil {
+		targets, err = targetCRDsFromValues(values, false)
+	}
+
+	if err != nil || len(targets) == 0 {
+		return nil
+	}
+
+	names := make(map[string]struct{}, len(targets))
+	for _, name := range targets {
+		names[name] = struct{}{}
+	}
+	return names
 }
 
 // missingCRDNames returns the names of CRDs that were not found on the cluster.
@@ -415,14 +325,14 @@ func unlabeledCRDNames(infos []CRDInfo) []string {
 }
 
 // installCRDs installs all target CRDs with CIO ownership labels and Helm keep annotation.
-func (l *Library) installCRDs(ctx context.Context, targets []string) error {
+func (m *CRDManager) installCRDs(ctx context.Context, targets []string) error {
 	for _, resource := range targets {
 		crd, err := loadCRD(resource)
 		if err != nil {
 			return err
 		}
 		applyCIOLabels(crd)
-		if err := l.cl.Create(ctx, crd); err != nil {
+		if err := m.cl.Create(ctx, crd); err != nil {
 			return fmt.Errorf("failed to create CRD %s: %w", crd.Name, err)
 		}
 	}
@@ -430,7 +340,7 @@ func (l *Library) installCRDs(ctx context.Context, targets []string) error {
 }
 
 // updateCRDs updates existing CIO-owned CRDs and creates any missing ones.
-func (l *Library) updateCRDs(ctx context.Context, targets []string) error {
+func (m *CRDManager) updateCRDs(ctx context.Context, targets []string) error {
 	for _, resource := range targets {
 		crd, err := loadCRD(resource)
 		if err != nil {
@@ -439,10 +349,10 @@ func (l *Library) updateCRDs(ctx context.Context, targets []string) error {
 		applyCIOLabels(crd)
 
 		existing := &apiextensionsv1.CustomResourceDefinition{}
-		if err := l.cl.Get(ctx, client.ObjectKey{Name: crd.Name}, existing); err != nil {
+		if err := m.cl.Get(ctx, client.ObjectKey{Name: crd.Name}, existing); err != nil {
 			if apierrors.IsNotFound(err) {
 				// CRD was deleted — reinstall it
-				if err := l.cl.Create(ctx, crd); err != nil {
+				if err := m.cl.Create(ctx, crd); err != nil {
 					return fmt.Errorf("failed to create CRD %s: %w", crd.Name, err)
 				}
 				continue
@@ -450,7 +360,7 @@ func (l *Library) updateCRDs(ctx context.Context, targets []string) error {
 			return fmt.Errorf("failed to get existing CRD %s: %w", crd.Name, err)
 		}
 		crd.ResourceVersion = existing.ResourceVersion
-		if err := l.cl.Update(ctx, crd); err != nil {
+		if err := m.cl.Update(ctx, crd); err != nil {
 			return fmt.Errorf("failed to update CRD %s: %w", crd.Name, err)
 		}
 	}
