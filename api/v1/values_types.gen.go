@@ -2077,7 +2077,6 @@ type MeshConfig struct {
 	// Note: Mesh mTLS does not respect ECDH curves.
 	MeshMTLS *MeshConfigTLSConfig `json:"meshMTLS,omitempty"`
 	// Configuration of TLS for all traffic except for ISTIO_MUTUAL mode.
-	// Currently, this supports configuration of ecdhCurves and cipherSuites only.
 	// For ISTIO_MUTUAL TLS settings, use meshMTLS configuration.
 	TlsDefaults *MeshConfigTLSConfig `json:"tlsDefaults,omitempty"`
 }
@@ -3502,7 +3501,7 @@ type Network struct {
 // If `ENABLE_HCM_INTERNAL_NETWORKS` is set to true, MeshNetworks can be used to
 // to explicitly define the networks in Envoy's internal address configuration.
 // Envoy uses the IPs in the `internalAddressConfig` to decide whether or not to sanitize
-// Envoy headers. If the IP address is listed an internal, the Envoy headers are not
+// Envoy headers. If the IP address is listed as internal, the Envoy headers are not
 // sanitized. As of Envoy 1.33, the default value for `internalAddressConfig` is set to
 // an empty set. Previously, the default value was the set of all private IPs. Setting
 // the `internalAddressConfig` to all private IPs (via Envoy's previous default behavior
@@ -4065,6 +4064,10 @@ type MeshConfigProxyConfig struct {
 	// Defaults to 64.
 	// Optional.
 	FileFlushMinSizeKb *uint32 `json:"fileFlushMinSizeKb,omitempty"`
+	// Offer HTTP compression for stats
+	// Defaults to true.
+	// Optional.
+	StatsCompression *bool `json:"statsCompression,omitempty"`
 }
 
 type RemoteService struct {
@@ -4410,7 +4413,7 @@ const fileMeshV1alpha1ProxyProtoRawDesc = "" +
 	"poll_delay\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\tpollDelay\x126\n" +
 	"\bfallback\x18\x02 \x01(\v2\x1a.google.protobuf.BoolValueR\bfallbackB\n" +
 	"\n" +
-	"\bprovider\"\xa2'\n" +
+	"\bprovider\"\xeb'\n" +
 	"\vProxyConfig\x12\x1f\n" +
 	"\vconfig_path\x18\x01 \x01(\tR\n" +
 	"configPath\x12\x1f\n" +
@@ -4453,7 +4456,8 @@ const fileMeshV1alpha1ProxyProtoRawDesc = "" +
 	"\x14private_key_provider\x18& \x01(\v2'.istio.mesh.v1alpha1.PrivateKeyProviderR\x12privateKeyProvider\x12R\n" +
 	"\rproxy_headers\x18' \x01(\v2-.istio.mesh.v1alpha1.ProxyConfig.ProxyHeadersR\fproxyHeaders\x12I\n" +
 	"\x13file_flush_interval\x18( \x01(\v2\x19.google.protobuf.DurationR\x11fileFlushInterval\x122\n" +
-	"\x16file_flush_min_size_kb\x18) \x01(\rR\x12fileFlushMinSizeKb\x1a@\n" +
+	"\x16file_flush_min_size_kb\x18) \x01(\rR\x12fileFlushMinSizeKb\x12G\n" +
+	"\x11stats_compression\x18* \x01(\v2\x1a.google.protobuf.BoolValueR\x10statsCompression\x1a@\n" +
 	"\x12ProxyMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
