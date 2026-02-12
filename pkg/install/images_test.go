@@ -45,16 +45,16 @@ func TestSetImageDefaults(t *testing.T) {
 		assert.Len(t, config.Config.ImageDigests, 2)
 
 		v1271 := config.Config.ImageDigests["v1.27.1"]
-		assert.Equal(t, "registry.example.com/istio/pilot-rhel9:v1.27.1", v1271.IstiodImage)
-		assert.Equal(t, "registry.example.com/istio/proxyv2-rhel9:v1.27.1", v1271.ProxyImage)
-		assert.Equal(t, "registry.example.com/istio/cni-rhel9:v1.27.1", v1271.CNIImage)
-		assert.Equal(t, "registry.example.com/istio/ztunnel-rhel9:v1.27.1", v1271.ZTunnelImage)
+		assert.Equal(t, "registry.example.com/istio/pilot-rhel9:1.27.1", v1271.IstiodImage)
+		assert.Equal(t, "registry.example.com/istio/proxyv2-rhel9:1.27.1", v1271.ProxyImage)
+		assert.Equal(t, "registry.example.com/istio/cni-rhel9:1.27.1", v1271.CNIImage)
+		assert.Equal(t, "registry.example.com/istio/ztunnel-rhel9:1.27.1", v1271.ZTunnelImage)
 
 		v1280 := config.Config.ImageDigests["v1.28.0"]
-		assert.Equal(t, "registry.example.com/istio/pilot-rhel9:v1.28.0", v1280.IstiodImage)
-		assert.Equal(t, "registry.example.com/istio/proxyv2-rhel9:v1.28.0", v1280.ProxyImage)
-		assert.Equal(t, "registry.example.com/istio/cni-rhel9:v1.28.0", v1280.CNIImage)
-		assert.Equal(t, "registry.example.com/istio/ztunnel-rhel9:v1.28.0", v1280.ZTunnelImage)
+		assert.Equal(t, "registry.example.com/istio/pilot-rhel9:1.28.0", v1280.IstiodImage)
+		assert.Equal(t, "registry.example.com/istio/proxyv2-rhel9:1.28.0", v1280.ProxyImage)
+		assert.Equal(t, "registry.example.com/istio/cni-rhel9:1.28.0", v1280.CNIImage)
+		assert.Equal(t, "registry.example.com/istio/ztunnel-rhel9:1.28.0", v1280.ZTunnelImage)
 	})
 
 	t.Run("no-op when ImageDigests already set", func(t *testing.T) {

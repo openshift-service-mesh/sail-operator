@@ -179,6 +179,7 @@ type Options struct {
 // Version is not defaulted here — it requires access to the resource FS,
 // so it is resolved during reconciliation via DefaultVersion().
 func (o *Options) applyDefaults() {
+	o.Version = NormalizeVersion(o.Version)
 	if o.Namespace == "" {
 		o.Namespace = defaultNamespace
 	}

@@ -83,6 +83,24 @@ func TestDefaultVersion(t *testing.T) {
 	})
 }
 
+func TestNormalizeVersion(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"", ""},
+		{"v1.24.0", "v1.24.0"},
+		{"1.24.0", "v1.24.0"},
+		{"v1.28.3-rc.1", "v1.28.3-rc.1"},
+		{"1.28.3-rc.1", "v1.28.3-rc.1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			assert.Equal(t, tt.expected, NormalizeVersion(tt.input))
+		})
+	}
+}
+
 func TestValidateVersion(t *testing.T) {
 	fs := fstest.MapFS{
 		"v1.28.3/charts/.keep": &fstest.MapFile{},
