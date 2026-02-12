@@ -91,6 +91,15 @@ type WatchSpec struct {
 func (l *Library) getWatchSpecs(opts Options) ([]WatchSpec, error) {
 	opts.applyDefaults()
 
+	// Default version from FS if not specified (same logic as reconcile)
+	if opts.Version == "" {
+		v, err := DefaultVersion(l.resourceFS)
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine default version: %w", err)
+		}
+		opts.Version = v
+	}
+
 	// Validate version directory exists in the resource FS
 	if err := ValidateVersion(l.resourceFS, opts.Version); err != nil {
 		return nil, fmt.Errorf("invalid version %q: %w", opts.Version, err)
