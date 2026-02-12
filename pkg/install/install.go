@@ -103,6 +103,42 @@ type Status struct {
 	Error error
 }
 
+// String returns a human-readable summary of the status.
+func (s Status) String() string {
+	state := "not installed"
+	if s.Installed {
+		state = "installed"
+	}
+
+	ver := s.Version
+	if ver == "" {
+		ver = "unknown"
+	}
+
+	msg := fmt.Sprintf("%s version=%s crds=%s", state, ver, s.CRDState)
+	if s.CRDMessage != "" {
+		msg += fmt.Sprintf(" (%s)", s.CRDMessage)
+	}
+	if len(s.CRDs) > 0 {
+		msg += " ["
+		for i, crd := range s.CRDs {
+			if i > 0 {
+				msg += ", "
+			}
+			if crd.Found {
+				msg += fmt.Sprintf("%s:%s", crd.Name, crd.State)
+			} else {
+				msg += fmt.Sprintf("%s:missing", crd.Name)
+			}
+		}
+		msg += "]"
+	}
+	if s.Error != nil {
+		msg += fmt.Sprintf(" error=%v", s.Error)
+	}
+	return msg
+}
+
 // Options for installing istiod.
 type Options struct {
 	// Namespace is the target namespace for installation.

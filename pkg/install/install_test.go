@@ -16,6 +16,7 @@ package install
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"testing/fstest"
 
@@ -238,6 +239,72 @@ func TestApplyIdempotency(t *testing.T) {
 	lib.Apply(opts)
 	// Queue should be empty (len check via shutdown trick not possible, so just verify desiredOpts unchanged)
 	assert.Equal(t, opts.Namespace, lib.desiredOpts.Namespace)
+}
+
+func TestStatusString(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   Status
+		expected string
+	}{
+		{
+			name:     "zero value",
+			status:   Status{},
+			expected: "not installed version=unknown crds=",
+		},
+		{
+			name: "installed ok with CRD details",
+			status: Status{
+				Installed:  true,
+				Version:    "1.24.0",
+				CRDState:   CRDManagedByCIO,
+				CRDMessage: "CRDs installed by CIO",
+				CRDs: []CRDInfo{
+					{Name: "wasmplugins.extensions.istio.io", Found: true, State: CRDManagedByCIO},
+					{Name: "envoyfilters.networking.istio.io", Found: true, State: CRDManagedByCIO},
+				},
+			},
+			expected: "installed version=1.24.0 crds=ManagedByCIO (CRDs installed by CIO) [wasmplugins.extensions.istio.io:ManagedByCIO, envoyfilters.networking.istio.io:ManagedByCIO]",
+		},
+		{
+			name: "mixed ownership with missing CRDs",
+			status: Status{
+				Version:    "1.24.0",
+				CRDState:   CRDMixedOwnership,
+				CRDMessage: "CRDs have mixed ownership",
+				CRDs: []CRDInfo{
+					{Name: "wasmplugins.extensions.istio.io", Found: true, State: CRDManagedByOLM},
+					{Name: "envoyfilters.networking.istio.io", Found: false},
+				},
+				Error: fmt.Errorf("Istio CRDs have mixed ownership (CIO/OLM/other)"),
+			},
+			expected: "not installed version=1.24.0 crds=MixedOwnership (CRDs have mixed ownership) [wasmplugins.extensions.istio.io:ManagedByOLM, envoyfilters.networking.istio.io:missing] error=Istio CRDs have mixed ownership (CIO/OLM/other)",
+		},
+		{
+			name: "installed no CRD details",
+			status: Status{
+				Installed:  true,
+				Version:    "1.24.0",
+				CRDState:   CRDManagedByOLM,
+				CRDMessage: "CRDs managed by OSSM subscription via OLM",
+			},
+			expected: "installed version=1.24.0 crds=ManagedByOLM (CRDs managed by OSSM subscription via OLM)",
+		},
+		{
+			name: "error without CRDs",
+			status: Status{
+				Version: "1.24.0",
+				Error:   fmt.Errorf("validation failed"),
+			},
+			expected: "not installed version=1.24.0 crds= error=validation failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.status.String())
+		})
+	}
 }
 
 func TestStatusReadWrite(t *testing.T) {
