@@ -62,6 +62,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -341,6 +342,7 @@ func (l *Library) Uninstall(ctx context.Context, namespace, revision string) err
 // run is the main loop. It starts informers (after first Apply), processes
 // the workqueue, and shuts down when ctx is cancelled.
 func (l *Library) run(ctx context.Context, notifyCh chan<- struct{}) {
+	log := ctrllog.Log.WithName("install")
 	defer close(notifyCh)
 	defer l.workqueue.ShutDown()
 
@@ -365,8 +367,10 @@ func (l *Library) run(ctx context.Context, notifyCh chan<- struct{}) {
 			return
 		}
 
+		log.Info("Reconciling")
 		status := l.reconcile(ctx)
 		l.setStatus(status)
+		log.Info("Reconcile complete", "installed", status.Installed, "error", status.Error)
 
 		// Non-blocking notify
 		select {
@@ -405,6 +409,8 @@ func (l *Library) waitForDesiredState(ctx context.Context) bool {
 // setupInformers creates dynamic informers for Helm resources and CRDs
 // based on the current desired options.
 func (l *Library) setupInformers(stopCh <-chan struct{}) {
+	log := ctrllog.Log.WithName("install")
+
 	l.mu.RLock()
 	opts := *l.desiredOpts
 	l.mu.RUnlock()
@@ -412,7 +418,7 @@ func (l *Library) setupInformers(stopCh <-chan struct{}) {
 	// Helm resource watches (drift detection)
 	specs, err := l.getWatchSpecs(opts)
 	if err != nil {
-		// Can't set up watches; reconciliation will still work via workqueue
+		log.Error(err, "Failed to compute watch specs; Helm drift detection disabled")
 		specs = nil
 	}
 
@@ -425,8 +431,11 @@ func (l *Library) setupInformers(stopCh <-chan struct{}) {
 	}
 
 	if len(specs) == 0 {
+		log.Info("No watch specs; informers not started")
 		return
 	}
+
+	log.Info("Setting up informers", "count", len(specs))
 
 	namespacedFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 		l.dynamicCl,
@@ -451,14 +460,17 @@ func (l *Library) setupInformers(stopCh <-chan struct{}) {
 
 		handler := l.makeEventHandler(spec)
 		if _, err := informer.AddEventHandler(handler); err != nil {
-			continue // skip this resource, others still work
+			log.Error(err, "Failed to add event handler", "gvk", spec.GVK)
+			continue
 		}
+		log.V(1).Info("Watching", "gvk", spec.GVK, "type", spec.WatchType, "clusterScoped", spec.ClusterScoped)
 	}
 
 	namespacedFactory.Start(stopCh)
 	clusterScopedFactory.Start(stopCh)
 	namespacedFactory.WaitForCacheSync(stopCh)
 	clusterScopedFactory.WaitForCacheSync(stopCh)
+	log.Info("Informers synced and watching for drift")
 }
 
 // buildCRDWatchSpec computes a WatchSpec for Istio CRDs based on the current options.
@@ -615,6 +627,7 @@ func (l *Library) makeEventHandler(spec WatchSpec) cache.ResourceEventHandler {
 
 // makeOwnedEventHandler handles events for Helm-managed and namespace resources.
 func (l *Library) makeOwnedEventHandler(spec WatchSpec) cache.ResourceEventHandler {
+	log := ctrllog.Log.WithName("install").WithValues("gvk", spec.GVK, "watchType", spec.WatchType)
 	return cache.ResourceEventHandlerFuncs{
 		// Add events fire during initial cache sync — ignore them.
 		AddFunc: func(obj interface{}) {},
@@ -629,13 +642,16 @@ func (l *Library) makeOwnedEventHandler(spec WatchSpec) cache.ResourceEventHandl
 			}
 
 			if !shouldReconcileOnUpdate(spec.GVK, oldU, newU) {
+				log.V(2).Info("Skipping update (predicate)", "name", newU.GetName())
 				return
 			}
 
 			if spec.WatchType == WatchTypeOwned && !l.isOwnedResource(newU) {
+				log.V(1).Info("Skipping update (not owned)", "name", newU.GetName(), "labels", newU.GetLabels())
 				return
 			}
 
+			log.Info("Drift detected (update)", "name", newU.GetName())
 			l.enqueue()
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -653,9 +669,11 @@ func (l *Library) makeOwnedEventHandler(spec WatchSpec) cache.ResourceEventHandl
 			}
 
 			if spec.WatchType == WatchTypeOwned && !l.isOwnedResource(u) {
+				log.V(1).Info("Skipping delete (not owned)", "name", u.GetName())
 				return
 			}
 
+			log.Info("Drift detected (delete)", "name", u.GetName())
 			l.enqueue()
 		},
 	}
@@ -666,6 +684,7 @@ func (l *Library) makeOwnedEventHandler(spec WatchSpec) cache.ResourceEventHandl
 // label/annotation changes (ownership transfer). Events are filtered by name
 // to only watch target Istio CRDs.
 func (l *Library) makeCRDEventHandler(spec WatchSpec) cache.ResourceEventHandler {
+	log := ctrllog.Log.WithName("install").WithValues("watchType", spec.WatchType)
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			u, ok := obj.(*unstructured.Unstructured)
@@ -675,7 +694,7 @@ func (l *Library) makeCRDEventHandler(spec WatchSpec) cache.ResourceEventHandler
 			if !isTargetCRD(u, spec.TargetNames) {
 				return
 			}
-			// CRD appeared — re-classify ownership
+			log.Info("Drift detected (CRD added)", "name", u.GetName())
 			l.enqueue()
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
@@ -693,6 +712,7 @@ func (l *Library) makeCRDEventHandler(spec WatchSpec) cache.ResourceEventHandler
 			if !shouldReconcileCRDOnUpdate(oldU, newU) {
 				return
 			}
+			log.Info("Drift detected (CRD updated)", "name", newU.GetName())
 			l.enqueue()
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -706,7 +726,7 @@ func (l *Library) makeCRDEventHandler(spec WatchSpec) cache.ResourceEventHandler
 			if !isTargetCRD(u, spec.TargetNames) {
 				return
 			}
-			// CRD deleted — re-classify ownership
+			log.Info("Drift detected (CRD deleted)", "name", u.GetName())
 			l.enqueue()
 		},
 	}
