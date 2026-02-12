@@ -266,10 +266,11 @@ func classifyCRDs(ctx context.Context, cl client.Client, targets []string) (CRDM
 //
 // Rules:
 //   - All not found → CRDNoneExist
-//   - All found, all CIO → CRDManagedByCIO
-//   - All found, all OLM → CRDManagedByOLM
-//   - Any unknown → CRDUnknownManagement
-//   - Any mix of CIO/OLM/missing → CRDMixedOwnership
+//   - All found are CIO or unknown (no OLM), with at least one CIO → CRDManagedByCIO
+//     (unknown = label drift, missing = deleted; both get fixed by updateCRDs)
+//   - All found OLM, all present → CRDManagedByOLM
+//   - Pure unknown (no CIO, no OLM) → CRDUnknownManagement
+//   - Any mix involving OLM → CRDMixedOwnership
 func aggregateCRDState(infos []CRDInfo) CRDManagementState {
 	if len(infos) == 0 {
 		return CRDNoneExist
@@ -298,20 +299,23 @@ func aggregateCRDState(infos []CRDInfo) CRDManagementState {
 		return CRDNoneExist
 	}
 
-	// Any unknown ownership is immediately an error state
-	if unknownCount > 0 {
-		return CRDUnknownManagement
-	}
-
-	// All found and all same owner
-	if foundCount == total && cioCount == total {
+	// All found are CIO-owned (possibly with some missing or some that lost labels).
+	// No OLM involvement means we can safely reclaim unknowns and reinstall missing.
+	if cioCount > 0 && olmCount == 0 {
 		return CRDManagedByCIO
 	}
+
+	// All found and all OLM — only if none are missing
 	if foundCount == total && olmCount == total {
 		return CRDManagedByOLM
 	}
 
-	// Anything else is mixed: some missing, or CIO+OLM mix
+	// Pure unknown — no CIO, no OLM labels on any found CRD
+	if unknownCount > 0 && cioCount == 0 && olmCount == 0 {
+		return CRDUnknownManagement
+	}
+
+	// Anything else is mixed: CIO+OLM, OLM with missing, etc.
 	return CRDMixedOwnership
 }
 
@@ -342,11 +346,27 @@ func (l *Library) manageCRDs(ctx context.Context, values *v1.Values, includeAllC
 		return CRDManagedByCIO, infos, "CRDs installed by CIO", nil
 
 	case CRDManagedByCIO:
-		// Update all
+		// Update existing, reinstall missing, re-label unknowns
+		missing := missingCRDNames(infos)
+		unlabeled := unlabeledCRDNames(infos)
 		if err := l.updateCRDs(ctx, targets); err != nil {
 			return state, infos, "", fmt.Errorf("failed to update CRDs: %w", err)
 		}
-		return CRDManagedByCIO, infos, "CRDs updated by CIO", nil
+		// Update infos for any previously-missing or unlabeled CRDs
+		for idx := range infos {
+			if !infos[idx].Found || infos[idx].State == CRDUnknownManagement {
+				infos[idx].Found = true
+				infos[idx].State = CRDManagedByCIO
+			}
+		}
+		msg := "CRDs updated by CIO"
+		if len(missing) > 0 {
+			msg = fmt.Sprintf("CRDs updated by CIO; reinstalled: %s", strings.Join(missing, ", "))
+		}
+		if len(unlabeled) > 0 {
+			msg += fmt.Sprintf("; reclaimed: %s", strings.Join(unlabeled, ", "))
+		}
+		return CRDManagedByCIO, infos, msg, nil
 
 	case CRDManagedByOLM:
 		return CRDManagedByOLM, infos, "CRDs managed by OSSM subscription via OLM", nil
@@ -383,6 +403,17 @@ func missingCRDNames(infos []CRDInfo) []string {
 	return missing
 }
 
+// unlabeledCRDNames returns names of CRDs that exist but have unknown management (no CIO/OLM labels).
+func unlabeledCRDNames(infos []CRDInfo) []string {
+	var names []string
+	for _, info := range infos {
+		if info.Found && info.State == CRDUnknownManagement {
+			names = append(names, info.Name)
+		}
+	}
+	return names
+}
+
 // installCRDs installs all target CRDs with CIO ownership labels and Helm keep annotation.
 func (l *Library) installCRDs(ctx context.Context, targets []string) error {
 	for _, resource := range targets {
@@ -398,7 +429,7 @@ func (l *Library) installCRDs(ctx context.Context, targets []string) error {
 	return nil
 }
 
-// updateCRDs updates all CIO-owned target CRDs to the version from the embedded FS.
+// updateCRDs updates existing CIO-owned CRDs and creates any missing ones.
 func (l *Library) updateCRDs(ctx context.Context, targets []string) error {
 	for _, resource := range targets {
 		crd, err := loadCRD(resource)
@@ -407,9 +438,15 @@ func (l *Library) updateCRDs(ctx context.Context, targets []string) error {
 		}
 		applyCIOLabels(crd)
 
-		// Get existing to preserve resourceVersion for update
 		existing := &apiextensionsv1.CustomResourceDefinition{}
 		if err := l.cl.Get(ctx, client.ObjectKey{Name: crd.Name}, existing); err != nil {
+			if apierrors.IsNotFound(err) {
+				// CRD was deleted — reinstall it
+				if err := l.cl.Create(ctx, crd); err != nil {
+					return fmt.Errorf("failed to create CRD %s: %w", crd.Name, err)
+				}
+				continue
+			}
 			return fmt.Errorf("failed to get existing CRD %s: %w", crd.Name, err)
 		}
 		crd.ResourceVersion = existing.ResourceVersion

@@ -351,12 +351,20 @@ func TestAggregateCRDState(t *testing.T) {
 			expected: CRDManagedByOLM,
 		},
 		{
-			name: "any unknown",
+			name: "CIO with unknown - reclaim as CIO",
 			infos: []CRDInfo{
 				{Name: "a.istio.io", Found: true, State: CRDManagedByCIO},
 				{Name: "b.istio.io", Found: true, State: CRDUnknownManagement},
 			},
-			expected: CRDUnknownManagement,
+			expected: CRDManagedByCIO,
+		},
+		{
+			name: "OLM with unknown - mixed",
+			infos: []CRDInfo{
+				{Name: "a.istio.io", Found: true, State: CRDManagedByOLM},
+				{Name: "b.istio.io", Found: true, State: CRDUnknownManagement},
+			},
+			expected: CRDMixedOwnership,
 		},
 		{
 			name: "CIO and OLM mix",
@@ -367,7 +375,15 @@ func TestAggregateCRDState(t *testing.T) {
 			expected: CRDMixedOwnership,
 		},
 		{
-			name: "some found some missing",
+			name: "CIO with some missing - still CIO owned",
+			infos: []CRDInfo{
+				{Name: "a.istio.io", Found: true, State: CRDManagedByCIO},
+				{Name: "b.istio.io", Found: false},
+			},
+			expected: CRDManagedByCIO,
+		},
+		{
+			name: "OLM with some missing - mixed",
 			infos: []CRDInfo{
 				{Name: "a.istio.io", Found: true, State: CRDManagedByOLM},
 				{Name: "b.istio.io", Found: false},
