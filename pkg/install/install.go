@@ -43,8 +43,6 @@ import (
 	"io/fs"
 	"os"
 	"reflect"
-	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -54,7 +52,6 @@ import (
 	sharedreconcile "github.com/istio-ecosystem/sail-operator/pkg/reconcile"
 	"github.com/istio-ecosystem/sail-operator/pkg/revision"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -161,10 +158,6 @@ type Options struct {
 	// then modify as needed before passing here.
 	Values *v1.Values
 
-	// OwnerRef is an optional owner reference for garbage collection.
-	// If set, installed resources will be owned by this resource.
-	OwnerRef *metav1.OwnerReference
-
 	// ManageCRDs controls whether the Library manages Istio CRDs.
 	// When true (default), CRDs are classified by ownership and installed/updated
 	// if we own them or none exist.
@@ -210,9 +203,16 @@ type Library struct {
 	dynamicCl    dynamic.Interface
 	crdManager   *CRDManager
 
+	// Lifecycle serialization (Apply and Uninstall hold this)
+	lifecycleMu sync.Mutex
+
 	// Desired state (set by Apply, read by worker)
 	mu          sync.RWMutex
-	desiredOpts *Options // nil until first Apply()
+	desiredOpts *Options // nil until first Apply(); nil again after Uninstall()
+
+	// Informer lifecycle (per install cycle)
+	informerStop   chan struct{} // closed to stop current informer cycle
+	processingDone chan struct{} // closed when processWorkQueue exits
 
 	// Latest status (written by worker, read by Status())
 	statusMu sync.RWMutex
@@ -291,9 +291,13 @@ func (l *Library) Start(ctx context.Context) <-chan struct{} {
 // the previously applied options, a reconciliation is enqueued. If they
 // are the same, this is a no-op.
 //
-// Apply is non-blocking. The result of the reconciliation will be
-// available via Status() after the notification channel signals.
+// Apply blocks if Uninstall is in progress (they share a lifecycle lock).
+// The result of the reconciliation will be available via Status() after
+// the notification channel signals.
 func (l *Library) Apply(opts Options) {
+	l.lifecycleMu.Lock()
+	defer l.lifecycleMu.Unlock()
+
 	opts.applyDefaults()
 
 	l.mu.Lock()
@@ -320,10 +324,53 @@ func (l *Library) Status() Status {
 	return l.status
 }
 
-// Uninstall removes the istiod installation from the specified namespace.
-// This is a synchronous operation for the shutdown path.
-// If revision is empty, it defaults to "default".
-func (l *Library) Uninstall(ctx context.Context, namespace, revision string) error {
+// Uninstall stops drift detection and removes the istiod installation.
+// It first stops informers and waits for the processing loop to exit,
+// then performs the Helm uninstall. This prevents the drift-repair loop
+// from fighting the uninstall.
+//
+// Uninstall is a synchronous, blocking operation. It holds the lifecycle
+// lock, so Apply() will block until Uninstall completes.
+//
+// If no installation is active (desiredOpts is nil), Uninstall is a no-op.
+// After Uninstall, calling Apply() will start a new install cycle.
+func (l *Library) Uninstall(ctx context.Context) error {
+	l.lifecycleMu.Lock()
+	defer l.lifecycleMu.Unlock()
+
+	log := ctrllog.Log.WithName("install")
+
+	// Capture current opts and clear desired state
+	l.mu.Lock()
+	opts := l.desiredOpts
+	l.desiredOpts = nil
+	informerStop := l.informerStop
+	processingDone := l.processingDone
+	l.mu.Unlock()
+
+	if opts == nil {
+		return nil // nothing to uninstall
+	}
+
+	log.Info("Uninstalling", "namespace", opts.Namespace, "revision", opts.Revision)
+
+	// Stop informers so they don't fire events during teardown
+	if informerStop != nil {
+		close(informerStop)
+	}
+
+	// Enqueue a sentinel so processWorkQueue unblocks from Get()
+	// and checks the nil desiredOpts condition
+	l.enqueue()
+
+	// Wait for the processing loop to exit
+	if processingDone != nil {
+		<-processingDone
+	}
+
+	// Now safe to Helm uninstall — nothing is watching or reconciling
+	namespace := opts.Namespace
+	revision := opts.Revision
 	if namespace == "" {
 		namespace = defaultNamespace
 	}
@@ -344,35 +391,69 @@ func (l *Library) Uninstall(ctx context.Context, namespace, revision string) err
 		return fmt.Errorf("uninstallation failed: %w", err)
 	}
 
+	log.Info("Uninstall complete", "namespace", namespace, "revision", revision)
 	return nil
 }
 
-// run is the main loop. It starts informers (after first Apply), processes
-// the workqueue, and shuts down when ctx is cancelled.
+// run is the main loop. It alternates between idle (waiting for Apply) and
+// active (informers running, processing workqueue). Uninstall() nils
+// desiredOpts, which causes processWorkQueue to exit and the loop to
+// return to idle. The loop exits only when ctx is cancelled.
 func (l *Library) run(ctx context.Context, notifyCh chan<- struct{}) {
 	log := ctrllog.Log.WithName("install")
 	defer close(notifyCh)
 	defer l.workqueue.ShutDown()
 
-	// Wait for the first Apply before setting up watches
-	if !l.waitForDesiredState(ctx) {
-		return // ctx cancelled
-	}
+	for {
+		// Idle: block until Apply() sets desiredOpts (or ctx cancelled)
+		if !l.waitForDesiredState(ctx) {
+			return // ctx cancelled
+		}
 
-	// Set up informers for drift detection
-	stopCh := make(chan struct{})
-	go func() {
-		<-ctx.Done()
-		close(stopCh)
+		// Active: set up informers for this install cycle
+		l.mu.Lock()
+		l.informerStop = make(chan struct{})
+		l.processingDone = make(chan struct{})
+		l.mu.Unlock()
+
+		l.setupInformers(l.informerStop)
+
+		log.Info("Processing workqueue")
+		l.processWorkQueue(ctx, notifyCh)
+		log.Info("Workqueue processing stopped, returning to idle")
+
+		// Loop back to idle, waiting for next Apply()
+	}
+}
+
+// processWorkQueue processes work items until desiredOpts goes nil (Uninstall)
+// or the workqueue shuts down (ctx cancelled). It closes l.processingDone on exit
+// so Uninstall() can wait for processing to stop before doing Helm cleanup.
+func (l *Library) processWorkQueue(ctx context.Context, notifyCh chan<- struct{}) {
+	log := ctrllog.Log.WithName("install")
+	defer func() {
+		l.mu.RLock()
+		done := l.processingDone
+		l.mu.RUnlock()
+		if done != nil {
+			close(done)
+		}
 	}()
 
-	l.setupInformers(stopCh)
-
-	// Process work items until shutdown
 	for {
 		key, shutdown := l.workqueue.Get()
 		if shutdown {
 			return
+		}
+
+		// Check if Uninstall() has cleared desiredOpts
+		l.mu.RLock()
+		hasOpts := l.desiredOpts != nil
+		l.mu.RUnlock()
+
+		if !hasOpts {
+			l.workqueue.Done(key)
+			return // back to idle
 		}
 
 		log.Info("Reconciling")
@@ -570,7 +651,7 @@ func (l *Library) reconcile(ctx context.Context) Status {
 		return status
 	}
 
-	if err := istiodReconciler.Install(ctx, opts.Version, opts.Namespace, values, opts.Revision, opts.OwnerRef); err != nil {
+	if err := istiodReconciler.Install(ctx, opts.Version, opts.Namespace, values, opts.Revision, nil); err != nil {
 		status.Error = combineErrors(status.Error, fmt.Errorf("installation failed: %w", err))
 		return status
 	}
@@ -591,19 +672,6 @@ func (l *Library) enqueue() {
 	if l.workqueue != nil {
 		l.workqueue.Add(reconcileKey)
 	}
-}
-
-// caller returns file:line of the caller's caller (2 frames up).
-func caller() string {
-	_, file, line, ok := runtime.Caller(2)
-	if !ok {
-		return "unknown"
-	}
-	// Trim to just the filename for readability
-	if idx := strings.LastIndex(file, "/"); idx >= 0 {
-		file = file[idx+1:]
-	}
-	return fmt.Sprintf("%s:%d", file, line)
 }
 
 // makeEventHandler creates a cache.ResourceEventHandler that filters events
@@ -741,13 +809,6 @@ func (l *Library) isOwnedResource(obj *unstructured.Unstructured) bool {
 		return false
 	}
 
-	// Check owner reference
-	if opts.OwnerRef != nil {
-		if hasMatchingOwnerRef(obj, opts.OwnerRef) {
-			return true
-		}
-	}
-
 	// Check Istio labels
 	labels := obj.GetLabels()
 	if labels == nil {
@@ -773,20 +834,6 @@ func (l *Library) isOwnedResource(obj *unstructured.Unstructured) bool {
 	return false
 }
 
-// hasMatchingOwnerRef checks if the object has an owner reference matching the expected one.
-func hasMatchingOwnerRef(obj *unstructured.Unstructured, expected *metav1.OwnerReference) bool {
-	for _, ref := range obj.GetOwnerReferences() {
-		if ref.APIVersion == expected.APIVersion &&
-			ref.Kind == expected.Kind &&
-			ref.Name == expected.Name {
-			if expected.UID == "" || ref.UID == expected.UID {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // optionsEqual compares two Options for equality.
 // Used by Apply() to skip no-op updates.
 func optionsEqual(a, b Options) bool {
@@ -795,11 +842,6 @@ func optionsEqual(a, b Options) bool {
 		a.Revision != b.Revision ||
 		ptr.Deref(a.ManageCRDs, true) != ptr.Deref(b.ManageCRDs, true) ||
 		ptr.Deref(a.IncludeAllCRDs, false) != ptr.Deref(b.IncludeAllCRDs, false) {
-		return false
-	}
-
-	// Compare OwnerRef
-	if !reflect.DeepEqual(a.OwnerRef, b.OwnerRef) {
 		return false
 	}
 

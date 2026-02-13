@@ -26,9 +26,7 @@ import (
 	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
@@ -447,173 +445,6 @@ func TestIsOwnedResource(t *testing.T) {
 	}
 }
 
-func TestIsOwnedResourceWithOwnerRef(t *testing.T) {
-	expectedOwnerRef := &metav1.OwnerReference{
-		APIVersion: "gateway.networking.k8s.io/v1",
-		Kind:       "GatewayClass",
-		Name:       "istio",
-		UID:        types.UID("test-uid-123"),
-	}
-
-	tests := []struct {
-		name      string
-		ownerRefs []metav1.OwnerReference
-		ownerRef  *metav1.OwnerReference
-		labels    map[string]string
-		expected  bool
-	}{
-		{
-			name:      "matching owner ref",
-			ownerRefs: []metav1.OwnerReference{*expectedOwnerRef},
-			ownerRef:  expectedOwnerRef,
-			labels:    nil,
-			expected:  true,
-		},
-		{
-			name: "matching owner ref without UID check",
-			ownerRefs: []metav1.OwnerReference{{
-				APIVersion: "gateway.networking.k8s.io/v1",
-				Kind:       "GatewayClass",
-				Name:       "istio",
-				UID:        types.UID("different-uid"),
-			}},
-			ownerRef: &metav1.OwnerReference{
-				APIVersion: "gateway.networking.k8s.io/v1",
-				Kind:       "GatewayClass",
-				Name:       "istio",
-			},
-			labels:   nil,
-			expected: true,
-		},
-		{
-			name:      "non-matching owner ref - different name",
-			ownerRefs: []metav1.OwnerReference{*expectedOwnerRef},
-			ownerRef: &metav1.OwnerReference{
-				APIVersion: "gateway.networking.k8s.io/v1",
-				Kind:       "GatewayClass",
-				Name:       "other",
-			},
-			labels:   nil,
-			expected: false,
-		},
-		{
-			name:      "no owner ref configured - falls back to labels",
-			ownerRefs: []metav1.OwnerReference{*expectedOwnerRef},
-			ownerRef:  nil,
-			labels:    map[string]string{"app.kubernetes.io/managed-by": "Helm"},
-			expected:  true,
-		},
-		{
-			name:      "no owner ref configured - no matching labels",
-			ownerRefs: []metav1.OwnerReference{*expectedOwnerRef},
-			ownerRef:  nil,
-			labels:    nil,
-			expected:  false,
-		},
-		{
-			name:      "owner ref configured but object has no refs - falls back to labels",
-			ownerRefs: nil,
-			ownerRef:  expectedOwnerRef,
-			labels:    map[string]string{"istio.io/rev": "default"},
-			expected:  true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lib := &Library{}
-			opts := Options{
-				Revision: "default",
-				OwnerRef: tt.ownerRef,
-			}
-			opts.applyDefaults()
-			lib.desiredOpts = &opts
-
-			obj := &unstructured.Unstructured{}
-			obj.SetOwnerReferences(tt.ownerRefs)
-			obj.SetLabels(tt.labels)
-
-			result := lib.isOwnedResource(obj)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestHasMatchingOwnerRef(t *testing.T) {
-	tests := []struct {
-		name      string
-		ownerRefs []metav1.OwnerReference
-		expected  *metav1.OwnerReference
-		matches   bool
-	}{
-		{
-			name: "exact match",
-			ownerRefs: []metav1.OwnerReference{{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-				Name:       "test",
-				UID:        "uid-123",
-			}},
-			expected: &metav1.OwnerReference{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-				Name:       "test",
-				UID:        "uid-123",
-			},
-			matches: true,
-		},
-		{
-			name: "match without UID",
-			ownerRefs: []metav1.OwnerReference{{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-				Name:       "test",
-				UID:        "uid-123",
-			}},
-			expected: &metav1.OwnerReference{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-				Name:       "test",
-			},
-			matches: true,
-		},
-		{
-			name: "no match - different kind",
-			ownerRefs: []metav1.OwnerReference{{
-				APIVersion: "v1",
-				Kind:       "Secret",
-				Name:       "test",
-			}},
-			expected: &metav1.OwnerReference{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-				Name:       "test",
-			},
-			matches: false,
-		},
-		{
-			name:      "no owner refs",
-			ownerRefs: nil,
-			expected: &metav1.OwnerReference{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-				Name:       "test",
-			},
-			matches: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			obj := &unstructured.Unstructured{}
-			obj.SetOwnerReferences(tt.ownerRefs)
-
-			result := hasMatchingOwnerRef(obj, tt.expected)
-			assert.Equal(t, tt.matches, result)
-		})
-	}
-}
-
 // TestOptionsEqualWithNilValues verifies that optionsEqual handles nil Values by
 // comparing the map representation (both nil Values produce equal empty maps).
 func TestOptionsEqualWithNilValues(t *testing.T) {
@@ -685,19 +516,10 @@ func buildCIOOptions() Options {
 	values = MergeValues(values, openshiftOverrides)
 
 	// Step 4: Build Options (same as CIO's buildInstallerOptions)
-	ownerRef := &metav1.OwnerReference{
-		APIVersion: "gateway.networking.k8s.io/v1",
-		Kind:       "GatewayClass",
-		Name:       "openshift-default",
-		UID:        types.UID("e4f86faa-63c0-44ea-8848-180e8675d375"),
-		Controller: ptr.To(true),
-	}
-
 	return Options{
 		Namespace:      "openshift-ingress",
 		Revision:       "openshift-gateway",
 		Values:         values,
-		OwnerRef:       ownerRef,
 		Version:        "v1.27.3",
 		ManageCRDs:     ptr.To(true),
 		IncludeAllCRDs: ptr.To(true),
@@ -822,6 +644,119 @@ func TestCIOReconcileLoopConverges(t *testing.T) {
 			return
 		}
 	}
+}
+
+// TestUninstallWithoutApply verifies that Uninstall on an idle library (no
+// prior Apply) is a no-op and returns nil.
+func TestUninstallWithoutApply(t *testing.T) {
+	lib := &Library{
+		workqueue: workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+	}
+	defer lib.workqueue.ShutDown()
+
+	err := lib.Uninstall(context.Background())
+	assert.NoError(t, err, "Uninstall on idle library should be a no-op")
+	assert.Nil(t, lib.desiredOpts)
+}
+
+// TestUninstallClearsDesiredOpts verifies that Uninstall nils desiredOpts and
+// signals processingDone so the run() loop can return to idle.
+func TestUninstallClearsDesiredOpts(t *testing.T) {
+	lib := &Library{
+		workqueue:    workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+		chartManager: helm.NewChartManager(&rest.Config{Host: "https://localhost:1"}, "memory"),
+	}
+	defer lib.workqueue.ShutDown()
+
+	// Simulate an active install cycle
+	opts := Options{Namespace: "test-ns", Version: "1.24.0"}
+	opts.applyDefaults()
+	lib.desiredOpts = &opts
+	lib.informerStop = make(chan struct{})
+	lib.processingDone = make(chan struct{})
+
+	// Close processingDone to simulate the processing loop having exited
+	// (in real usage, enqueue() + nil check in processWorkQueue causes this)
+	close(lib.processingDone)
+
+	// Uninstall clears desiredOpts and closes informerStop.
+	// The Helm uninstall will fail (no real cluster), but the state should
+	// already be cleared before that point.
+	err := lib.Uninstall(context.Background())
+
+	// Helm fails since there's no real cluster — that's expected
+	assert.Error(t, err, "Helm uninstall should fail without a real cluster")
+	assert.Nil(t, lib.desiredOpts, "desiredOpts should be nil after Uninstall")
+}
+
+// TestApplyAfterUninstallSetsDesiredOpts verifies that Apply works after
+// Uninstall — the library can be reused for a new install cycle.
+func TestApplyAfterUninstallSetsDesiredOpts(t *testing.T) {
+	lib := &Library{
+		workqueue: workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+	}
+	defer lib.workqueue.ShutDown()
+
+	// First cycle: Apply
+	lib.Apply(Options{Namespace: "ns1", Version: "1.24.0"})
+	assert.NotNil(t, lib.desiredOpts)
+	assert.Equal(t, "ns1", lib.desiredOpts.Namespace)
+
+	// Drain the queue
+	key, _ := lib.workqueue.Get()
+	lib.workqueue.Done(key)
+
+	// Simulate Uninstall clearing state (without real Helm)
+	lib.mu.Lock()
+	lib.desiredOpts = nil
+	lib.mu.Unlock()
+
+	assert.Nil(t, lib.desiredOpts)
+
+	// Second cycle: Apply again
+	lib.Apply(Options{Namespace: "ns2", Version: "1.25.0"})
+	assert.NotNil(t, lib.desiredOpts)
+	assert.Equal(t, "ns2", lib.desiredOpts.Namespace)
+}
+
+// TestApplyBlocksDuringUninstall verifies that Apply blocks while Uninstall
+// holds the lifecycle lock, and proceeds after Uninstall completes.
+func TestApplyBlocksDuringUninstall(t *testing.T) {
+	lib := &Library{
+		workqueue: workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+	}
+	defer lib.workqueue.ShutDown()
+
+	// Set up active state
+	opts := Options{Namespace: "test-ns", Version: "1.24.0"}
+	opts.applyDefaults()
+	lib.desiredOpts = &opts
+	lib.informerStop = make(chan struct{})
+	lib.processingDone = make(chan struct{})
+
+	// Hold the lifecycle lock to simulate Uninstall in progress
+	lib.lifecycleMu.Lock()
+
+	var applyStarted atomic.Int32
+	var applyFinished atomic.Int32
+
+	go func() {
+		applyStarted.Store(1)
+		lib.Apply(Options{Namespace: "new-ns", Version: "1.25.0"})
+		applyFinished.Store(1)
+	}()
+
+	// Give the goroutine time to start and block on the lock
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, int32(1), applyStarted.Load(), "Apply goroutine should have started")
+	assert.Equal(t, int32(0), applyFinished.Load(), "Apply should be blocked by lifecycle lock")
+
+	// Release the lock
+	lib.lifecycleMu.Unlock()
+
+	// Apply should now complete
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, int32(1), applyFinished.Load(), "Apply should complete after lock release")
 }
 
 // Note: Value computation tests are in pkg/revision and pkg/istiovalues packages.
