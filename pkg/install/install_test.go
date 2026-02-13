@@ -15,10 +15,13 @@
 package install
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
@@ -637,6 +640,188 @@ func TestFromValuesRoundTrip(t *testing.T) {
 	m1 := helm.FromValues(v)
 	m2 := helm.FromValues(v)
 	assert.Equal(t, m1, m2)
+}
+
+// buildCIOOptions replicates how the Cluster Ingress Operator builds Options
+// via buildInstallerOptions + openshiftValues + GatewayAPIDefaults + MergeValues.
+// See: https://github.com/rikatz/cluster-ingress-operator/blob/31d7e74fe6/pkg/operator/controller/gatewayclass/istio_sail_installer.go
+func buildCIOOptions() Options {
+	// Step 1: GatewayAPIDefaults (from the sail library)
+	values := GatewayAPIDefaults()
+
+	// Step 2: openshiftValues overlay (from CIO)
+	pilotEnv := map[string]string{
+		"PILOT_ENABLE_GATEWAY_API":                         "true",
+		"PILOT_ENABLE_ALPHA_GATEWAY_API":                   "false",
+		"PILOT_ENABLE_GATEWAY_API_STATUS":                  "true",
+		"PILOT_ENABLE_GATEWAY_API_DEPLOYMENT_CONTROLLER":   "true",
+		"PILOT_ENABLE_GATEWAY_API_GATEWAYCLASS_CONTROLLER": "false",
+		"PILOT_GATEWAY_API_DEFAULT_GATEWAYCLASS_NAME":      "openshift-default",
+		"PILOT_GATEWAY_API_CONTROLLER_NAME":                "openshift.io/gateway-controller",
+		"PILOT_MULTI_NETWORK_DISCOVER_GATEWAY_API":         "false",
+		"ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT":             "false",
+		"PILOT_ENABLE_GATEWAY_API_CA_CERT_ONLY":            "true",
+		"PILOT_ENABLE_GATEWAY_API_COPY_LABELS_ANNOTATIONS": "false",
+	}
+	openshiftOverrides := &v1.Values{
+		Global: &v1.GlobalConfig{
+			DefaultPodDisruptionBudget: &v1.DefaultPodDisruptionBudgetConfig{
+				Enabled: ptr.To(false),
+			},
+			IstioNamespace:    ptr.To("openshift-ingress"),
+			PriorityClassName: ptr.To("system-cluster-critical"),
+			TrustBundleName:   ptr.To("openshift-gateway-ca-root-cert"),
+		},
+
+		Pilot: &v1.PilotConfig{
+			Env: pilotEnv,
+			PodAnnotations: map[string]string{
+				"target.workload.openshift.io/management": `{"effect": "PreferredDuringScheduling"}`,
+			},
+		},
+	}
+
+	// Step 3: MergeValues
+	values = MergeValues(values, openshiftOverrides)
+
+	// Step 4: Build Options (same as CIO's buildInstallerOptions)
+	ownerRef := &metav1.OwnerReference{
+		APIVersion: "gateway.networking.k8s.io/v1",
+		Kind:       "GatewayClass",
+		Name:       "openshift-default",
+		UID:        types.UID("e4f86faa-63c0-44ea-8848-180e8675d375"),
+		Controller: ptr.To(true),
+	}
+
+	return Options{
+		Namespace:      "openshift-ingress",
+		Revision:       "openshift-gateway",
+		Values:         values,
+		OwnerRef:       ownerRef,
+		Version:        "v1.27.3",
+		ManageCRDs:     ptr.To(true),
+		IncludeAllCRDs: ptr.To(true),
+	}
+}
+
+// TestOptionsEqualWithCIOPattern verifies that two independently-built CIO
+// option sets compare as equal after applyDefaults.
+func TestOptionsEqualWithCIOPattern(t *testing.T) {
+	opts1 := buildCIOOptions()
+	opts2 := buildCIOOptions()
+	opts1.applyDefaults()
+	opts2.applyDefaults()
+
+	assert.True(t, optionsEqual(opts1, opts2),
+		"options built the same way should be equal;\n  map1: %v\n  map2: %v",
+		helm.FromValues(opts1.Values), helm.FromValues(opts2.Values))
+}
+
+// TestCIOReconcileLoopConverges simulates the full deployment flow:
+//
+//	Library workqueue ──Get──▶ reconcile ──notify──▶ controller ──Apply──▶ Library workqueue
+//
+// The test replicates the real ordering in run():
+//  1. Get() item from workqueue
+//  2. reconcile (no-op here — no cluster)
+//  3. Send notification BEFORE Forget+Done (matches production code)
+//  4. Controller receives notification, builds fresh Options, calls Apply()
+//  5. Forget + Done
+//
+// If Apply() correctly detects identical options and skips enqueue, the loop
+// converges after exactly 1 reconcile. If it re-enqueues, the test fails.
+func TestCIOReconcileLoopConverges(t *testing.T) {
+	lib := &Library{
+		workqueue: workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+	}
+	defer lib.workqueue.ShutDown()
+
+	notifyCh := make(chan struct{}, 1)
+
+	// Track Apply calls from the simulated controller.
+	var applyCount atomic.Int32
+	// appliedCh signals that the controller finished calling Apply.
+	appliedCh := make(chan struct{}, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Simulate the gatewayclass controller:
+	// on each notification, build fresh options and call Apply().
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case _, ok := <-notifyCh:
+				if !ok {
+					return
+				}
+				applyCount.Add(1)
+				lib.Apply(buildCIOOptions())
+				select {
+				case appliedCh <- struct{}{}:
+				default:
+				}
+			}
+		}
+	}()
+
+	// Initial Apply (CIO's first reconcile triggered by GatewayClass creation)
+	lib.Apply(buildCIOOptions())
+
+	// Simulate the library's run() loop.
+	reconcileCount := 0
+	for {
+		type getResult struct {
+			key      string
+			shutdown bool
+		}
+		ch := make(chan getResult, 1)
+		go func() {
+			key, shutdown := lib.workqueue.Get()
+			ch <- getResult{key, shutdown}
+		}()
+
+		select {
+		case r := <-ch:
+			if r.shutdown {
+				t.Fatal("unexpected queue shutdown")
+			}
+			reconcileCount++
+			if reconcileCount > 10 {
+				t.Fatalf("reconcile loop did not converge after 10 iterations (apply count: %d)",
+					applyCount.Load())
+			}
+			t.Logf("reconcile #%d", reconcileCount)
+
+			// --- replicate run() ordering: notify BEFORE Forget+Done ---
+			select {
+			case notifyCh <- struct{}{}:
+			default:
+			}
+
+			// Wait for the controller to process the notification and call Apply()
+			select {
+			case <-appliedCh:
+				t.Logf("  controller applied (total applies: %d)", applyCount.Load())
+			case <-time.After(200 * time.Millisecond):
+				t.Log("  controller did not apply (notification may have been dropped)")
+			}
+
+			lib.workqueue.Forget(r.key)
+			lib.workqueue.Done(r.key)
+
+		case <-time.After(500 * time.Millisecond):
+			// Queue has been empty for 500ms — converged.
+			t.Logf("converged: %d reconcile(s), %d controller apply(s)",
+				reconcileCount, applyCount.Load())
+			assert.Equal(t, 1, reconcileCount,
+				"expected exactly 1 reconcile; more means Apply() is re-enqueuing "+
+					"when it should detect equal options")
+			return
+		}
+	}
 }
 
 // Note: Value computation tests are in pkg/revision and pkg/istiovalues packages.
