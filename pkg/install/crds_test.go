@@ -158,7 +158,7 @@ func TestClassifyCRD(t *testing.T) {
 			crd: &apiextensionsv1.CustomResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   "wasmplugins.extensions.istio.io",
-					Labels: map[string]string{LabelManagedByCIO: "true"},
+					Labels: map[string]string{labelManagedByCIO: "true"},
 				},
 			},
 			expected: CRDInfo{
@@ -172,7 +172,7 @@ func TestClassifyCRD(t *testing.T) {
 			crd: &apiextensionsv1.CustomResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   "envoyfilters.networking.istio.io",
-					Labels: map[string]string{LabelOLMManaged: "true"},
+					Labels: map[string]string{labelOLMManaged: "true"},
 				},
 			},
 			expected: CRDInfo{
@@ -211,7 +211,7 @@ func TestClassifyCRD(t *testing.T) {
 				builder = builder.WithObjects(tt.crd)
 			}
 			cl := builder.Build()
-			mgr := NewCRDManager(cl)
+			mgr := newCRDManager(cl)
 
 			crdName := tt.expected.Name
 			result := mgr.classifyCRD(context.Background(), crdName)

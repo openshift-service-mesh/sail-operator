@@ -231,7 +231,7 @@ func TestSpecWasUpdated_HPA(t *testing.T) {
 	}
 }
 
-func TestNeedsStatusChangeFilter(t *testing.T) {
+func TestShouldFilterStatusChanges(t *testing.T) {
 	tests := []struct {
 		gvk      schema.GroupVersionKind
 		expected bool
@@ -248,7 +248,7 @@ func TestNeedsStatusChangeFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.gvk.Kind, func(t *testing.T) {
-			result := needsStatusChangeFilter(tt.gvk)
+			result := shouldFilterStatusChanges(tt.gvk)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

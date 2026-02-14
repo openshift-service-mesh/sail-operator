@@ -16,7 +16,6 @@ package install
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -329,48 +328,6 @@ func TestStatusReadWrite(t *testing.T) {
 	assert.Equal(t, CRDManagedByCIO, status.CRDState)
 }
 
-func TestCombineErrors(t *testing.T) {
-	tests := []struct {
-		name     string
-		existing error
-		new      error
-		wantNil  bool
-		wantMsg  string
-	}{
-		{
-			name:    "both nil",
-			wantNil: true,
-		},
-		{
-			name:    "existing nil",
-			new:     errors.New("new error"),
-			wantMsg: "new error",
-		},
-		{
-			name:     "new nil",
-			existing: errors.New("existing error"),
-			wantMsg:  "existing error",
-		},
-		{
-			name:     "both non-nil",
-			existing: errors.New("existing"),
-			new:      errors.New("new"),
-			wantMsg:  "existing; new",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := combineErrors(tt.existing, tt.new)
-			if tt.wantNil {
-				assert.NoError(t, result)
-			} else {
-				assert.Error(t, result)
-				assert.Contains(t, result.Error(), tt.wantMsg)
-			}
-		})
-	}
-}
 
 func TestIsOwnedResource(t *testing.T) {
 	tests := []struct {
@@ -431,15 +388,10 @@ func TestIsOwnedResource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lib := &Library{}
-			opts := Options{Revision: tt.revision}
-			opts.applyDefaults()
-			lib.desiredOpts = &opts
-
 			obj := &unstructured.Unstructured{}
 			obj.SetLabels(tt.labels)
 
-			result := lib.isOwnedResource(obj)
+			result := isOwnedResource(obj, tt.revision)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -663,8 +615,10 @@ func TestUninstallWithoutApply(t *testing.T) {
 // signals processingDone so the run() loop can return to idle.
 func TestUninstallClearsDesiredOpts(t *testing.T) {
 	lib := &Library{
-		workqueue:    workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
-		chartManager: helm.NewChartManager(&rest.Config{Host: "https://localhost:1"}, "memory"),
+		workqueue: workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+		inst: &installer{
+			chartManager: helm.NewChartManager(&rest.Config{Host: "https://localhost:1"}, "memory"),
+		},
 	}
 	defer lib.workqueue.ShutDown()
 

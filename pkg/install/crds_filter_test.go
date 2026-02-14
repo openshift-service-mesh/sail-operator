@@ -249,22 +249,22 @@ func TestShouldManageResource(t *testing.T) {
 		{
 			name:     "Gateway API mode - included resource",
 			resource: "wasmplugins.extensions.istio.io",
-			ignore:   GatewayAPIIgnoreResources,
-			include:  GatewayAPIIncludeResources,
+			ignore:   gatewayAPIIgnoreResources,
+			include:  gatewayAPIIncludeResources,
 			expected: true,
 		},
 		{
 			name:     "Gateway API mode - envoyfilters included",
 			resource: "envoyfilters.networking.istio.io",
-			ignore:   GatewayAPIIgnoreResources,
-			include:  GatewayAPIIncludeResources,
+			ignore:   gatewayAPIIgnoreResources,
+			include:  gatewayAPIIncludeResources,
 			expected: true,
 		},
 		{
 			name:     "Gateway API mode - destinationrules included",
 			resource: "destinationrules.networking.istio.io",
-			ignore:   GatewayAPIIgnoreResources,
-			include:  GatewayAPIIncludeResources,
+			ignore:   gatewayAPIIgnoreResources,
+			include:  gatewayAPIIncludeResources,
 			expected: true,
 		},
 	}
@@ -279,12 +279,12 @@ func TestShouldManageResource(t *testing.T) {
 
 func TestResourceFilteringConstants(t *testing.T) {
 	// Verify the constants have expected values
-	assert.Equal(t, "X_PILOT_IGNORE_RESOURCES", EnvPilotIgnoreResources)
-	assert.Equal(t, "X_PILOT_INCLUDE_RESOURCES", EnvPilotIncludeResources)
-	assert.Equal(t, "*.istio.io", GatewayAPIIgnoreResources)
-	assert.Contains(t, GatewayAPIIncludeResources, "wasmplugins.extensions.istio.io")
-	assert.Contains(t, GatewayAPIIncludeResources, "envoyfilters.networking.istio.io")
-	assert.Contains(t, GatewayAPIIncludeResources, "destinationrules.networking.istio.io")
+	assert.Equal(t, "X_PILOT_IGNORE_RESOURCES", envPilotIgnoreResources)
+	assert.Equal(t, "X_PILOT_INCLUDE_RESOURCES", envPilotIncludeResources)
+	assert.Equal(t, "*.istio.io", gatewayAPIIgnoreResources)
+	assert.Contains(t, gatewayAPIIncludeResources, "wasmplugins.extensions.istio.io")
+	assert.Contains(t, gatewayAPIIncludeResources, "envoyfilters.networking.istio.io")
+	assert.Contains(t, gatewayAPIIncludeResources, "destinationrules.networking.istio.io")
 }
 
 func TestGatewayAPIFiltersWorkTogether(t *testing.T) {
@@ -293,25 +293,25 @@ func TestGatewayAPIFiltersWorkTogether(t *testing.T) {
 	// INCLUDE: wasmplugins, envoyfilters, destinationrules (exceptions)
 
 	// These should be managed (explicitly included, overrides IGNORE)
-	assert.True(t, shouldManageResource("wasmplugins.extensions.istio.io", GatewayAPIIgnoreResources, GatewayAPIIncludeResources),
+	assert.True(t, shouldManageResource("wasmplugins.extensions.istio.io", gatewayAPIIgnoreResources, gatewayAPIIncludeResources),
 		"wasmplugins should be managed (in INCLUDE)")
-	assert.True(t, shouldManageResource("envoyfilters.networking.istio.io", GatewayAPIIgnoreResources, GatewayAPIIncludeResources),
+	assert.True(t, shouldManageResource("envoyfilters.networking.istio.io", gatewayAPIIgnoreResources, gatewayAPIIncludeResources),
 		"envoyfilters should be managed (in INCLUDE)")
-	assert.True(t, shouldManageResource("destinationrules.networking.istio.io", GatewayAPIIgnoreResources, GatewayAPIIncludeResources),
+	assert.True(t, shouldManageResource("destinationrules.networking.istio.io", gatewayAPIIgnoreResources, gatewayAPIIncludeResources),
 		"destinationrules should be managed (in INCLUDE)")
 
 	// These should NOT be managed (matched by IGNORE, not in INCLUDE)
-	assert.False(t, shouldManageResource("virtualservices.networking.istio.io", GatewayAPIIgnoreResources, GatewayAPIIncludeResources),
+	assert.False(t, shouldManageResource("virtualservices.networking.istio.io", gatewayAPIIgnoreResources, gatewayAPIIncludeResources),
 		"virtualservices should NOT be managed (in IGNORE, not in INCLUDE)")
-	assert.False(t, shouldManageResource("gateways.networking.istio.io", GatewayAPIIgnoreResources, GatewayAPIIncludeResources),
+	assert.False(t, shouldManageResource("gateways.networking.istio.io", gatewayAPIIgnoreResources, gatewayAPIIncludeResources),
 		"gateways should NOT be managed (in IGNORE, not in INCLUDE)")
-	assert.False(t, shouldManageResource("serviceentries.networking.istio.io", GatewayAPIIgnoreResources, GatewayAPIIncludeResources),
+	assert.False(t, shouldManageResource("serviceentries.networking.istio.io", gatewayAPIIgnoreResources, gatewayAPIIncludeResources),
 		"serviceentries should NOT be managed (in IGNORE, not in INCLUDE)")
-	assert.False(t, shouldManageResource("authorizationpolicies.security.istio.io", GatewayAPIIgnoreResources, GatewayAPIIncludeResources),
+	assert.False(t, shouldManageResource("authorizationpolicies.security.istio.io", gatewayAPIIgnoreResources, gatewayAPIIncludeResources),
 		"authorizationpolicies should NOT be managed (in IGNORE, not in INCLUDE)")
 
 	// Non-istio resources should be managed (not matched by IGNORE)
-	assert.True(t, shouldManageResource("gateways.gateway.networking.k8s.io", GatewayAPIIgnoreResources, GatewayAPIIncludeResources),
+	assert.True(t, shouldManageResource("gateways.gateway.networking.k8s.io", gatewayAPIIgnoreResources, gatewayAPIIncludeResources),
 		"k8s gateway resources should be managed (not in IGNORE)")
 }
 
@@ -346,8 +346,8 @@ func TestTargetCRDsFromValues(t *testing.T) {
 		values := &v1.Values{
 			Pilot: &v1.PilotConfig{
 				Env: map[string]string{
-					EnvPilotIgnoreResources:  GatewayAPIIgnoreResources,
-					EnvPilotIncludeResources: GatewayAPIIncludeResources,
+					envPilotIgnoreResources:  gatewayAPIIgnoreResources,
+					envPilotIncludeResources: gatewayAPIIncludeResources,
 				},
 			},
 		}

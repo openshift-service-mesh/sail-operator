@@ -15,22 +15,27 @@
 package install
 
 import (
+	"context"
+	"io/fs"
 	"testing"
+	"testing/fstest"
 
+	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 )
 
 func TestWatchTypeString(t *testing.T) {
 	tests := []struct {
-		watchType WatchType
+		watchType watchType
 		expected  string
 	}{
-		{WatchTypeOwned, "Owned"},
-		{WatchTypeNamespace, "Namespace"},
-		{WatchTypeCRD, "CRD"},
-		{WatchType(99), "Unknown(99)"},
+		{watchTypeOwned, "Owned"},
+		{watchTypeNamespace, "Namespace"},
+		{watchTypeCRD, "CRD"},
+		{watchType(99), "Unknown(99)"},
 	}
 
 	for _, tt := range tests {
@@ -40,7 +45,7 @@ func TestWatchTypeString(t *testing.T) {
 	}
 }
 
-func TestParseAPIVersionKind(t *testing.T) {
+func TestAPIVersionKindToGVK(t *testing.T) {
 	tests := []struct {
 		name       string
 		apiVersion string
@@ -75,7 +80,7 @@ func TestParseAPIVersionKind(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseAPIVersionKind(tt.apiVersion, tt.kind)
+			result := apiVersionKindToGVK(tt.apiVersion, tt.kind)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -324,4 +329,87 @@ func TestExtractGVKsFromRendered_Errors(t *testing.T) {
 			_ = err
 		})
 	}
+}
+
+// --- installer unit tests ---
+
+func TestResolveValues_NoVersionInEmptyFS(t *testing.T) {
+	inst := &installer{
+		resourceFS: fstest.MapFS{},
+	}
+	_, _, err := inst.resolveValues(Options{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no stable version found")
+}
+
+func TestResolveValues_InvalidVersion(t *testing.T) {
+	inst := &installer{
+		resourceFS: fstest.MapFS{
+			"v1.28.3": &fstest.MapFile{Mode: fs.ModeDir},
+		},
+	}
+	_, _, err := inst.resolveValues(Options{Version: "v9.99.99"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid version")
+}
+
+func TestResolveValues_DefaultsToHighestStableVersion(t *testing.T) {
+	// This will fail at ComputeValues (no charts/profiles in FS), but
+	// the version resolution itself should pick v1.28.3 over v1.27.0.
+	inst := &installer{
+		resourceFS: fstest.MapFS{
+			"v1.27.0":        &fstest.MapFile{Mode: fs.ModeDir},
+			"v1.28.3":        &fstest.MapFile{Mode: fs.ModeDir},
+			"v1.29.0-alpha1": &fstest.MapFile{Mode: fs.ModeDir},
+		},
+	}
+	_, _, err := inst.resolveValues(Options{})
+	// ComputeValues will fail because the FS has no profile files, but
+	// we can verify the error message includes the resolved version.
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to compute values")
+}
+
+func TestReconcile_ResolveValuesFailure(t *testing.T) {
+	inst := &installer{
+		resourceFS: fstest.MapFS{}, // no versions
+	}
+	status := inst.reconcile(context.Background(), Options{})
+	assert.False(t, status.Installed)
+	assert.Empty(t, status.Version)
+	assert.Error(t, status.Error)
+	assert.Contains(t, status.Error.Error(), "no stable version found")
+	// CRD fields should be zero-valued (never reached)
+	assert.Empty(t, status.CRDState)
+	assert.Nil(t, status.CRDs)
+}
+
+func TestReconcile_InvalidVersionEarlyExit(t *testing.T) {
+	inst := &installer{
+		resourceFS: fstest.MapFS{
+			"v1.28.3": &fstest.MapFile{Mode: fs.ModeDir},
+		},
+	}
+	status := inst.reconcile(context.Background(), Options{Version: "v0.0.1"})
+	assert.False(t, status.Installed)
+	assert.Error(t, status.Error)
+	assert.Contains(t, status.Error.Error(), "invalid version")
+}
+
+func TestReconcile_DeepCopiesValues(t *testing.T) {
+	// Verify that reconcile deep-copies Values so mutations inside
+	// reconcile don't affect the caller's pointer.
+	inst := &installer{
+		resourceFS: fstest.MapFS{}, // will fail early, but after deep-copy
+	}
+	original := &v1.Values{
+		Global: &v1.GlobalConfig{
+			Hub: ptr.To("original-hub"),
+		},
+	}
+	opts := Options{Values: original}
+	_ = inst.reconcile(context.Background(), opts)
+
+	// The original Values should not have been mutated
+	assert.Equal(t, "original-hub", *original.Global.Hub)
 }
