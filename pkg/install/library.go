@@ -53,10 +53,11 @@ import (
 )
 
 const (
-	defaultNamespace  = "istio-system"
-	defaultProfile    = "openshift"
-	defaultHelmDriver = "secret"
-	defaultRevision   = v1.DefaultRevision
+	defaultNamespace      = "istio-system"
+	defaultProfile        = "openshift"
+	defaultHelmDriver     = "secret"
+	defaultRevision       = v1.DefaultRevision
+	defaultManagedByValue = "sail-library"
 )
 
 // Status represents the result of a reconciliation, covering both
@@ -178,6 +179,11 @@ type Library struct {
 	// Core install/uninstall logic (no concurrency concerns)
 	inst *installer
 
+	// managedByValue is the value of the "managed-by" label set on all
+	// Helm-managed resources. Used both by the post-renderer (write) and
+	// by informer predicates (read) for ownership filtering.
+	managedByValue string
+
 	// Infrastructure needed only by Library (informers, dynamic client)
 	kubeConfig *rest.Config
 	dynamicCl  dynamic.Interface
@@ -243,13 +249,14 @@ func New(kubeConfig *rest.Config, resourceFS fs.FS) (*Library, error) {
 	return &Library{
 		inst: &installer{
 			resourceFS:   resourceFS,
-			chartManager: helm.NewChartManager(kubeConfig, defaultHelmDriver),
+			chartManager: helm.NewChartManager(kubeConfig, defaultHelmDriver, helm.WithManagedByValue(defaultManagedByValue)),
 			cl:           cl,
 			crdManager:   newCRDManager(cl),
 		},
-		kubeConfig:  kubeConfig,
-		dynamicCl:   dynamicCl,
-		applySignal: make(chan struct{}, 1),
+		managedByValue: defaultManagedByValue,
+		kubeConfig:     kubeConfig,
+		dynamicCl:      dynamicCl,
+		applySignal:    make(chan struct{}, 1),
 	}, nil
 }
 

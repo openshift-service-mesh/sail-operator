@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"regexp"
 
+	"github.com/istio-ecosystem/sail-operator/pkg/constants"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -191,8 +192,9 @@ func clearWebhookIgnoredFields(obj *unstructured.Unstructured) *unstructured.Uns
 }
 
 // isOwnedResource checks if the resource is owned by our installation
-// by examining Istio labels against the expected revision.
-func isOwnedResource(obj *unstructured.Unstructured, revision string) bool {
+// by examining Istio labels against the expected revision and the
+// managed-by label set by the post-renderer.
+func isOwnedResource(obj *unstructured.Unstructured, revision, managedByValue string) bool {
 	labels := obj.GetLabels()
 	if labels == nil {
 		return false
@@ -210,8 +212,14 @@ func isOwnedResource(obj *unstructured.Unstructured, revision string) bool {
 		return true
 	}
 
+	// Check the managed-by label set by HelmPostRenderer.
+	if managedBy, ok := labels[constants.ManagedByLabelKey]; ok {
+		return managedBy == managedByValue
+	}
+
+	// Fallback: Helm sets app.kubernetes.io/managed-by to "Helm" on chart resources.
 	if managedBy, ok := labels["app.kubernetes.io/managed-by"]; ok {
-		return managedBy == "Helm" || managedBy == "sail-operator"
+		return managedBy == "Helm"
 	}
 
 	return false

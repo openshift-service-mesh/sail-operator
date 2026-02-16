@@ -73,8 +73,9 @@ func (l *Library) setupInformers(stopCh <-chan struct{}) {
 		defaultResyncPeriod,
 	)
 
-	// Capture revision once for all event handlers — no lock needed per event.
+	// Capture revision and managedByValue once for all event handlers — no lock needed per event.
 	revision := opts.Revision
+	managedByValue := l.managedByValue
 	enqueue := l.enqueue
 
 	for _, spec := range specs {
@@ -91,7 +92,7 @@ func (l *Library) setupInformers(stopCh <-chan struct{}) {
 		if spec.watchType == watchTypeCRD {
 			handler = makeCRDEventHandler(spec.TargetNames, enqueue)
 		} else {
-			handler = makeOwnedEventHandler(spec.GVK, spec.watchType, revision, enqueue)
+			handler = makeOwnedEventHandler(spec.GVK, spec.watchType, revision, managedByValue, enqueue)
 		}
 
 		if _, err := informer.AddEventHandler(handler); err != nil {
@@ -127,7 +128,7 @@ func (l *Library) buildCRDWatchSpec(opts Options) *watchSpec {
 // makeOwnedEventHandler handles events for Helm-managed and namespace resources.
 // It takes explicit dependencies instead of closing over Library, enabling unit testing
 // without concurrency machinery.
-func makeOwnedEventHandler(gvk schema.GroupVersionKind, wt watchType, revision string, enqueue func()) cache.ResourceEventHandler {
+func makeOwnedEventHandler(gvk schema.GroupVersionKind, wt watchType, revision, managedByValue string, enqueue func()) cache.ResourceEventHandler {
 	log := ctrllog.Log.WithName("install").WithValues("gvk", gvk, "watchType", wt)
 	return cache.ResourceEventHandlerFuncs{
 		// Add events fire during initial cache sync — ignore them.
@@ -147,7 +148,7 @@ func makeOwnedEventHandler(gvk schema.GroupVersionKind, wt watchType, revision s
 				return
 			}
 
-			if wt == watchTypeOwned && !isOwnedResource(newU, revision) {
+			if wt == watchTypeOwned && !isOwnedResource(newU, revision, managedByValue) {
 				log.V(1).Info("Skipping update (not owned)", "name", newU.GetName(), "labels", newU.GetLabels())
 				return
 			}
@@ -169,7 +170,7 @@ func makeOwnedEventHandler(gvk schema.GroupVersionKind, wt watchType, revision s
 				return
 			}
 
-			if wt == watchTypeOwned && !isOwnedResource(u, revision) {
+			if wt == watchTypeOwned && !isOwnedResource(u, revision, managedByValue) {
 				log.V(1).Info("Skipping delete (not owned)", "name", u.GetName())
 				return
 			}

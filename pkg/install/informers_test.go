@@ -48,6 +48,7 @@ func TestOwnedHandler_AddIsNoOp(t *testing.T) {
 		schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"},
 		watchTypeOwned,
 		"default",
+		defaultManagedByValue,
 		enqueue,
 	)
 
@@ -58,7 +59,7 @@ func TestOwnedHandler_AddIsNoOp(t *testing.T) {
 func TestOwnedHandler_UpdateOwnedEnqueues(t *testing.T) {
 	enqueue, count := enqueueCounter()
 	gvk := schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}
-	handler := makeOwnedEventHandler(gvk, watchTypeOwned, "default", enqueue)
+	handler := makeOwnedEventHandler(gvk, watchTypeOwned, "default", defaultManagedByValue, enqueue)
 
 	oldObj := makeObj("test", map[string]string{"istio.io/rev": "default"})
 	oldObj.SetGeneration(1)
@@ -72,7 +73,7 @@ func TestOwnedHandler_UpdateOwnedEnqueues(t *testing.T) {
 func TestOwnedHandler_UpdateNotOwnedSkips(t *testing.T) {
 	enqueue, count := enqueueCounter()
 	gvk := schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}
-	handler := makeOwnedEventHandler(gvk, watchTypeOwned, "default", enqueue)
+	handler := makeOwnedEventHandler(gvk, watchTypeOwned, "default", defaultManagedByValue, enqueue)
 
 	oldObj := makeObj("test", map[string]string{"istio.io/rev": "other-revision"})
 	oldObj.SetGeneration(1)
@@ -86,7 +87,7 @@ func TestOwnedHandler_UpdateNotOwnedSkips(t *testing.T) {
 func TestOwnedHandler_UpdateIgnoreAnnotationSkips(t *testing.T) {
 	enqueue, count := enqueueCounter()
 	gvk := schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}
-	handler := makeOwnedEventHandler(gvk, watchTypeOwned, "default", enqueue)
+	handler := makeOwnedEventHandler(gvk, watchTypeOwned, "default", defaultManagedByValue, enqueue)
 
 	oldObj := makeObj("test", map[string]string{"istio.io/rev": "default"})
 	oldObj.SetGeneration(1)
@@ -102,7 +103,7 @@ func TestOwnedHandler_UpdateNamespaceTypeSkipsOwnerCheck(t *testing.T) {
 	enqueue, count := enqueueCounter()
 	gvk := schema.GroupVersionKind{Version: "v1", Kind: "Namespace"}
 	// watchTypeNamespace does not check isOwnedResource
-	handler := makeOwnedEventHandler(gvk, watchTypeNamespace, "default", enqueue)
+	handler := makeOwnedEventHandler(gvk, watchTypeNamespace, "default", defaultManagedByValue, enqueue)
 
 	oldObj := makeObj("istio-system", nil) // no ownership labels
 	oldObj.SetGeneration(1)
@@ -116,7 +117,7 @@ func TestOwnedHandler_UpdateNamespaceTypeSkipsOwnerCheck(t *testing.T) {
 func TestOwnedHandler_DeleteOwnedEnqueues(t *testing.T) {
 	enqueue, count := enqueueCounter()
 	gvk := schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}
-	handler := makeOwnedEventHandler(gvk, watchTypeOwned, "default", enqueue)
+	handler := makeOwnedEventHandler(gvk, watchTypeOwned, "default", defaultManagedByValue, enqueue)
 
 	obj := makeObj("test", map[string]string{"istio.io/rev": "default"})
 	handler.(cache.ResourceEventHandlerFuncs).DeleteFunc(obj)
@@ -126,7 +127,7 @@ func TestOwnedHandler_DeleteOwnedEnqueues(t *testing.T) {
 func TestOwnedHandler_DeleteNotOwnedSkips(t *testing.T) {
 	enqueue, count := enqueueCounter()
 	gvk := schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}
-	handler := makeOwnedEventHandler(gvk, watchTypeOwned, "default", enqueue)
+	handler := makeOwnedEventHandler(gvk, watchTypeOwned, "default", defaultManagedByValue, enqueue)
 
 	obj := makeObj("test", map[string]string{"istio.io/rev": "other"})
 	handler.(cache.ResourceEventHandlerFuncs).DeleteFunc(obj)
@@ -136,7 +137,7 @@ func TestOwnedHandler_DeleteNotOwnedSkips(t *testing.T) {
 func TestOwnedHandler_DeleteTombstoneEnqueues(t *testing.T) {
 	enqueue, count := enqueueCounter()
 	gvk := schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}
-	handler := makeOwnedEventHandler(gvk, watchTypeOwned, "default", enqueue)
+	handler := makeOwnedEventHandler(gvk, watchTypeOwned, "default", defaultManagedByValue, enqueue)
 
 	obj := makeObj("test", map[string]string{"istio.io/rev": "default"})
 	tombstone := cache.DeletedFinalStateUnknown{Key: "test", Obj: obj}

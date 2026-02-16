@@ -330,6 +330,8 @@ func TestStatusReadWrite(t *testing.T) {
 
 
 func TestIsOwnedResource(t *testing.T) {
+	const testManagedByValue = "test-operator"
+
 	tests := []struct {
 		name     string
 		labels   map[string]string
@@ -367,19 +369,25 @@ func TestIsOwnedResource(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "managed by Helm",
+			name:     "managed-by label matches configured value",
+			labels:   map[string]string{"managed-by": testManagedByValue},
+			revision: "default",
+			expected: true,
+		},
+		{
+			name:     "managed-by label does not match configured value",
+			labels:   map[string]string{"managed-by": "something-else"},
+			revision: "default",
+			expected: false,
+		},
+		{
+			name:     "app.kubernetes.io/managed-by Helm fallback",
 			labels:   map[string]string{"app.kubernetes.io/managed-by": "Helm"},
 			revision: "default",
 			expected: true,
 		},
 		{
-			name:     "managed by sail-operator",
-			labels:   map[string]string{"app.kubernetes.io/managed-by": "sail-operator"},
-			revision: "default",
-			expected: true,
-		},
-		{
-			name:     "managed by something else",
+			name:     "app.kubernetes.io/managed-by non-Helm rejected",
 			labels:   map[string]string{"app.kubernetes.io/managed-by": "other"},
 			revision: "default",
 			expected: false,
@@ -391,7 +399,7 @@ func TestIsOwnedResource(t *testing.T) {
 			obj := &unstructured.Unstructured{}
 			obj.SetLabels(tt.labels)
 
-			result := isOwnedResource(obj, tt.revision)
+			result := isOwnedResource(obj, tt.revision, testManagedByValue)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
