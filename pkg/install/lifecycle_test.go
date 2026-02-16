@@ -607,15 +607,19 @@ func TestCIOReconcileLoopConverges(t *testing.T) {
 }
 
 // TestUninstallWithoutApply verifies that Uninstall on an idle library (no
-// prior Apply) is a no-op and returns nil.
+// prior Apply) still attempts the Helm uninstall using the provided args.
 func TestUninstallWithoutApply(t *testing.T) {
 	lib := &Library{
 		workqueue: workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+		inst: &installer{
+			chartManager: helm.NewChartManager(&rest.Config{Host: "https://localhost:1"}, "memory"),
+		},
 	}
 	defer lib.workqueue.ShutDown()
 
-	err := lib.Uninstall(context.Background())
-	assert.NoError(t, err, "Uninstall on idle library should be a no-op")
+	err := lib.Uninstall(context.Background(), "test-ns", "default")
+	// Helm fails since there's no real cluster — that's expected
+	assert.Error(t, err, "Helm uninstall should fail without a real cluster")
 	assert.Nil(t, lib.desiredOpts)
 }
 
@@ -644,11 +648,54 @@ func TestUninstallClearsDesiredOpts(t *testing.T) {
 	// Uninstall clears desiredOpts and closes informerStop.
 	// The Helm uninstall will fail (no real cluster), but the state should
 	// already be cleared before that point.
-	err := lib.Uninstall(context.Background())
+	err := lib.Uninstall(context.Background(), "test-ns", "default")
 
 	// Helm fails since there's no real cluster — that's expected
 	assert.Error(t, err, "Helm uninstall should fail without a real cluster")
 	assert.Nil(t, lib.desiredOpts, "desiredOpts should be nil after Uninstall")
+}
+
+// TestUninstallAfterCrash verifies that a freshly created Library (simulating
+// a crash recovery) can uninstall using explicit namespace/revision args,
+// without any prior Apply() call.
+func TestUninstallAfterCrash(t *testing.T) {
+	lib := &Library{
+		workqueue: workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+		inst: &installer{
+			chartManager: helm.NewChartManager(&rest.Config{Host: "https://localhost:1"}, "memory"),
+		},
+	}
+	defer lib.workqueue.ShutDown()
+
+	// No Apply() — simulates a fresh Library after crash.
+	// desiredOpts is nil, informerStop and processingDone are nil.
+	assert.Nil(t, lib.desiredOpts)
+	assert.Nil(t, lib.informerStop)
+	assert.Nil(t, lib.processingDone)
+
+	// Uninstall should still attempt the Helm uninstall with the provided args.
+	err := lib.Uninstall(context.Background(), "my-namespace", "my-revision")
+
+	// Helm fails (no real cluster) — the point is it attempted the uninstall
+	// instead of silently returning nil.
+	assert.Error(t, err, "Helm uninstall should fail without a real cluster")
+	assert.Nil(t, lib.desiredOpts)
+}
+
+// TestUninstallDefaultsEmptyParams verifies that empty namespace and revision
+// strings are defaulted to "istio-system" and "default".
+func TestUninstallDefaultsEmptyParams(t *testing.T) {
+	lib := &Library{
+		workqueue: workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+		inst: &installer{
+			chartManager: helm.NewChartManager(&rest.Config{Host: "https://localhost:1"}, "memory"),
+		},
+	}
+	defer lib.workqueue.ShutDown()
+
+	// Pass empty strings — should default and still attempt helm uninstall.
+	err := lib.Uninstall(context.Background(), "", "")
+	assert.Error(t, err, "Helm uninstall should fail without a real cluster")
 }
 
 // TestApplyAfterUninstallSetsDesiredOpts verifies that Apply works after

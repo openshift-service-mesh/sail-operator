@@ -103,27 +103,35 @@ func (l *Library) Status() Status {
 // Uninstall is a synchronous, blocking operation. It holds the lifecycle
 // lock, so Apply() will block until Uninstall completes.
 //
-// If no installation is active (desiredOpts is nil), Uninstall is a no-op.
-// After Uninstall, calling Apply() will start a new install cycle.
-func (l *Library) Uninstall(ctx context.Context) error {
+// The caller provides the namespace and revision to uninstall. Empty strings
+// default to "istio-system" and "default" respectively. This allows Uninstall
+// to work even after a crash, when no prior Apply() state exists in memory.
+//
+// If an active reconcile loop is running, it is stopped before the Helm
+// uninstall proceeds. After Uninstall, calling Apply() will start a new
+// install cycle.
+func (l *Library) Uninstall(ctx context.Context, namespace, revision string) error {
 	l.lifecycleMu.Lock()
 	defer l.lifecycleMu.Unlock()
 
 	log := ctrllog.Log.WithName("install")
 
-	// Capture current opts and clear desired state
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+	if revision == "" {
+		revision = defaultRevision
+	}
+
+	// Clear desired state and capture loop handles so we can stop
+	// the processing loop if one is active.
 	l.mu.Lock()
-	opts := l.desiredOpts
 	l.desiredOpts = nil
 	informerStop := l.informerStop
 	processingDone := l.processingDone
 	l.mu.Unlock()
 
-	if opts == nil {
-		return nil // nothing to uninstall
-	}
-
-	log.Info("Uninstalling", "namespace", opts.Namespace, "revision", opts.Revision)
+	log.Info("Uninstalling", "namespace", namespace, "revision", revision)
 
 	// Stop informers so they don't fire events during teardown
 	if informerStop != nil {
@@ -140,15 +148,6 @@ func (l *Library) Uninstall(ctx context.Context) error {
 	}
 
 	// Now safe to Helm uninstall — nothing is watching or reconciling
-	namespace := opts.Namespace
-	revision := opts.Revision
-	if namespace == "" {
-		namespace = defaultNamespace
-	}
-	if revision == "" {
-		revision = defaultRevision
-	}
-
 	if err := l.inst.uninstall(ctx, namespace, revision); err != nil {
 		return err
 	}
