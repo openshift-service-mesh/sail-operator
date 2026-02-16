@@ -112,7 +112,7 @@ KIND_IMAGE ?=
 ifeq ($(KIND_IMAGE),)
   ifeq ($(LOCAL_OS),Darwin)
     # If the OS is Darwin, set the image.
-    KIND_IMAGE := docker.io/kindest/node:v1.35.0
+    KIND_IMAGE := docker.io/kindest/node:v1.35.1
   endif
   # For other OS, KIND_IMAGE remains empty, which default to the upstream default image.
 endif
@@ -215,8 +215,8 @@ test.integration: envtest ## Run integration tests located in the tests/integrat
 	go run github.com/onsi/ginkgo/v2/ginkgo --tags=integration $(GINKGO_FLAGS) ./tests/integration/...
 
 .PHONY: test.scorecard
-test.scorecard: operator-sdk ## Run the operator scorecard test.
-	OPERATOR_SDK=$(OPERATOR_SDK) ${SOURCE_DIR}/tests/scorecard-test.sh
+test.scorecard: operator-sdk ## Run the operator scorecard test. Use OCP=true to run against an existing OCP cluster instead of Kind.
+	OCP=$${OCP:-false} OPERATOR_SDK=$(OPERATOR_SDK) SCORECARD_NAMESPACE="$${SCORECARD_NAMESPACE:-scorecard-test}" ${SOURCE_DIR}/tests/scorecard-test.sh
 
 .PHONY: test.e2e.ocp
 test.e2e.ocp: istioctl ## Run the end-to-end tests against an existing OCP cluster. While running on OCP in downstream you need to set ISTIOCTL_DOWNLOAD_URL to the URL where the istioctl productized binary.
