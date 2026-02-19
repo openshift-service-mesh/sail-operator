@@ -217,10 +217,63 @@ func TestClassifyCRD(t *testing.T) {
 			mgr := newCRDManager(cl)
 
 			crdName := tt.expected.Name
-			result := mgr.classifyCRD(context.Background(), crdName)
+			result := mgr.classifyCRD(context.Background(), crdName, nil)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestClassifyCRD_OverwriteOLM(t *testing.T) {
+	olmCRD := &apiextensionsv1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "envoyfilters.networking.istio.io",
+			Labels: map[string]string{labelOLMManaged: "true"},
+		},
+	}
+
+	t.Run("callback returns true - reclassify as CIO", func(t *testing.T) {
+		cl := fake.NewClientBuilder().WithScheme(crdScheme()).WithObjects(olmCRD).Build()
+		mgr := newCRDManager(cl)
+
+		overwrite := func(_ context.Context, _ *apiextensionsv1.CustomResourceDefinition) bool { return true }
+		result := mgr.classifyCRD(context.Background(), "envoyfilters.networking.istio.io", overwrite)
+		assert.Equal(t, CRDManagedByCIO, result.State)
+		assert.True(t, result.Found)
+	})
+
+	t.Run("callback returns false - stays OLM", func(t *testing.T) {
+		cl := fake.NewClientBuilder().WithScheme(crdScheme()).WithObjects(olmCRD).Build()
+		mgr := newCRDManager(cl)
+
+		overwrite := func(_ context.Context, _ *apiextensionsv1.CustomResourceDefinition) bool { return false }
+		result := mgr.classifyCRD(context.Background(), "envoyfilters.networking.istio.io", overwrite)
+		assert.Equal(t, CRDManagedByOLM, result.State)
+		assert.True(t, result.Found)
+	})
+
+	t.Run("nil callback - stays OLM", func(t *testing.T) {
+		cl := fake.NewClientBuilder().WithScheme(crdScheme()).WithObjects(olmCRD).Build()
+		mgr := newCRDManager(cl)
+
+		result := mgr.classifyCRD(context.Background(), "envoyfilters.networking.istio.io", nil)
+		assert.Equal(t, CRDManagedByOLM, result.State)
+		assert.True(t, result.Found)
+	})
+
+	t.Run("callback receives the CRD object", func(t *testing.T) {
+		cl := fake.NewClientBuilder().WithScheme(crdScheme()).WithObjects(olmCRD).Build()
+		mgr := newCRDManager(cl)
+
+		var receivedCRD *apiextensionsv1.CustomResourceDefinition
+		overwrite := func(_ context.Context, crd *apiextensionsv1.CustomResourceDefinition) bool {
+			receivedCRD = crd
+			return false
+		}
+		mgr.classifyCRD(context.Background(), "envoyfilters.networking.istio.io", overwrite)
+		require.NotNil(t, receivedCRD)
+		assert.Equal(t, "envoyfilters.networking.istio.io", receivedCRD.Name)
+		assert.Equal(t, "true", receivedCRD.Labels[labelOLMManaged])
+	})
 }
 
 func TestUnlabeledCRDNames(t *testing.T) {
@@ -365,7 +418,7 @@ func TestClassifyCRDs(t *testing.T) {
 		).Build()
 		mgr := newCRDManager(cl)
 
-		state, infos := mgr.classifyCRDs(context.Background(), gatewayAPICRDNames)
+		state, infos := mgr.classifyCRDs(context.Background(), gatewayAPICRDNames, nil)
 		assert.Equal(t, CRDManagedByCIO, state)
 		assert.Len(t, infos, 3)
 		// The missing one should be Found=false
@@ -387,7 +440,7 @@ func TestClassifyCRDs(t *testing.T) {
 		).Build()
 		mgr := newCRDManager(cl)
 
-		state, _ := mgr.classifyCRDs(context.Background(), gatewayAPICRDNames)
+		state, _ := mgr.classifyCRDs(context.Background(), gatewayAPICRDNames, nil)
 		assert.Equal(t, CRDMixedOwnership, state)
 	})
 
@@ -395,7 +448,7 @@ func TestClassifyCRDs(t *testing.T) {
 		cl := fake.NewClientBuilder().WithScheme(crdScheme()).Build()
 		mgr := newCRDManager(cl)
 
-		state, infos := mgr.classifyCRDs(context.Background(), nil)
+		state, infos := mgr.classifyCRDs(context.Background(), nil, nil)
 		assert.Equal(t, CRDNoneExist, state)
 		assert.Nil(t, infos)
 	})
@@ -407,7 +460,7 @@ func TestReconcile_NoneExist(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(crdScheme()).Build()
 	mgr := newCRDManager(cl)
 
-	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false)
+	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false, nil)
 	assert.Equal(t, CRDManagedByCIO, result.State)
 	assert.NoError(t, result.Error)
 	assert.Contains(t, result.Message, "installed by CIO")
@@ -435,7 +488,7 @@ func TestReconcile_CIOOwned_Updates(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(crdScheme()).WithObjects(objs...).Build()
 	mgr := newCRDManager(cl)
 
-	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false)
+	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false, nil)
 	assert.Equal(t, CRDManagedByCIO, result.State)
 	assert.NoError(t, result.Error)
 	assert.Contains(t, result.Message, "updated by CIO")
@@ -455,7 +508,7 @@ func TestReconcile_CIOOwned_ReinstallsMissing(t *testing.T) {
 	).Build()
 	mgr := newCRDManager(cl)
 
-	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false)
+	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false, nil)
 	assert.Equal(t, CRDManagedByCIO, result.State)
 	assert.NoError(t, result.Error)
 	assert.Contains(t, result.Message, "reinstalled")
@@ -475,7 +528,7 @@ func TestReconcile_CIOOwned_ReclaimsUnlabeled(t *testing.T) {
 	).Build()
 	mgr := newCRDManager(cl)
 
-	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false)
+	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false, nil)
 	assert.Equal(t, CRDManagedByCIO, result.State)
 	assert.NoError(t, result.Error)
 	assert.Contains(t, result.Message, "reclaimed")
@@ -494,7 +547,7 @@ func TestReconcile_OLMOwned(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(crdScheme()).WithObjects(objs...).Build()
 	mgr := newCRDManager(cl)
 
-	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false)
+	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false, nil)
 	assert.Equal(t, CRDManagedByOLM, result.State)
 	assert.NoError(t, result.Error)
 	assert.Contains(t, result.Message, "OLM")
@@ -508,7 +561,7 @@ func TestReconcile_MixedOwnership(t *testing.T) {
 	).Build()
 	mgr := newCRDManager(cl)
 
-	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false)
+	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false, nil)
 	assert.Equal(t, CRDMixedOwnership, result.State)
 	assert.Error(t, result.Error)
 	assert.Contains(t, result.Error.Error(), "mixed ownership")
@@ -518,10 +571,66 @@ func TestReconcile_NoTargets(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(crdScheme()).Build()
 	mgr := newCRDManager(cl)
 
-	result := mgr.Reconcile(context.Background(), nil, false)
+	result := mgr.Reconcile(context.Background(), nil, false, nil)
 	assert.Equal(t, CRDNoneExist, result.State)
 	assert.NoError(t, result.Error)
 	assert.Contains(t, result.Message, "no target CRDs configured")
+}
+
+// --- TestReconcile_OverwriteOLM ---
+
+func TestReconcile_OLMOwned_OverwriteAdopts(t *testing.T) {
+	var objs []client.Object
+	for _, name := range gatewayAPICRDNames {
+		objs = append(objs, makeCRDStub(name, map[string]string{labelOLMManaged: "true"}))
+	}
+	cl := fake.NewClientBuilder().WithScheme(crdScheme()).WithObjects(objs...).Build()
+	mgr := newCRDManager(cl)
+
+	overwrite := func(_ context.Context, _ *apiextensionsv1.CustomResourceDefinition) bool { return true }
+	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false, overwrite)
+	assert.Equal(t, CRDManagedByCIO, result.State)
+	assert.NoError(t, result.Error)
+
+	for _, name := range gatewayAPICRDNames {
+		crd := getCRDFromClient(t, cl, name)
+		assert.Equal(t, "true", crd.Labels[labelManagedByCIO], "CRD %s should have CIO label after adoption", name)
+		_, hasOLM := crd.Labels[labelOLMManaged]
+		assert.False(t, hasOLM, "CRD %s should not have OLM label after adoption", name)
+	}
+}
+
+func TestReconcile_OLMOwned_OverwriteFalse_LeavesAlone(t *testing.T) {
+	var objs []client.Object
+	for _, name := range gatewayAPICRDNames {
+		objs = append(objs, makeCRDStub(name, map[string]string{labelOLMManaged: "true"}))
+	}
+	cl := fake.NewClientBuilder().WithScheme(crdScheme()).WithObjects(objs...).Build()
+	mgr := newCRDManager(cl)
+
+	overwrite := func(_ context.Context, _ *apiextensionsv1.CustomResourceDefinition) bool { return false }
+	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false, overwrite)
+	assert.Equal(t, CRDManagedByOLM, result.State)
+	assert.NoError(t, result.Error)
+}
+
+func TestReconcile_MixedCIOAndOLM_OverwriteResolves(t *testing.T) {
+	cl := fake.NewClientBuilder().WithScheme(crdScheme()).WithObjects(
+		makeCRDStub("wasmplugins.extensions.istio.io", map[string]string{labelManagedByCIO: "true"}),
+		makeCRDStub("envoyfilters.networking.istio.io", map[string]string{labelOLMManaged: "true"}),
+		makeCRDStub("destinationrules.networking.istio.io", map[string]string{labelOLMManaged: "true"}),
+	).Build()
+	mgr := newCRDManager(cl)
+
+	overwrite := func(_ context.Context, _ *apiextensionsv1.CustomResourceDefinition) bool { return true }
+	result := mgr.Reconcile(context.Background(), makeGatewayAPIValues(), false, overwrite)
+	assert.Equal(t, CRDManagedByCIO, result.State)
+	assert.NoError(t, result.Error)
+
+	for _, name := range gatewayAPICRDNames {
+		crd := getCRDFromClient(t, cl, name)
+		assert.Equal(t, "true", crd.Labels[labelManagedByCIO], "CRD %s should have CIO label", name)
+	}
 }
 
 // --- TestWatchTargets ---
