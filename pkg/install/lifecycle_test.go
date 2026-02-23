@@ -241,6 +241,57 @@ func TestApplyIdempotency(t *testing.T) {
 	assert.Equal(t, opts.Namespace, lib.desiredOpts.Namespace)
 }
 
+func TestEnqueueBeforeApply(t *testing.T) {
+	lib := &Library{}
+
+	// Enqueue before Start (no workqueue) should not panic
+	lib.Enqueue()
+
+	// Enqueue after Start but before Apply should enqueue but not panic
+	lib.workqueue = workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]())
+	defer lib.workqueue.ShutDown()
+
+	lib.Enqueue()
+}
+
+func TestEnqueueBypassesOptionsEqual(t *testing.T) {
+	lib := &Library{
+		workqueue: workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+	}
+	defer lib.workqueue.ShutDown()
+
+	opts := Options{
+		Namespace: "test-ns",
+		Version:   "1.24.0",
+	}
+
+	// Apply and drain
+	lib.Apply(opts)
+	key, _ := lib.workqueue.Get()
+	lib.workqueue.Done(key)
+
+	// Apply with same options is a no-op (idempotent)
+	lib.Apply(opts)
+
+	// But Enqueue bypasses the equal check and adds a work item
+	lib.Enqueue()
+
+	// Should be able to Get an item
+	done := make(chan struct{})
+	go func() {
+		k, _ := lib.workqueue.Get()
+		lib.workqueue.Done(k)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// got the item — Enqueue worked
+	case <-time.After(time.Second):
+		t.Fatal("Enqueue did not add a work item to the queue")
+	}
+}
+
 func TestStatusString(t *testing.T) {
 	tests := []struct {
 		name     string

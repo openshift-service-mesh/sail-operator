@@ -86,6 +86,20 @@ func (l *Library) Apply(opts Options) {
 	}
 }
 
+// Enqueue forces a reconciliation without changing the desired options.
+// Use this when cluster state that affects reconciliation has changed
+// externally but the Options passed to Apply remain the same. For example,
+// if an OLM Subscription managing Istio CRDs is deleted, the CRD ownership
+// labels haven't changed yet, but the consumer knows a takeover is now
+// possible. Calling Enqueue triggers the Library to re-classify CRDs and
+// re-run the Helm install using the previously applied options.
+//
+// Enqueue is a no-op if Apply has not been called yet (no desired state).
+// It is safe to call from any goroutine.
+func (l *Library) Enqueue() {
+	l.enqueue()
+}
+
 // Status returns the latest reconciliation result. This is safe to call
 // from any goroutine. Returns a zero-value Status if no reconciliation
 // has completed yet.
