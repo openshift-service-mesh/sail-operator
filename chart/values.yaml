@@ -1,67 +1,7 @@
 name: sailoperator
 deployment:
   name: sail-operator
-  annotations:
-    images.v1_29_0.ztunnel: gcr.io/istio-release/ztunnel:1.29.0
-    images.v1_29_0.istiod: gcr.io/istio-release/pilot:1.29.0
-    images.v1_29_0.proxy: gcr.io/istio-release/proxyv2:1.29.0
-    images.v1_29_0.cni: gcr.io/istio-release/install-cni:1.29.0
-    images.v1_28_4.ztunnel: gcr.io/istio-release/ztunnel:1.28.4
-    images.v1_28_4.istiod: gcr.io/istio-release/pilot:1.28.4
-    images.v1_28_4.proxy: gcr.io/istio-release/proxyv2:1.28.4
-    images.v1_28_4.cni: gcr.io/istio-release/install-cni:1.28.4
-    images.v1_28_3.ztunnel: gcr.io/istio-release/ztunnel:1.28.3
-    images.v1_28_3.istiod: gcr.io/istio-release/pilot:1.28.3
-    images.v1_28_3.proxy: gcr.io/istio-release/proxyv2:1.28.3
-    images.v1_28_3.cni: gcr.io/istio-release/install-cni:1.28.3
-    images.v1_28_2.ztunnel: gcr.io/istio-release/ztunnel:1.28.2
-    images.v1_28_2.istiod: gcr.io/istio-release/pilot:1.28.2
-    images.v1_28_2.proxy: gcr.io/istio-release/proxyv2:1.28.2
-    images.v1_28_2.cni: gcr.io/istio-release/install-cni:1.28.2
-    images.v1_28_1.ztunnel: gcr.io/istio-release/ztunnel:1.28.1
-    images.v1_28_1.istiod: gcr.io/istio-release/pilot:1.28.1
-    images.v1_28_1.proxy: gcr.io/istio-release/proxyv2:1.28.1
-    images.v1_28_1.cni: gcr.io/istio-release/install-cni:1.28.1
-    images.v1_28_0.ztunnel: gcr.io/istio-release/ztunnel:1.28.0
-    images.v1_28_0.istiod: gcr.io/istio-release/pilot:1.28.0
-    images.v1_28_0.proxy: gcr.io/istio-release/proxyv2:1.28.0
-    images.v1_28_0.cni: gcr.io/istio-release/install-cni:1.28.0
-    images.v1_27_7.ztunnel: gcr.io/istio-release/ztunnel:1.27.7
-    images.v1_27_7.istiod: gcr.io/istio-release/pilot:1.27.7
-    images.v1_27_7.proxy: gcr.io/istio-release/proxyv2:1.27.7
-    images.v1_27_7.cni: gcr.io/istio-release/install-cni:1.27.7
-    images.v1_27_6.ztunnel: gcr.io/istio-release/ztunnel:1.27.6
-    images.v1_27_6.istiod: gcr.io/istio-release/pilot:1.27.6
-    images.v1_27_6.proxy: gcr.io/istio-release/proxyv2:1.27.6
-    images.v1_27_6.cni: gcr.io/istio-release/install-cni:1.27.6
-    images.v1_27_5.ztunnel: gcr.io/istio-release/ztunnel:1.27.5
-    images.v1_27_5.istiod: gcr.io/istio-release/pilot:1.27.5
-    images.v1_27_5.proxy: gcr.io/istio-release/proxyv2:1.27.5
-    images.v1_27_5.cni: gcr.io/istio-release/install-cni:1.27.5
-    images.v1_27_4.ztunnel: gcr.io/istio-release/ztunnel:1.27.4
-    images.v1_27_4.istiod: gcr.io/istio-release/pilot:1.27.4
-    images.v1_27_4.proxy: gcr.io/istio-release/proxyv2:1.27.4
-    images.v1_27_4.cni: gcr.io/istio-release/install-cni:1.27.4
-    images.v1_27_3.ztunnel: gcr.io/istio-release/ztunnel:1.27.3
-    images.v1_27_3.istiod: gcr.io/istio-release/pilot:1.27.3
-    images.v1_27_3.proxy: gcr.io/istio-release/proxyv2:1.27.3
-    images.v1_27_3.cni: gcr.io/istio-release/install-cni:1.27.3
-    images.v1_27_2.ztunnel: gcr.io/istio-release/ztunnel:1.27.2
-    images.v1_27_2.istiod: gcr.io/istio-release/pilot:1.27.2
-    images.v1_27_2.proxy: gcr.io/istio-release/proxyv2:1.27.2
-    images.v1_27_2.cni: gcr.io/istio-release/install-cni:1.27.2
-    images.v1_27_1.ztunnel: gcr.io/istio-release/ztunnel:1.27.1
-    images.v1_27_1.istiod: gcr.io/istio-release/pilot:1.27.1
-    images.v1_27_1.proxy: gcr.io/istio-release/proxyv2:1.27.1
-    images.v1_27_1.cni: gcr.io/istio-release/install-cni:1.27.1
-    images.v1_27_0.ztunnel: gcr.io/istio-release/ztunnel:1.27.0
-    images.v1_27_0.istiod: gcr.io/istio-release/pilot:1.27.0
-    images.v1_27_0.proxy: gcr.io/istio-release/proxyv2:1.27.0
-    images.v1_27_0.cni: gcr.io/istio-release/install-cni:1.27.0
-    images.v1_30-alpha_58342d62.ztunnel: gcr.io/istio-testing/ztunnel:1.30-alpha.58342d620ee2c08a3e60684c1175fe36e96bef02
-    images.v1_30-alpha_58342d62.istiod: gcr.io/istio-testing/pilot:1.30-alpha.58342d620ee2c08a3e60684c1175fe36e96bef02
-    images.v1_30-alpha_58342d62.proxy: gcr.io/istio-testing/proxyv2:1.30-alpha.58342d620ee2c08a3e60684c1175fe36e96bef02
-    images.v1_30-alpha_58342d62.cni: gcr.io/istio-testing/install-cni:1.30-alpha.58342d620ee2c08a3e60684c1175fe36e96bef02
+  annotations: {}
 revisionHistoryLimit: 10
 service:
   port: 8443
