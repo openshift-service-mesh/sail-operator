@@ -6,11 +6,11 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//	http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR Condition OF ANY KIND, either express or implied.
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
@@ -341,7 +341,7 @@ func containerFlag(container string) string {
 // The path is determined with the following priority:
 // 1. App-specific environment variable (e.g., HTTPBIN_KUSTOMIZE_PATH).
 // 2. Custom base path defined in CUSTOM_SAMPLES_PATH.
-// 3. Default path within the project in this case will be: `tests/e2e/samples/httpbin“.
+// 3. Default path within the project in this case will be: `tests/e2e/samples/httpbin`.
 func getKustomizeDir(appName string) string {
 	// If app specific environment variable is set, use it.
 	if customPath := os.Getenv(strings.ToUpper(strings.ReplaceAll(appName, "-", "_") + "_KUSTOMIZE_PATH")); customPath != "" {
@@ -354,4 +354,36 @@ func getKustomizeDir(appName string) string {
 	}
 
 	return filepath.Join(project.RootDir, "tests", "e2e", "samples", appName)
+}
+
+func (k Kubectl) Rollout(action, kind, name string) error {
+	var subcmd string
+
+	switch action {
+	case "restart":
+		subcmd = fmt.Sprintf(" rollout restart %s/%s", kind, name)
+	case "status":
+		subcmd = fmt.Sprintf(" rollout status %s/%s --timeout=300s", kind, name)
+	default:
+		return fmt.Errorf("unsupported rollout action: %s", action)
+	}
+
+	cmd := k.build(subcmd)
+
+	_, err := shell.ExecuteShell(cmd, "")
+	if err != nil {
+		return fmt.Errorf("rollout %s failed: %w", action, err)
+	}
+
+	return nil
+}
+
+// ApplyStringWithForceConflicts applies yaml using server-side apply and forces conflicts
+func (k Kubectl) ApplyStringWithForceConflicts(yamlString string) error {
+	cmd := k.build(" apply --server-side --force-conflicts -f -")
+	_, err := shell.ExecuteCommandWithInput(cmd, yamlString)
+	if err != nil {
+		return fmt.Errorf("error applying yaml with force conflicts: %w", err)
+	}
+	return nil
 }
