@@ -16,7 +16,7 @@ metadata:
               "inactiveRevisionDeletionGracePeriodSeconds": 30,
               "type": "InPlace"
             },
-            "version": "v1.28.3"
+            "version": "v1.28.4"
           }
         },
         {
@@ -27,7 +27,7 @@ metadata:
           },
           "spec": {
             "namespace": "istio-cni",
-            "version": "v1.28.3"
+            "version": "v1.28.4"
           }
         },
         {
@@ -45,7 +45,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: OpenShift Optional, Integration & Delivery, Networking, Security
     containerImage: ${OSSM_OPERATOR_3_3}
-    createdAt: "2026-02-25T04:07:58Z"
+    createdAt: "2026-02-27T15:35:32Z"
     description: The OpenShift Service Mesh Operator enables you to install, configure, and manage an instance of Red Hat OpenShift Service Mesh. OpenShift Service Mesh is based on the open source Istio project.
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "true"
@@ -180,14 +180,15 @@ spec:
         specDescriptors:
           - description: |-
               Defines the version of Istio to install.
-              Must be one of: v1.28-latest, v1.28.3, v1.27-latest, v1.27.5, v1.27.3, v1.26-latest, v1.26.8, v1.26.6, v1.26.4, v1.26.3, v1.26.2.
+              Must be one of: v1.28-latest, v1.28.4, v1.27-latest, v1.27.7, v1.27.5, v1.27.3, v1.26-latest, v1.26.8, v1.26.6, v1.26.4, v1.26.3, v1.26.2.
             displayName: Istio Version
             path: version
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:General
               - urn:alm:descriptor:com.tectonic.ui:select:v1.28-latest
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.3
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.4
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27-latest
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.27.7
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.5
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.3
               - urn:alm:descriptor:com.tectonic.ui:select:v1.26-latest
@@ -233,12 +234,13 @@ spec:
         specDescriptors:
           - description: |-
               Defines the version of Istio to install.
-              Must be one of: v1.28.3, v1.27.5, v1.27.3, v1.26.8, v1.26.6, v1.26.4, v1.26.3, v1.26.2.
+              Must be one of: v1.28.4, v1.27.7, v1.27.5, v1.27.3, v1.26.8, v1.26.6, v1.26.4, v1.26.3, v1.26.2.
             displayName: Istio Version
             path: version
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:General
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.3
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.4
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.27.7
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.5
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.3
               - urn:alm:descriptor:com.tectonic.ui:select:v1.26.8
@@ -280,14 +282,15 @@ spec:
               - urn:alm:descriptor:com.tectonic.ui:select:RevisionBased
           - description: |-
               Defines the version of Istio to install.
-              Must be one of: v1.28-latest, v1.28.3, v1.27-latest, v1.27.5, v1.27.3, v1.26-latest, v1.26.8, v1.26.6, v1.26.4, v1.26.3, v1.26.2.
+              Must be one of: v1.28-latest, v1.28.4, v1.27-latest, v1.27.7, v1.27.5, v1.27.3, v1.26-latest, v1.26.8, v1.26.6, v1.26.4, v1.26.3, v1.26.2.
             displayName: Istio Version
             path: version
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:General
               - urn:alm:descriptor:com.tectonic.ui:select:v1.28-latest
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.3
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.4
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27-latest
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.27.7
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.5
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.3
               - urn:alm:descriptor:com.tectonic.ui:select:v1.26-latest
@@ -351,14 +354,15 @@ spec:
         specDescriptors:
           - description: |-
               Defines the version of Istio to install.
-              Must be one of: v1.28-latest, v1.28.3, v1.27-latest, v1.27.5, v1.27.3, v1.26-latest, v1.26.8, v1.26.6, v1.26.4, v1.26.3, v1.26.2.
+              Must be one of: v1.28-latest, v1.28.4, v1.27-latest, v1.27.7, v1.27.5, v1.27.3, v1.26-latest, v1.26.8, v1.26.6, v1.26.4, v1.26.3, v1.26.2.
             displayName: Istio Version
             path: version
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:General
               - urn:alm:descriptor:com.tectonic.ui:select:v1.28-latest
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.3
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.28.4
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27-latest
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.27.7
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.5
               - urn:alm:descriptor:com.tectonic.ui:select:v1.27.3
               - urn:alm:descriptor:com.tectonic.ui:select:v1.26-latest
@@ -721,16 +725,26 @@ spec:
                   images.v1_26_6.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:8a21e30593e51f2fd2e51d9ab1d0ed2fc43eaa9b98173d7fb74f799d6b2f163d
                   images.v1_26_6.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:47100186c27934adeda3002bb04cac28980ca8854eee7d6e4f4b3f85562e9a8e
                   images.v1_26_6.ztunnel: registry.redhat.io/openshift-service-mesh-tech-preview/istio-ztunnel-rhel9@sha256:f39e2c28ef36fce9f808f3946cc4e4126047e142ad84cb18c222cecceae29730
+                  images.v1_26_8.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:dd02b94ca8e81ad0d0177f187cc7e67a52d58856f92e92bc4a71ab3f3723fd1f
+                  images.v1_26_8.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:e59864113e84cdf5f14d93229af720a1a3ab85b6e2ece8e0477079ab62a14068
+                  images.v1_26_8.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:d607fea2f3f03ba269b90fcaa53f1a0e696113236e125da5be142cbcf89ae4cf
+                  images.v1_26_8.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:b17a2794ec7b94f5c67ac7b6b230b9a699d0eadef0bc35ede58b17df64aa26fc
+                  images.v1_26_8.ztunnel: registry.redhat.io/openshift-service-mesh-tech-preview/istio-ztunnel-rhel9@sha256:9f7b28f8c92b59715f9e1d0b7b463ae870fab5899c2332c53542ec5021541a78
                   images.v1_27_3.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:ddadd677161ad8c1077dd156821d6b4e32742ccbb210e9c14696fa66a58c0867
                   images.v1_27_3.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:0850242436e88f7d82f0f2126de064c7e0f09844f31d8ff0f53dc8d3908075d9
                   images.v1_27_3.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:742bc084c26769ff57cb3aa47b7a35c2b94684c3f67a9388da07a0490a942e5c
                   images.v1_27_3.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:7d15cebf9b62f3f235c0eab5158ac8ff2fda86a1d193490dc94c301402c99da8
                   images.v1_27_3.ztunnel: registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:b2b3216a05f6136ed9ddb71d72d493030c6d6b431682dddffa692c760b6c9ba1
-                  images.v1_28_3.cni: ${ISTIO_CNI_1_28}
-                  images.v1_28_3.istiod: ${ISTIO_PILOT_1_28}
-                  images.v1_28_3.must-gather: ${OSSM_MUST_GATHER_3_3}
-                  images.v1_28_3.proxy: ${ISTIO_PROXY_1_28}
-                  images.v1_28_3.ztunnel: ${ISTIO_ZTUNNEL_1_28}
+                  images.v1_27_5.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:2929b7df3da8228a728945542647ec5450c0585a2ed5cbdb84f8e3d81ab41806
+                  images.v1_27_5.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:2e515a40de141bd4e516bfcf4fd0cbb8d236ac02799a7a35d77ae44f53916bc9
+                  images.v1_27_5.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:d1baba8cb454b62d804dc427d4ccfea928348631c384d1ab3d170e1e2a9d1178
+                  images.v1_27_5.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:650da1e2ad1cb93e6a0231dba7ca1f27f4cccac84e5925135281adc629a0caea
+                  images.v1_27_5.ztunnel: registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:0ae2919cd446e0e1f0a21d0850e7809ba8f44c06d484c023b3bee2787ca4bdd0
+                  images.v1_28_4.cni: ${ISTIO_CNI_1_28}
+                  images.v1_28_4.istiod: ${ISTIO_PILOT_1_28}
+                  images.v1_28_4.must-gather: ${OSSM_MUST_GATHER_3_3}
+                  images.v1_28_4.proxy: ${ISTIO_PROXY_1_28}
+                  images.v1_28_4.ztunnel: ${ISTIO_ZTUNNEL_1_28}
                   kubectl.kubernetes.io/default-container: sail-operator
                 labels:
                   app.kubernetes.io/created-by: servicemeshoperator3
