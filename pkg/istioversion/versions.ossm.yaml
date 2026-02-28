@@ -12,20 +12,29 @@
 # as well as all the Istio CRDs (e.g. VirtualService).
 versions:
   - name: v1.28-latest
-    ref: v1.28.3
-  - name: v1.28.3
-    version: 1.28.3
+    ref: v1.28.4
+  - name: v1.28.4
+    version: 1.28.4
     repo: https://github.com/istio/istio
-    commit: 1.28.3
+    commit: 1.28.4
     charts:
-      # TODO: Update with actual chart URLs from openshift-service-mesh/istio-release
-      - https://istio-release.storage.googleapis.com/charts/base-1.28.3.tgz
-      - https://istio-release.storage.googleapis.com/charts/istiod-1.28.3.tgz
-      - https://istio-release.storage.googleapis.com/charts/gateway-1.28.3.tgz
-      - https://istio-release.storage.googleapis.com/charts/cni-1.28.3.tgz
-      - https://istio-release.storage.googleapis.com/charts/ztunnel-1.28.3.tgz
+      - https://istio-release.storage.googleapis.com/charts/base-1.28.4.tgz
+      - https://istio-release.storage.googleapis.com/charts/istiod-1.28.4.tgz
+      - https://istio-release.storage.googleapis.com/charts/gateway-1.28.4.tgz
+      - https://istio-release.storage.googleapis.com/charts/cni-1.28.4.tgz
+      - https://istio-release.storage.googleapis.com/charts/ztunnel-1.28.4.tgz
   - name: v1.27-latest
-    ref: v1.27.5
+    ref: v1.27.7
+  - name: v1.27.7
+    version: 1.27.7
+    repo: https://github.com/istio/istio
+    commit: 1.27.7
+    charts:
+      - https://istio-release.storage.googleapis.com/charts/base-1.27.7.tgz
+      - https://istio-release.storage.googleapis.com/charts/istiod-1.27.7.tgz
+      - https://istio-release.storage.googleapis.com/charts/gateway-1.27.7.tgz
+      - https://istio-release.storage.googleapis.com/charts/cni-1.27.7.tgz
+      - https://istio-release.storage.googleapis.com/charts/ztunnel-1.27.7.tgz
   - name: v1.27.5
     version: 1.27.5
     repo: https://github.com/istio/istio
