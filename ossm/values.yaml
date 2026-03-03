@@ -18,11 +18,11 @@ deployment:
     images.v1_24_5.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:54cada48e5c9824f255f82daa2ef5bea236919e521d3ea49885f2883ced2b7bc
     images.v1_24_5.ztunnel: registry.redhat.io/openshift-service-mesh-dev-preview-beta/istio-ztunnel-rhel9@sha256:7ea9b82e192402566e69063a4787351be9f1ef50719bfd1a8f5d5940362b3f70
     # 1.24.6 images will be replaced with Konflux built images
-    images.v1_24_6.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:c018e5c2fe81d6b6577cbf32a9aa3f909c69c24ed411e4fa3fa7b4a891ce017e
-    images.v1_24_6.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:836c53299b170a1ef0bc8ce958da2abe14a48b8d84f9298e7c6b3d940fa8a1cc
-    images.v1_24_6.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:54508ddeb570a45b5576d4e128fc6f4114e3bb0ed8cf600f2bcbf80d8b4f6b8a
-    images.v1_24_6.ztunnel: registry.redhat.io/openshift-service-mesh-dev-preview-beta/istio-ztunnel-rhel9@sha256:18897281e5ab5198506c4dd5cc0f5a96245794e6b33f63a2a4a3195bf23fbf60
-    images.v1_24_6.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:892c857d7ea35e60e13a277f5ab1268a4068c316353403a2846f116235d52a7b
+    images.v1_24_6.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:0d8d08879a9af334b1ebb345c58bbd395cbfa77646552485329919e3bd075465
+    images.v1_24_6.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:adcd26b9b64462153973ea1103f1c23c68012af315d804705be9ad927c89f7ff
+    images.v1_24_6.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:0183bcce17e39308d1ceb8f4e7a88923f037f738b342e9673406cc2c44b525ac
+    images.v1_24_6.ztunnel: registry.redhat.io/openshift-service-mesh-dev-preview-beta/istio-ztunnel-rhel9@sha256:2514a14cdec51d4570bed5678624d9406539842607bc52bbc98f3de40308f986
+    images.v1_24_6.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:5e1509e1746653b00125c540258d0eed2397ff74745f2d4854ca7e27f0e109ed
 
     # for unreleased downstream images, use env variables as placeholders, i.e.: images.v1_26_2.cni: ${ISTIO_CNI_1_26}
 service:
