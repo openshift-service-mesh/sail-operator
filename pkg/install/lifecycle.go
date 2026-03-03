@@ -77,7 +77,11 @@ func (l *Library) Apply(opts Options) {
 		copied.Values = copied.Values.DeepCopy()
 	}
 	l.desiredOpts = &copied
-	l.enqueue()
+	// Bypass the rate limiter so explicit user intent is never delayed
+	// by backoff from a previous failure.
+	if l.workqueue != nil {
+		l.workqueue.Add(reconcileKey)
+	}
 
 	// Wake waitForDesiredState if it's blocking
 	select {
@@ -246,10 +250,12 @@ func (l *Library) processWorkQueue(ctx context.Context, notifyCh chan<- struct{}
 		default:
 		}
 
-		// Don't retry on error — the library is event-driven.
-		// State changes trigger informer events, and Apply() enqueues explicitly.
-		// Retrying permanent errors (CRD classification, bad config) just spins.
-		l.workqueue.Forget(key)
+		// On success, reset the rate limiter so the next drift event is
+		// processed immediately. On failure, leave the backoff counter
+		// intact so informer-driven re-enqueues get exponential delay.
+		if status.Error == nil {
+			l.workqueue.Forget(key)
+		}
 		l.workqueue.Done(key)
 	}
 }
@@ -286,10 +292,12 @@ func (l *Library) setStatus(s Status) {
 	l.status = s
 }
 
-// enqueue adds a reconciliation request to the workqueue.
+// enqueue adds a rate-limited reconciliation request to the workqueue.
+// The rate limiter provides exponential backoff when reconciliations fail,
+// preventing tight loops from informer events during Helm rollbacks.
 func (l *Library) enqueue() {
 	if l.workqueue != nil {
-		l.workqueue.Add(reconcileKey)
+		l.workqueue.AddRateLimited(reconcileKey)
 	}
 }
 

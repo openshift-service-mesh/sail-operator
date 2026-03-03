@@ -858,5 +858,63 @@ func TestDoubleUninstallDoesNotPanic(t *testing.T) {
 	assert.Equal(t, "new-ns", lib.desiredOpts.Namespace)
 }
 
+// TestEnqueueBackoffOnFailure verifies that after a failed reconcile (no Forget),
+// informer-driven enqueues via AddRateLimited are delayed with exponential
+// backoff, while Apply's direct Add() bypasses the rate limiter entirely.
+func TestEnqueueBackoffOnFailure(t *testing.T) {
+	baseDelay := 100 * time.Millisecond
+	lib := &Library{
+		workqueue: workqueue.NewTypedRateLimitingQueue(
+			workqueue.NewTypedItemExponentialFailureRateLimiter[string](baseDelay, 2*time.Second),
+		),
+	}
+	defer lib.workqueue.ShutDown()
+
+	// Apply uses Add() directly — should be immediate
+	lib.workqueue.Add(reconcileKey)
+
+	start := time.Now()
+	key, _ := lib.workqueue.Get()
+	assert.Less(t, time.Since(start), 50*time.Millisecond, "Add() should be immediate")
+
+	// Simulate failure: Done without Forget
+	lib.workqueue.Done(key)
+
+	// First informer-driven enqueue after failure
+	lib.enqueue()
+	start = time.Now()
+	key, _ = lib.workqueue.Get()
+	firstDelay := time.Since(start)
+	assert.GreaterOrEqual(t, firstDelay, baseDelay/2, "first failure should be delayed")
+	lib.workqueue.Done(key)
+
+	// Second failure: delay should grow (exponential backoff)
+	lib.enqueue()
+	start = time.Now()
+	key, _ = lib.workqueue.Get()
+	secondDelay := time.Since(start)
+	assert.Greater(t, secondDelay, firstDelay, "backoff should increase on repeated failure")
+	lib.workqueue.Done(key)
+
+	// Apply's Add() bypasses rate limiter even with accumulated backoff
+	lib.workqueue.Add(reconcileKey)
+	start = time.Now()
+	key, _ = lib.workqueue.Get()
+	assert.Less(t, time.Since(start), 50*time.Millisecond, "Add() should bypass rate limiter")
+
+	// Simulate success: Forget resets backoff
+	lib.workqueue.Forget(key)
+	lib.workqueue.Done(key)
+
+	// After Forget, delay should be back to base (less than the exponential delay)
+	lib.enqueue()
+	start = time.Now()
+	key, _ = lib.workqueue.Get()
+	resetDelay := time.Since(start)
+	assert.Less(t, resetDelay, secondDelay, "delay after Forget should reset below previous exponential delay")
+	lib.workqueue.Forget(key)
+	lib.workqueue.Done(key)
+}
+
 // Note: Value computation tests are in pkg/revision and pkg/istiovalues packages.
 // The reconcile() method uses revision.ComputeValues() which is tested there.
