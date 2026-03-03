@@ -143,6 +143,8 @@ func (l *Library) Uninstall(ctx context.Context, namespace, revision string) err
 	l.desiredOpts = nil
 	informerStop := l.informerStop
 	processingDone := l.processingDone
+	l.informerStop = nil
+	l.processingDone = nil
 	l.mu.Unlock()
 
 	log.Info("Uninstalling", "namespace", namespace, "revision", revision)

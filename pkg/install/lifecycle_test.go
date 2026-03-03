@@ -819,5 +819,44 @@ func TestApplyBlocksDuringUninstall(t *testing.T) {
 	assert.Equal(t, int32(1), applyFinished.Load(), "Apply should complete after lock release")
 }
 
+// TestDoubleUninstallDoesNotPanic verifies that calling Uninstall twice does
+// not panic on the second call (closing an already-closed channel), and that
+// Apply still works afterward.
+func TestDoubleUninstallDoesNotPanic(t *testing.T) {
+	lib := &Library{
+		workqueue:   workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+		applySignal: make(chan struct{}, 1),
+		inst: &installer{
+			chartManager: helm.NewChartManager(&rest.Config{Host: "https://localhost:1"}, "memory"),
+		},
+	}
+	defer lib.workqueue.ShutDown()
+
+	// Simulate an active install cycle
+	opts := Options{Namespace: "test-ns", Version: "1.24.0"}
+	opts.applyDefaults()
+	lib.desiredOpts = &opts
+	lib.informerStop = make(chan struct{})
+	lib.processingDone = make(chan struct{})
+	close(lib.processingDone)
+
+	// First Uninstall
+	_ = lib.Uninstall(context.Background(), "test-ns", "default")
+
+	// Second Uninstall must not panic
+	assert.NotPanics(t, func() {
+		_ = lib.Uninstall(context.Background(), "test-ns", "default")
+	})
+
+	assert.Nil(t, lib.desiredOpts)
+	assert.Nil(t, lib.informerStop)
+	assert.Nil(t, lib.processingDone)
+
+	// Apply after double-uninstall should start a new cycle
+	lib.Apply(Options{Namespace: "new-ns", Version: "1.25.0"})
+	assert.NotNil(t, lib.desiredOpts)
+	assert.Equal(t, "new-ns", lib.desiredOpts.Namespace)
+}
+
 // Note: Value computation tests are in pkg/revision and pkg/istiovalues packages.
 // The reconcile() method uses revision.ComputeValues() which is tested there.
