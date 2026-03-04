@@ -42,8 +42,6 @@ _internal_defaults_do_not_set:
   service:
     # Type of service. Set to "None" to disable the service entirely
     type: LoadBalancer
-    # Additional labels to add to the service selector
-    selectorLabels: {}
     ports:
     - name: status-port
       port: 15021
@@ -140,6 +138,9 @@ _internal_defaults_do_not_set:
   #
   # By default, the `podDisruptionBudget` is disabled (set to `{}`),
   # which means that no PodDisruptionBudget resource will be created.
+  #
+  # The PodDisruptionBudget can be only enabled if autoscaling is enabled
+  # with minReplicas > 1 or if autoscaling is disabled but replicaCount > 1.
   #
   # To enable the PodDisruptionBudget, configure it by specifying the
   # `minAvailable` or `maxUnavailable`. For example, to set the

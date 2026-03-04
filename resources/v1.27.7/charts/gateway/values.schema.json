@@ -178,12 +178,6 @@
             "annotations": {
               "type": "object"
             },
-            "selectorLabels": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "string"
-              }
-            },
             "externalTrafficPolicy": {
               "type": "string"
             },
