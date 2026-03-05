@@ -379,7 +379,6 @@ func TestStatusReadWrite(t *testing.T) {
 	assert.Equal(t, CRDManagedByCIO, status.CRDState)
 }
 
-
 func TestIsOwnedResource(t *testing.T) {
 	const testManagedByValue = "test-operator"
 
@@ -856,6 +855,45 @@ func TestDoubleUninstallDoesNotPanic(t *testing.T) {
 	lib.Apply(Options{Namespace: "new-ns", Version: "1.25.0"})
 	assert.NotNil(t, lib.desiredOpts)
 	assert.Equal(t, "new-ns", lib.desiredOpts.Namespace)
+}
+
+// TestUninstallDoesNotDeadlock reproduces a deadlock where processWorkQueue's
+// defer reads a niled l.processingDone (set to nil by Uninstall) and skips
+// closing the channel, causing Uninstall to block forever.
+func TestUninstallDoesNotDeadlock(t *testing.T) {
+	lib := &Library{
+		workqueue:   workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]()),
+		applySignal: make(chan struct{}, 1),
+		inst: &installer{
+			chartManager: helm.NewChartManager(&rest.Config{Host: "https://localhost:1"}, "memory"),
+		},
+	}
+	defer lib.workqueue.ShutDown()
+
+	opts := Options{Namespace: "test-ns", Version: "1.24.0"}
+	opts.applyDefaults()
+	lib.desiredOpts = &opts
+	lib.informerStop = make(chan struct{})
+	lib.processingDone = make(chan struct{})
+
+	notifyCh := make(chan struct{}, 1)
+	processingDone := lib.processingDone
+	go lib.processWorkQueue(context.Background(), notifyCh, processingDone)
+
+	// Let processWorkQueue block on workqueue.Get()
+	time.Sleep(50 * time.Millisecond)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- lib.Uninstall(context.Background(), "test-ns", "default")
+	}()
+
+	select {
+	case <-done:
+		// Uninstall completed — no deadlock
+	case <-time.After(5 * time.Second):
+		t.Fatal("Uninstall deadlocked waiting for processingDone")
+	}
 }
 
 // TestEnqueueBackoffOnFailure verifies that after a failed reconcile (no Forget),

@@ -191,16 +191,20 @@ func (l *Library) run(ctx context.Context, notifyCh chan<- struct{}) {
 			return // ctx cancelled
 		}
 
-		// Active: set up informers for this install cycle
+		// Active: set up informers for this install cycle.
+		// Capture both channels as locals while the lock is held so
+		// Uninstall can't nil the struct fields before we use them.
 		l.mu.Lock()
 		l.informerStop = make(chan struct{})
 		l.processingDone = make(chan struct{})
+		informerStop := l.informerStop
+		processingDone := l.processingDone
 		l.mu.Unlock()
 
-		l.setupInformers(l.informerStop)
+		l.setupInformers(informerStop)
 
 		log.Info("Processing workqueue")
-		l.processWorkQueue(ctx, notifyCh)
+		l.processWorkQueue(ctx, notifyCh, processingDone)
 		log.Info("Workqueue processing stopped, returning to idle")
 
 		// Loop back to idle, waiting for next Apply()
@@ -208,14 +212,13 @@ func (l *Library) run(ctx context.Context, notifyCh chan<- struct{}) {
 }
 
 // processWorkQueue processes work items until desiredOpts goes nil (Uninstall)
-// or the workqueue shuts down (ctx cancelled). It closes l.processingDone on exit
-// so Uninstall() can wait for processing to stop before doing Helm cleanup.
-func (l *Library) processWorkQueue(ctx context.Context, notifyCh chan<- struct{}) {
+// or the workqueue shuts down (ctx cancelled). It closes done on exit so
+// Uninstall() can wait for processing to stop before doing Helm cleanup.
+// The done channel is passed by the caller (run) which captures it under
+// the lock, so Uninstall niling the struct field doesn't affect us.
+func (l *Library) processWorkQueue(ctx context.Context, notifyCh chan<- struct{}, done chan struct{}) {
 	log := ctrllog.Log.WithName("install")
 	defer func() {
-		l.mu.RLock()
-		done := l.processingDone
-		l.mu.RUnlock()
 		if done != nil {
 			close(done)
 		}
