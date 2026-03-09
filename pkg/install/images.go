@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -77,4 +78,124 @@ func SetImageDefaults(resourceFS fs.FS, registry string, images ImageNames) erro
 		}
 	}
 	return nil
+}
+
+// csvDeployment is the minimal structure needed to reach pod template annotations
+// inside a ClusterServiceVersion YAML.
+type csvDeployment struct {
+	Spec struct {
+		Install struct {
+			Spec struct {
+				Deployments []struct {
+					Spec struct {
+						Template struct {
+							Metadata struct {
+								Annotations map[string]string `yaml:"annotations"`
+							} `yaml:"metadata"`
+						} `yaml:"template"`
+					} `yaml:"spec"`
+				} `yaml:"deployments"`
+			} `yaml:"spec"`
+		} `yaml:"install"`
+	} `yaml:"spec"`
+}
+
+// LoadImageDigestsFromCSV reads image references from a ClusterServiceVersion
+// YAML file embedded in csvFS and populates config.Config.ImageDigests.
+//
+// The CSV's pod template annotations are expected to contain keys of the form
+// "images.<version>.<component>" (e.g. "images.v1_27_0.istiod"). Underscores
+// in the version segment are converted to dots (v1_27_0 -> v1.27.0), matching
+// the convention used by config.Read().
+//
+// This is a no-op if config.Config.ImageDigests is already populated.
+//
+// csvFS must contain exactly one *.clusterserviceversion.yaml file at its root.
+func LoadImageDigestsFromCSV(csvFS fs.FS) error {
+	if config.Config.ImageDigests != nil {
+		return nil
+	}
+
+	data, err := readCSVFile(csvFS)
+	if err != nil {
+		return err
+	}
+
+	var csv csvDeployment
+	if err := yaml.Unmarshal(data, &csv); err != nil {
+		return fmt.Errorf("failed to parse CSV YAML: %w", err)
+	}
+
+	annotations := findImageAnnotations(csv)
+	if len(annotations) == 0 {
+		return fmt.Errorf("no image annotations found in CSV")
+	}
+
+	config.Config.ImageDigests = buildImageDigests(annotations)
+	return nil
+}
+
+// readCSVFile finds and reads the first *.clusterserviceversion.yaml in the FS root.
+func readCSVFile(csvFS fs.FS) ([]byte, error) {
+	entries, err := fs.ReadDir(csvFS, ".")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CSV filesystem: %w", err)
+	}
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".clusterserviceversion.yaml") {
+			data, err := fs.ReadFile(csvFS, e.Name())
+			if err != nil {
+				return nil, fmt.Errorf("failed to read %s: %w", e.Name(), err)
+			}
+			return data, nil
+		}
+	}
+	return nil, fmt.Errorf("no *.clusterserviceversion.yaml file found")
+}
+
+// findImageAnnotations extracts annotations starting with "images." from the
+// first deployment in the CSV.
+func findImageAnnotations(csv csvDeployment) map[string]string {
+	deployments := csv.Spec.Install.Spec.Deployments
+	if len(deployments) == 0 {
+		return nil
+	}
+	all := deployments[0].Spec.Template.Metadata.Annotations
+	filtered := make(map[string]string, len(all))
+	for k, v := range all {
+		if strings.HasPrefix(k, "images.") {
+			filtered[k] = v
+		}
+	}
+	return filtered
+}
+
+// buildImageDigests converts flat annotation keys ("images.v1_27_0.istiod")
+// into a map[version]IstioImageConfig, replacing underscores with dots in
+// the version segment.
+func buildImageDigests(annotations map[string]string) map[string]config.IstioImageConfig {
+	digests := make(map[string]config.IstioImageConfig)
+	for key, image := range annotations {
+		// key format: "images.<version>.<component>"
+		parts := strings.SplitN(key, ".", 3)
+		if len(parts) != 3 {
+			continue
+		}
+		version := strings.ReplaceAll(parts[1], "_", ".")
+		component := parts[2]
+
+		cfg := digests[version]
+		switch component {
+		case "istiod":
+			cfg.IstiodImage = image
+		case "proxy":
+			cfg.ProxyImage = image
+		case "cni":
+			cfg.CNIImage = image
+		case "ztunnel":
+			cfg.ZTunnelImage = image
+		}
+		digests[version] = cfg
+	}
+	return digests
 }

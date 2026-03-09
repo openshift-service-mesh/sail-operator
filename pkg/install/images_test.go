@@ -90,3 +90,135 @@ func TestSetImageDefaults(t *testing.T) {
 		assert.Contains(t, config.Config.ImageDigests, "v1.27.1")
 	})
 }
+
+const minimalCSV = `apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  name: test-operator.v1.0.0
+spec:
+  install:
+    spec:
+      deployments:
+        - name: test-operator
+          spec:
+            template:
+              metadata:
+                annotations:
+                  images.v1_27_0.istiod: gcr.io/istio-release/pilot:1.27.0
+                  images.v1_27_0.proxy: gcr.io/istio-release/proxyv2:1.27.0
+                  images.v1_27_0.cni: gcr.io/istio-release/install-cni:1.27.0
+                  images.v1_27_0.ztunnel: gcr.io/istio-release/ztunnel:1.27.0
+                  images.v1_28_1.istiod: gcr.io/istio-release/pilot:1.28.1
+                  images.v1_28_1.proxy: gcr.io/istio-release/proxyv2:1.28.1
+                  images.v1_28_1.cni: gcr.io/istio-release/install-cni:1.28.1
+                  images.v1_28_1.ztunnel: gcr.io/istio-release/ztunnel:1.28.1
+                  unrelated-annotation: something-else
+`
+
+func TestLoadImageDigestsFromCSV(t *testing.T) {
+	t.Run("parses image annotations by version", func(t *testing.T) {
+		config.Config = config.OperatorConfig{}
+		fs := fstest.MapFS{
+			"test.clusterserviceversion.yaml": &fstest.MapFile{
+				Data: []byte(minimalCSV),
+			},
+		}
+
+		err := LoadImageDigestsFromCSV(fs)
+		require.NoError(t, err)
+
+		assert.Len(t, config.Config.ImageDigests, 2)
+
+		v1270 := config.Config.ImageDigests["v1.27.0"]
+		assert.Equal(t, "gcr.io/istio-release/pilot:1.27.0", v1270.IstiodImage)
+		assert.Equal(t, "gcr.io/istio-release/proxyv2:1.27.0", v1270.ProxyImage)
+		assert.Equal(t, "gcr.io/istio-release/install-cni:1.27.0", v1270.CNIImage)
+		assert.Equal(t, "gcr.io/istio-release/ztunnel:1.27.0", v1270.ZTunnelImage)
+
+		v1281 := config.Config.ImageDigests["v1.28.1"]
+		assert.Equal(t, "gcr.io/istio-release/pilot:1.28.1", v1281.IstiodImage)
+		assert.Equal(t, "gcr.io/istio-release/proxyv2:1.28.1", v1281.ProxyImage)
+		assert.Equal(t, "gcr.io/istio-release/install-cni:1.28.1", v1281.CNIImage)
+		assert.Equal(t, "gcr.io/istio-release/ztunnel:1.28.1", v1281.ZTunnelImage)
+	})
+
+	t.Run("handles alpha version with commit hash", func(t *testing.T) {
+		config.Config = config.OperatorConfig{}
+		csv := `apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+spec:
+  install:
+    spec:
+      deployments:
+        - name: op
+          spec:
+            template:
+              metadata:
+                annotations:
+                  images.v1_30-alpha_abc123.istiod: gcr.io/istio-testing/pilot:1.30-alpha.abc123
+                  images.v1_30-alpha_abc123.proxy: gcr.io/istio-testing/proxyv2:1.30-alpha.abc123
+`
+		fs := fstest.MapFS{
+			"op.clusterserviceversion.yaml": &fstest.MapFile{Data: []byte(csv)},
+		}
+
+		err := LoadImageDigestsFromCSV(fs)
+		require.NoError(t, err)
+
+		v := config.Config.ImageDigests["v1.30-alpha.abc123"]
+		assert.Equal(t, "gcr.io/istio-testing/pilot:1.30-alpha.abc123", v.IstiodImage)
+		assert.Equal(t, "gcr.io/istio-testing/proxyv2:1.30-alpha.abc123", v.ProxyImage)
+	})
+
+	t.Run("no-op when ImageDigests already set", func(t *testing.T) {
+		config.Config = config.OperatorConfig{
+			ImageDigests: map[string]config.IstioImageConfig{
+				"v1.27.0": {IstiodImage: "already-set"},
+			},
+		}
+		fs := fstest.MapFS{
+			"test.clusterserviceversion.yaml": &fstest.MapFile{Data: []byte(minimalCSV)},
+		}
+
+		err := LoadImageDigestsFromCSV(fs)
+		require.NoError(t, err)
+
+		assert.Len(t, config.Config.ImageDigests, 1)
+		assert.Equal(t, "already-set", config.Config.ImageDigests["v1.27.0"].IstiodImage)
+	})
+
+	t.Run("error when no CSV file found", func(t *testing.T) {
+		config.Config = config.OperatorConfig{}
+		fs := fstest.MapFS{
+			"something-else.yaml": &fstest.MapFile{Data: []byte("foo: bar")},
+		}
+
+		err := LoadImageDigestsFromCSV(fs)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no *.clusterserviceversion.yaml file found")
+	})
+
+	t.Run("error when CSV has no image annotations", func(t *testing.T) {
+		config.Config = config.OperatorConfig{}
+		csv := `apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+spec:
+  install:
+    spec:
+      deployments:
+        - name: op
+          spec:
+            template:
+              metadata:
+                annotations:
+                  unrelated: value
+`
+		fs := fstest.MapFS{
+			"op.clusterserviceversion.yaml": &fstest.MapFile{Data: []byte(csv)},
+		}
+
+		err := LoadImageDigestsFromCSV(fs)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no image annotations found")
+	})
+}
