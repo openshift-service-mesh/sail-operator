@@ -44,7 +44,7 @@ import (
 	"sync"
 
 	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
-	"github.com/istio-ecosystem/sail-operator/bundle/manifests"
+	"github.com/istio-ecosystem/sail-operator/bundle"
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
@@ -243,7 +243,7 @@ func New(kubeConfig *rest.Config, resourceFS fs.FS) (*Library, error) {
 	}
 
 	// Populate default image refs from the embedded CSV (no-op if already set by config.Read)
-	if err := LoadImageDigestsFromCSV(manifests.CSV); err != nil {
+	if err := LoadImageDigestsFromCSV(bundle.CSV); err != nil {
 		return nil, fmt.Errorf("failed to load image digests from CSV: %w", err)
 	}
 

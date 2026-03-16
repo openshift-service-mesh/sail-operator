@@ -18,6 +18,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/istio-ecosystem/sail-operator/bundle"
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -118,13 +119,8 @@ spec:
 func TestLoadImageDigestsFromCSV(t *testing.T) {
 	t.Run("parses image annotations by version", func(t *testing.T) {
 		config.Config = config.OperatorConfig{}
-		fs := fstest.MapFS{
-			"test.clusterserviceversion.yaml": &fstest.MapFile{
-				Data: []byte(minimalCSV),
-			},
-		}
 
-		err := LoadImageDigestsFromCSV(fs)
+		err := LoadImageDigestsFromCSV([]byte(minimalCSV))
 		require.NoError(t, err)
 
 		assert.Len(t, config.Config.ImageDigests, 2)
@@ -158,11 +154,8 @@ spec:
                   images.v1_30-alpha_abc123.istiod: gcr.io/istio-testing/pilot:1.30-alpha.abc123
                   images.v1_30-alpha_abc123.proxy: gcr.io/istio-testing/proxyv2:1.30-alpha.abc123
 `
-		fs := fstest.MapFS{
-			"op.clusterserviceversion.yaml": &fstest.MapFile{Data: []byte(csv)},
-		}
 
-		err := LoadImageDigestsFromCSV(fs)
+		err := LoadImageDigestsFromCSV([]byte(csv))
 		require.NoError(t, err)
 
 		v := config.Config.ImageDigests["v1.30-alpha.abc123"]
@@ -176,26 +169,12 @@ spec:
 				"v1.27.0": {IstiodImage: "already-set"},
 			},
 		}
-		fs := fstest.MapFS{
-			"test.clusterserviceversion.yaml": &fstest.MapFile{Data: []byte(minimalCSV)},
-		}
 
-		err := LoadImageDigestsFromCSV(fs)
+		err := LoadImageDigestsFromCSV([]byte(minimalCSV))
 		require.NoError(t, err)
 
 		assert.Len(t, config.Config.ImageDigests, 1)
 		assert.Equal(t, "already-set", config.Config.ImageDigests["v1.27.0"].IstiodImage)
-	})
-
-	t.Run("error when no CSV file found", func(t *testing.T) {
-		config.Config = config.OperatorConfig{}
-		fs := fstest.MapFS{
-			"something-else.yaml": &fstest.MapFile{Data: []byte("foo: bar")},
-		}
-
-		err := LoadImageDigestsFromCSV(fs)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "no *.clusterserviceversion.yaml file found")
 	})
 
 	t.Run("error when CSV has no image annotations", func(t *testing.T) {
@@ -213,12 +192,16 @@ spec:
                 annotations:
                   unrelated: value
 `
-		fs := fstest.MapFS{
-			"op.clusterserviceversion.yaml": &fstest.MapFile{Data: []byte(csv)},
-		}
 
-		err := LoadImageDigestsFromCSV(fs)
+		err := LoadImageDigestsFromCSV([]byte(csv))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no image annotations found")
 	})
+}
+
+func TestLoadImageDigestsFromEmbeddedCSV(t *testing.T) {
+	config.Config = config.OperatorConfig{}
+	err := LoadImageDigestsFromCSV(bundle.CSV)
+	require.NoError(t, err)
+	assert.NotEmpty(t, config.Config.ImageDigests, "expected at least one version in CSV image annotations")
 }

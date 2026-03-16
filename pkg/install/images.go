@@ -91,8 +91,8 @@ type csvDeployment struct {
 	} `yaml:"spec"`
 }
 
-// LoadImageDigestsFromCSV reads image references from a ClusterServiceVersion
-// YAML file embedded in csvFS and populates config.Config.ImageDigests.
+// LoadImageDigestsFromCSV reads image references from ClusterServiceVersion
+// YAML bytes and populates config.Config.ImageDigests.
 //
 // The CSV's pod template annotations are expected to contain keys of the form
 // "images.<version>.<component>" (e.g. "images.v1_27_0.istiod"). Underscores
@@ -100,20 +100,13 @@ type csvDeployment struct {
 // the convention used by config.Read().
 //
 // This is a no-op if config.Config.ImageDigests is already populated.
-//
-// csvFS must contain exactly one *.clusterserviceversion.yaml file at its root.
-func LoadImageDigestsFromCSV(csvFS fs.FS) error {
+func LoadImageDigestsFromCSV(csvData []byte) error {
 	if config.Config.ImageDigests != nil {
 		return nil
 	}
 
-	data, err := readCSVFile(csvFS)
-	if err != nil {
-		return err
-	}
-
 	var csv csvDeployment
-	if err := yaml.Unmarshal(data, &csv); err != nil {
+	if err := yaml.Unmarshal(csvData, &csv); err != nil {
 		return fmt.Errorf("failed to parse CSV YAML: %w", err)
 	}
 
@@ -124,24 +117,6 @@ func LoadImageDigestsFromCSV(csvFS fs.FS) error {
 
 	config.Config.ImageDigests = buildImageDigests(annotations)
 	return nil
-}
-
-// readCSVFile finds and reads the first *.clusterserviceversion.yaml in the FS root.
-func readCSVFile(csvFS fs.FS) ([]byte, error) {
-	entries, err := fs.ReadDir(csvFS, ".")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read CSV filesystem: %w", err)
-	}
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".clusterserviceversion.yaml") {
-			data, err := fs.ReadFile(csvFS, e.Name())
-			if err != nil {
-				return nil, fmt.Errorf("failed to read %s: %w", e.Name(), err)
-			}
-			return data, nil
-		}
-	}
-	return nil, fmt.Errorf("no *.clusterserviceversion.yaml file found")
 }
 
 // findImageAnnotations extracts annotations starting with "images." from the
