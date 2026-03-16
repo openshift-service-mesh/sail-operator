@@ -23,15 +23,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const (
-	// downstream registry and image names for OpenShift
-	defaultRegistry     = "registry.redhat.io/openshift-service-mesh"
-	defaultIstiodImage  = "istio-pilot-rhel9"
-	defaultProxyImage   = "istio-proxyv2-rhel9"
-	defaultCNIImage     = "istio-cni-rhel9"
-	defaultZTunnelImage = "istio-ztunnel-rhel9"
-)
-
 // ImageNames defines the image name for each component (without registry or tag).
 type ImageNames struct {
 	Istiod  string

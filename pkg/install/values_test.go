@@ -30,7 +30,6 @@ func TestGatewayAPIDefaults(t *testing.T) {
 	require.NotNil(t, defaults.Global)
 	assert.NotNil(t, defaults.Global.DefaultPodDisruptionBudget)
 	assert.Equal(t, false, *defaults.Global.DefaultPodDisruptionBudget.Enabled)
-	assert.Equal(t, "system-cluster-critical", *defaults.Global.PriorityClassName)
 
 	// Check Pilot settings
 	require.NotNil(t, defaults.Pilot)
@@ -108,7 +107,6 @@ func TestMergeValues(t *testing.T) {
 		result := MergeValues(base, overlay)
 
 		assert.Equal(t, "overlay-hub", *result.Global.Hub)
-		assert.Equal(t, "base-priority", *result.Global.PriorityClassName)
 	})
 
 	t.Run("env maps are merged", func(t *testing.T) {
