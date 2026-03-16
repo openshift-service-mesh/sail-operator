@@ -80,8 +80,8 @@ func TestSetImageDefaults(t *testing.T) {
 		config.Config = config.OperatorConfig{}
 		fs := fstest.MapFS{
 			"v1.27.1/charts/istiod/Chart.yaml": &fstest.MapFile{},
-			"resources.go":                      &fstest.MapFile{},
-			"README.md":                         &fstest.MapFile{},
+			"resources.go":                     &fstest.MapFile{},
+			"README.md":                        &fstest.MapFile{},
 		}
 
 		err := SetImageDefaults(fs, registry, images)

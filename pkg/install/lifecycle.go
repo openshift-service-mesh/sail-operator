@@ -321,4 +321,3 @@ func optionsEqual(a, b Options) bool {
 	bMap := helm.FromValues(b.Values)
 	return reflect.DeepEqual(aMap, bMap)
 }
-

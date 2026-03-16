@@ -36,10 +36,10 @@ func TestDefaultVersion(t *testing.T) {
 
 	t.Run("pre-release versions skipped", func(t *testing.T) {
 		fs := fstest.MapFS{
-			"v1.28.3/charts/.keep":          &fstest.MapFile{},
-			"v1.30-alpha.abc/charts/.keep":   &fstest.MapFile{},
-			"v1.29.0-beta.1/charts/.keep":    &fstest.MapFile{},
-			"v1.29.0-rc.2/charts/.keep":      &fstest.MapFile{},
+			"v1.28.3/charts/.keep":         &fstest.MapFile{},
+			"v1.30-alpha.abc/charts/.keep": &fstest.MapFile{},
+			"v1.29.0-beta.1/charts/.keep":  &fstest.MapFile{},
+			"v1.29.0-rc.2/charts/.keep":    &fstest.MapFile{},
 		}
 		v, err := DefaultVersion(fs)
 		require.NoError(t, err)

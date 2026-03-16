@@ -315,7 +315,8 @@ func TestStatusString(t *testing.T) {
 					{Name: "envoyfilters.networking.istio.io", Found: true, State: CRDManagedByCIO},
 				},
 			},
-			expected: "installed version=1.24.0 crds=ManagedByCIO (CRDs installed by CIO) [wasmplugins.extensions.istio.io:ManagedByCIO, envoyfilters.networking.istio.io:ManagedByCIO]",
+			expected: "installed version=1.24.0 crds=ManagedByCIO (CRDs installed by CIO) " +
+				"[wasmplugins.extensions.istio.io:ManagedByCIO, envoyfilters.networking.istio.io:ManagedByCIO]",
 		},
 		{
 			name: "mixed ownership with missing CRDs",
@@ -329,7 +330,8 @@ func TestStatusString(t *testing.T) {
 				},
 				Error: fmt.Errorf("Istio CRDs have mixed ownership (CIO/OLM/other)"),
 			},
-			expected: "not installed version=1.24.0 crds=MixedOwnership (CRDs have mixed ownership) [wasmplugins.extensions.istio.io:ManagedByOLM, envoyfilters.networking.istio.io:missing] error=Istio CRDs have mixed ownership (CIO/OLM/other)",
+			expected: "not installed version=1.24.0 crds=MixedOwnership (CRDs have mixed ownership) " +
+				"[wasmplugins.extensions.istio.io:ManagedByOLM, envoyfilters.networking.istio.io:missing] error=Istio CRDs have mixed ownership (CIO/OLM/other)",
 		},
 		{
 			name: "installed no CRD details",
