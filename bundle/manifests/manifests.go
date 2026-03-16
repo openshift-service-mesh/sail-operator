@@ -16,5 +16,5 @@ package manifests
 
 import "embed"
 
-//go:embed sailoperator.clusterserviceversion.yaml
+//go:embed servicemeshoperator3.clusterserviceversion.yaml
 var CSV embed.FS
