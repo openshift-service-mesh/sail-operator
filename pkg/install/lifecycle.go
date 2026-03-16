@@ -171,6 +171,7 @@ func (l *Library) Uninstall(ctx context.Context, namespace, revision string) err
 	if err := l.inst.uninstall(ctx, namespace, revision); err != nil {
 		return err
 	}
+	l.setStatus(Status{})
 
 	log.Info("Uninstall complete", "namespace", namespace, "revision", revision)
 	return nil
