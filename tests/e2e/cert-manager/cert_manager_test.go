@@ -6,11 +6,11 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR Condition OF ANY KIND, either express or implied.
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
@@ -28,6 +28,7 @@ import (
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/cleaner"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/common"
 	. "github.com/istio-ecosystem/sail-operator/tests/e2e/util/gomega"
+	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/shell"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -41,7 +42,8 @@ import (
 var latestVersion = istioversion.GetLatestPatchVersions()[0]
 
 var _ = Describe("Cert-manager Installation", Label("smoke", "cert-manager", "slow"), Ordered, func() {
-	SetDefaultEventuallyTimeout(180 * time.Second)
+	// FIX: Increased timeout to 10 minutes to allow OLM enough time to install the operator
+	SetDefaultEventuallyTimeout(10 * time.Minute)
 	SetDefaultEventuallyPollingInterval(time.Second)
 	debugInfoLogged := false
 
@@ -58,19 +60,15 @@ var _ = Describe("Cert-manager Installation", Label("smoke", "cert-manager", "sl
 
 		When("the Cert Manager Operator is deployed", func() {
 			BeforeAll(func() {
-				// Apply OperatorGroup YAML
 				operatorGroupYaml := `
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
   name: openshift-cert-manager-operator
   namespace: cert-manager-operator
-spec:
-  targetNamespaces: []
-  spec: {}`
-				Expect(k.WithNamespace(certManagerOperatorNamespace).CreateFromString(operatorGroupYaml)).To(Succeed(), "OperatorGroup creation failed")
-
-				// Apply Subscription YAML
+spec: {}`
+				Expect(k.WithNamespace(certManagerOperatorNamespace).ApplyString(operatorGroupYaml)).
+					To(Succeed(), "OperatorGroup creation/apply failed")
 				subscriptionYaml := `
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
@@ -83,13 +81,30 @@ spec:
   source: redhat-operators
   sourceNamespace: openshift-marketplace
   installPlanApproval: Automatic`
-				Expect(k.WithNamespace(certManagerOperatorNamespace).CreateFromString(subscriptionYaml)).To(Succeed(), "Subscription creation failed")
+				Expect(k.WithNamespace(certManagerOperatorNamespace).ApplyString(subscriptionYaml)).
+					To(Succeed(), "Subscription creation/apply failed")
 			})
 
 			It("should have subscription created successfully", func() {
 				output, err := k.WithNamespace(certManagerOperatorNamespace).GetYAML("subscription", certManagerDeploymentName)
 				Expect(err).NotTo(HaveOccurred(), "error getting subscription YAML")
 				Expect(output).To(ContainSubstring(certManagerDeploymentName), "Subscription is not created")
+			})
+
+			// FIX: Added explicit wait for the Deployment to exist before checking pods.
+			// This prevents the test from failing if OLM is still processing the InstallPlan.
+			It("waits for the operator deployment to be created by OLM", func(ctx SpecContext) {
+				Eventually(func() error {
+					deployments := &appsv1.DeploymentList{}
+					err := cl.List(ctx, deployments, client.InNamespace(certManagerOperatorNamespace))
+					if err != nil {
+						return err
+					}
+					if len(deployments.Items) == 0 {
+						return fmt.Errorf("no deployments found in namespace %s yet", certManagerOperatorNamespace)
+					}
+					return nil
+				}, 10*time.Minute, 5*time.Second).Should(Succeed(), "Cert Manager Operator Deployment never appeared")
 			})
 
 			It("verifies all cert-manager pods are Ready", func(ctx SpecContext) {
@@ -112,6 +127,23 @@ spec:
 					),
 				).To(Succeed(), "Error patching cert manager")
 				Success("Cert Manager subscription patched")
+
+				Eventually(func() error {
+					// We use shell to check if the endpoint has ready addresses
+					// This command returns the number of ready endpoints
+					val, err := shell.ExecuteShell(
+						fmt.Sprintf("kubectl get endpoints cert-manager-webhook -n %s -o jsonpath='{.subsets[*].addresses[*].ip}'", certManagerNamespace),
+						"",
+					)
+					if err != nil {
+						return err
+					}
+					if strings.TrimSpace(val) == "" {
+						return fmt.Errorf("cert-manager-webhook has no endpoints yet")
+					}
+					return nil
+				}, 5*time.Minute, 5*time.Second).Should(Succeed(), "Cert-manager webhook service never became ready")
+
 				issuerYaml := `
 apiVersion: cert-manager.io/v1
 kind: Issuer
@@ -153,7 +185,9 @@ spec:
     secretName: istio-ca`
 				issuerYaml = fmt.Sprintf(issuerYaml, controlPlaneNamespace, controlPlaneNamespace, controlPlaneNamespace)
 
-				Expect(k.WithNamespace(controlPlaneNamespace).ApplyString(issuerYaml)).To(Succeed(), "Issuer creation failed")
+				Eventually(func() error {
+					return k.WithNamespace(controlPlaneNamespace).ApplyString(issuerYaml)
+				}, 2*time.Minute, 5*time.Second).Should(Succeed(), "Issuer creation failed")
 			})
 
 			It("creates certificate Issuer", func() {
@@ -356,36 +390,59 @@ spec:
 			})
 		})
 
-		When("the cert-manager resources are deleted", func() {
+		When("the cert-manager-operator resources are deleted", func() {
 			BeforeEach(func() {
-				err = k.WithNamespace(certManagerNamespace).Delete("rolebinding", "cert-manager-cert-manager-tokenrequest")
-				if err != nil && !strings.Contains(err.Error(), "NotFound") {
-					Fail("Failed to delete rolebinding: " + err.Error())
+				// 1. Get the CSV name using generic kubectl/oc command via shell
+				// We need this to kill the operator deployment later.
+				csvName, err := shell.ExecuteShell(
+					fmt.Sprintf("oc get subscription openshift-cert-manager-operator -n %s -o jsonpath='{.status.installedCSV}'", certManagerOperatorNamespace),
+					"",
+				)
+				csvName = strings.TrimSpace(csvName)
+
+				// Ignore errors if sub is already gone, but log if found
+				if err == nil && csvName != "" {
+					fmt.Printf("Found CSV to delete: %s\n", csvName)
 				}
 
-				err = k.WithNamespace(certManagerNamespace).Delete("role", "cert-manager-tokenrequest")
+				// 2. Delete the Subscription
+				err = k.WithNamespace(certManagerOperatorNamespace).Delete("subscription", "openshift-cert-manager-operator")
 				if err != nil && !strings.Contains(err.Error(), "NotFound") {
-					Fail("Failed to delete role: " + err.Error())
+					Fail("Failed to delete Subscription: " + err.Error())
+				}
+
+				// 3. Delete the OperatorGroup
+				err = k.WithNamespace(certManagerOperatorNamespace).Delete("operatorgroup", "openshift-cert-manager-operator")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete OperatorGroup: " + err.Error())
+				}
+
+				// 4. Explicitly delete the CSV (This stops the Operator Pod)
+				if csvName != "" {
+					err = k.WithNamespace(certManagerOperatorNamespace).Delete("clusterserviceversion", csvName)
+					if err != nil && !strings.Contains(err.Error(), "NotFound") {
+						fmt.Printf("Warning: Failed to delete CSV %s: %v\n", csvName, err)
+					}
 				}
 			})
 
-			It("removes rolebinding cert-manager-tokenrequest from the cluster", func() {
+			It("removes subscription from the cert-manager-operator namespace", func() {
 				Eventually(func() string {
-					output, _ := k.WithNamespace(certManagerNamespace).GetYAML("rolebinding", "cert-manager-cert-manager-tokenrequest")
+					// Use GetYAML generic method which we know exists
+					output, _ := k.WithNamespace(certManagerOperatorNamespace).GetYAML("subscription", "openshift-cert-manager-operator")
 					return strings.TrimSpace(output)
-				}, 60*time.Second, 5*time.Second).Should(BeEmpty(), "rolebinding cert-manager-tokenrequest is not removed")
-				Success("rolebinding cert-manager-tokenrequest is removed")
+				}, 60*time.Second, 5*time.Second).Should(BeEmpty(), "subscription is not removed")
+				Success("subscription is removed")
 			})
 
-			It("removes role cert-manager-tokenrequest from the cluster", func() {
+			It("removes operatorgroup from the cert-manager-operator namespace", func() {
 				Eventually(func() string {
-					output, _ := k.WithNamespace(certManagerNamespace).GetYAML("role", "cert-manager-tokenrequest")
+					output, _ := k.WithNamespace(certManagerOperatorNamespace).GetYAML("operatorgroup", "openshift-cert-manager-operator")
 					return strings.TrimSpace(output)
-				}, 60*time.Second, 5*time.Second).Should(BeEmpty(), "role cert-manager-tokenrequest is not removed")
-				Success("role cert-manager-tokenrequest is removed")
+				}, 60*time.Second, 5*time.Second).Should(BeEmpty(), "operatorgroup is not removed")
+				Success("operatorgroup is removed")
 			})
 		})
-
 		// We are unable to use the standard cleanup method from other tests.
 		// Before deleting istio-csr we need to delete components that reference to istio-csr.
 		// For details, see: https://github.com/openshift-service-mesh/sail-operator/tree/main/docs/ossm/cert-manager
