@@ -196,7 +196,7 @@ SHELL = /bin/bash -o pipefail
 .SHELLFLAGS = -ec
 
 .PHONY: all
-all: build
+all: build lint test.unit
 
 export
 
@@ -567,8 +567,8 @@ RUNME ?= $(LOCALBIN)/runme
 MISSPELL ?= $(LOCALBIN)/misspell
 
 ## Tool Versions
-OPERATOR_SDK_VERSION ?= v1.42.0
-HELM_VERSION ?= v3.20.0
+OPERATOR_SDK_VERSION ?= v1.42.1
+HELM_VERSION ?= v3.20.1
 CONTROLLER_TOOLS_VERSION ?= v0.20.1
 CONTROLLER_RUNTIME_BRANCH ?= release-0.23
 OPM_VERSION ?= v1.64.0
