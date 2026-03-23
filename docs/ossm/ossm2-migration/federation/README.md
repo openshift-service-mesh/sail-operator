@@ -262,7 +262,12 @@ For the purpose of this demo, we created **different** root and intermediate CAs
      --from-file=root-cert.pem=$EAST_CERT_DIR/root-cert.pem
    ```
    ```shell
-   EAST_INGRESS_IP=$(keast get svc federation-ingress -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+   EAST_INGRESS_ADDR=$(keast get svc federation-ingress -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
+   if [ -z "$EAST_INGRESS_ADDR" ]; then
+     echo "Error: LoadBalancer address not assigned yet. Please wait a moment and try again."
+   else
+     echo "East ingress address: $EAST_INGRESS_ADDR"
+   fi
    ```
    ```shell
    kwest apply -f - <<EOF
@@ -274,7 +279,7 @@ For the purpose of this demo, we created **different** root and intermediate CAs
    spec:
      remote:
        addresses:
-       - "$EAST_INGRESS_IP"
+       - "$EAST_INGRESS_ADDR"
        discoveryPort: 8188
        servicePort: 15443
      gateways:
@@ -298,7 +303,12 @@ For the purpose of this demo, we created **different** root and intermediate CAs
      --from-file=root-cert.pem=$WEST_CERT_DIR/root-cert.pem
    ```
    ```shell
-   WEST_INGRESS_IP=$(kwest get svc federation-ingress -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+   WEST_INGRESS_ADDR=$(kwest get svc federation-ingress -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
+   if [ -z "$WEST_INGRESS_ADDR" ]; then
+     echo "Error: LoadBalancer address (IP or Hostname) not yet assigned."
+   else
+     echo "West ingress address: $WEST_INGRESS_ADDR"
+   fi
    ```
    ```shell
    keast apply -f - <<EOF
@@ -310,7 +320,7 @@ For the purpose of this demo, we created **different** root and intermediate CAs
    spec:
      remote:
        addresses:
-       - "$WEST_INGRESS_IP"
+       - "$WEST_INGRESS_ADDR"
        discoveryPort: 8188
        servicePort: 15443
      gateways:
