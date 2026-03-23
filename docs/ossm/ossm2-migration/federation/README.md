@@ -46,8 +46,8 @@ This approach is particularly useful when:
 Before beginning the migration, ensure you have:
 
 - Two OpenShift 4.19+ clusters with cluster-admin access. OpenShift 4.19 and newer versions include built-in support for the Kubernetes Gateway API, which is required for this migration.
-- Network connectivity between clusters for cross-cluster communication
-- OSSM 2.6.13+ and OSSM 3.2.1+ operators installed in both clusters
+- Network connectivity between clusters for cross-cluster communication.
+- Latest OSSM 2.6.z and 3.0.z operators installed in all clusters.
 
 ### Environment Setup
 
