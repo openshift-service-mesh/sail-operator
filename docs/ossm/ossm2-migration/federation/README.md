@@ -624,7 +624,14 @@ To prepare the mesh for disabling the federation feature, configure the followin
 1. Create a remote Gateway for each remote network:
 
    ```shell
-   WEST_REMOTE_IP=$(kwest get svc eastwestgateway-istio -n istio-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+   WEST_EW_GW_ADDR=$(kwest get svc eastwestgateway-istio -n istio-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
+   if [ -z "$WEST_EW_GW_ADDR" ]; then
+     echo "Error: LoadBalancer address (IP or Hostname) not yet assigned."
+   else
+     echo "West E/W gateway address: $WEST_EW_GW_ADDR"
+   fi
+   ```
+   ```shell
    keast apply -f - <<EOF
    apiVersion: gateway.networking.k8s.io/v1beta1
    kind: Gateway
@@ -636,7 +643,8 @@ To prepare the mesh for disabling the federation feature, configure the followin
    spec:
      gatewayClassName: istio-remote
      addresses:
-     - value: "$WEST_REMOTE_IP"
+     - value: "$WEST_EW_GW_ADDR"
+       type: $([[ $WEST_EW_GW_ADDR =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && echo "IPAddress" || echo "Hostname")
      listeners:
      - name: cross-network
        port: 15443
