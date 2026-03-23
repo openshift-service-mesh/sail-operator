@@ -337,7 +337,7 @@ For the purpose of this demo, we created **different** root and intermediate CAs
    EOF
    ```
 
-1. Verify the ServiceMeshPeer status:
+1. Verify the ServiceMeshPeer status (it may take up to 5 minutes to become ready):
 
    ```shell
    keast get servicemeshpeer west-mesh -n istio-system -o jsonpath='{.status}' | jq
@@ -410,7 +410,7 @@ For the purpose of this demo, we created **different** root and intermediate CAs
    EOF
    ```
 
-1. Verify exported and imported services and wait until you see the following statuses:
+1. Verify exported and imported services and wait until you see the following statuses (it may take up to 5 minutes to see the expected status):
 
     ```shell
     kwest get exportedserviceset east-mesh -n istio-system -o jsonpath='{.status}' | jq
