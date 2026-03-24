@@ -802,7 +802,7 @@ To prepare the mesh for disabling the federation feature, configure the followin
    metadata:
      name: default
    spec:
-     version: v1.27.3
+     version: v1.24-latest
      namespace: istio-cni
    EOF
    ```
@@ -814,7 +814,7 @@ To prepare the mesh for disabling the federation feature, configure the followin
      name: default
    spec:
      namespace: istio-system
-     version: v1.27.3
+     version: v1.24-latest
      updateStrategy:
        type: RevisionBased
      values:
@@ -878,7 +878,7 @@ To prepare the mesh for disabling the federation feature, configure the followin
    metadata:
      name: default
    spec:
-     version: v1.27.3
+     version: v1.24-latest
      namespace: istio-cni
    EOF
    ```
@@ -890,7 +890,7 @@ To prepare the mesh for disabling the federation feature, configure the followin
      name: default
    spec:
      namespace: istio-system
-     version: v1.27.3
+     version: v1.24-latest
      updateStrategy:
        type: RevisionBased
      values:
@@ -950,12 +950,12 @@ To prepare the mesh for disabling the federation feature, configure the followin
 
     ```shell
     # east
-    keast label ns client istio.io/rev=default-v1-27-3 maistra.io/ignore-namespace="true" istio-injection- --overwrite=true
+    keast label ns client istio.io/rev=default-v1-24-latest maistra.io/ignore-namespace="true" istio-injection- --overwrite=true
     keast rollout restart deploy/curl -n client
     # west
-    kwest label ns a istio.io/rev=default-v1-27-3 maistra.io/ignore-namespace="true" istio-injection- --overwrite=true
+    kwest label ns a istio.io/rev=default-v1-24-latest maistra.io/ignore-namespace="true" istio-injection- --overwrite=true
     kwest rollout restart deploy/httpbin -n a
-    kwest label ns b istio.io/rev=default-v1-27-3 maistra.io/ignore-namespace="true" istio-injection- --overwrite=true
+    kwest label ns b istio.io/rev=default-v1-24-latest maistra.io/ignore-namespace="true" istio-injection- --overwrite=true
     kwest rollout restart deploy/httpbin -n b
     ```
 
