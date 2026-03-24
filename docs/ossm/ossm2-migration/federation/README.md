@@ -959,31 +959,15 @@ To prepare the mesh for disabling the federation feature, configure the followin
     kwest rollout restart deploy/httpbin -n b
     ```
 
-1. Disable support for Kubernetes Gateway API in SMCP to ensure that the east-west gateway will be managed by the new control plane:
-
-    ```shell
-    kwest patch smcp basic -n istio-system --type=merge -p '{
-      "spec": {
-        "runtime": {
-          "components": {
-            "pilot": {
-              "container": {
-                "env": {
-                  "PILOT_ENABLE_GATEWAY_API": "false"
-                }
-              }
-            }
-          }
-        }
-      }
-    }'
-    ```
-
 1. Update labels on `istio-ingress` namespace to trigger gateway reconciliation by the new control plane:
 
     ```shell
-    kwest label ns istio-ingress istio.io/rev=default-v1-27-3 maistra.io/ignore-namespace="true" istio-injection- --overwrite=true
+    kwest label gateways.gateway.networking.k8s.io eastwestgateway -n istio-ingress istio.io/rev=default-v1-24-latest maistra.io/ignore="true" --overwrite=true
     ```
+
+   > [!NOTE]
+   > Apply labels directly to the `Gateway` resource.
+   > Labels applied to the namespace are not propagated to the `Gateway` and will have no effect on its configuration.
 
 #### Post-migration steps
 
