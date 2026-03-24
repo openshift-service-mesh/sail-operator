@@ -744,19 +744,11 @@ To prepare the mesh for disabling the federation feature, configure the followin
 > - `subjectAltNames` specifies the expected service identity
 > - `network` must match `topology.istio.io/network` specified in the `istio-remote` gateway to ensure the correct address is assigned to the endpoint.
 
-> [!IMPORTANT]
-> During migration, endpoints from ServiceEntries may not be immediately pushed to the client proxy due to conflicts with existing entries in Istio's internal service registry.
-> To verify that endpoints have been configured, run:
->
-> ```shell
-> ieast pc endpoints deploy/curl -n client | grep httpbin
-> ```
->
-> If no endpoints are shown, restart the client pod to trigger endpoint synchronization:
->
-> ```shell
-> keast rollout restart deploy/curl -n client
-> ```
+1. Restart the client pod to ensure endpoint synchronization:
+
+   ```shell
+   keast rollout restart deploy/curl -n client
+   ```
 
 #### Verification steps
 
