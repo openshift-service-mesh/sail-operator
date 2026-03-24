@@ -858,6 +858,7 @@ To prepare the mesh for disabling the federation feature, configure the followin
        pilot:
          env:
            ISTIO_MULTIROOT_MESH: "true"
+           PILOT_ENABLE_IP_AUTOALLOCATE: "true"
        global:
          network: network-east-mesh
    EOF
@@ -934,6 +935,7 @@ To prepare the mesh for disabling the federation feature, configure the followin
        pilot:
          env:
            ISTIO_MULTIROOT_MESH: "true"
+           PILOT_ENABLE_IP_AUTOALLOCATE: "true"
        global:
          network: network-west-mesh
    EOF
