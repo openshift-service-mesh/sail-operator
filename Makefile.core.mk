@@ -85,6 +85,8 @@ IMAGE_BASE ?= sail-operator
 IMAGE ?= ${HUB}/${IMAGE_BASE}:${TAG}
 # Namespace to deploy the controller in
 NAMESPACE ?= sail-operator
+# Prevent overwriting existing images in registry (default: false, set to true in release workflows)
+PREVENT_IMAGE_OVERWRITE ?= false
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION ?= 1.30.0
 
@@ -314,6 +316,22 @@ endif
 
 .PHONY: docker-buildx
 docker-buildx: build-all ## Build and push docker image with cross-platform support.
+ifeq ($(PREVENT_IMAGE_OVERWRITE),true)
+	@echo "Checking if image ${IMAGE} already exists..."
+	@if command -v skopeo >/dev/null 2>&1; then \
+		if skopeo inspect docker://${IMAGE} >/dev/null 2>&1; then \
+			echo "ERROR: Image tag ${IMAGE} already exists in the registry!"; \
+			echo "Please ensure you are releasing a new version."; \
+			exit 1; \
+		else \
+			echo "Image tag ${IMAGE} does not exist. Proceeding with build and push."; \
+		fi; \
+	else \
+		echo "ERROR: skopeo is not installed. Cannot verify if image already exists."; \
+		echo "Install skopeo or set PREVENT_IMAGE_OVERWRITE=false to skip this check."; \
+		exit 1; \
+	fi
+endif
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	docker buildx ls --format "{{.Name}}" | grep project-v4-builder || docker buildx create --name project-v4-builder
@@ -567,15 +585,15 @@ RUNME ?= $(LOCALBIN)/runme
 MISSPELL ?= $(LOCALBIN)/misspell
 
 ## Tool Versions
-OPERATOR_SDK_VERSION ?= v1.42.1
+OPERATOR_SDK_VERSION ?= v1.42.2
 HELM_VERSION ?= v3.20.1
 CONTROLLER_TOOLS_VERSION ?= v0.20.1
 CONTROLLER_RUNTIME_BRANCH ?= release-0.23
 OPM_VERSION ?= v1.64.0
 OLM_VERSION ?= v0.41.0
-GITLEAKS_VERSION ?= v8.30.0
+GITLEAKS_VERSION ?= v8.30.1
 ISTIOCTL_VERSION ?= 1.26.2
-RUNME_VERSION ?= 3.16.5
+RUNME_VERSION ?= 3.16.6
 MISSPELL_VERSION ?= v0.3.4
 
 .PHONY: helm $(HELM)
@@ -791,6 +809,10 @@ lint-spell: misspell
 misspell: $(LOCALBIN) ## Download misspell to bin directory.
 	@test -s $(LOCALBIN)/misspell || GOBIN=$(LOCALBIN) go install github.com/client9/misspell/cmd/misspell@$(MISSPELL_VERSION)
 
+.PHONY: lint-helm
+lint-helm:
+	@find ./chart ./resources -name 'Chart.yaml' -exec dirname {} \; | xargs -r helm lint
+
 .PHONY: lint
 lint: lint-scripts lint-licenses lint-copyright-banner lint-go lint-yaml lint-helm lint-bundle lint-watches lint-secrets lint-spell ## Run all linters.
 
@@ -806,7 +828,7 @@ git-hook: gitleaks ## Installs gitleaks as a git pre-commit hook.
 
 .SILENT: helm $(HELM) $(LOCALBIN) deploy-yaml gen-api operator-name operator-chart
 
-COMMON_IMPORTS ?= mirror-licenses dump-licenses lint-all lint-licenses lint-scripts lint-copyright-banner lint-go lint-yaml lint-helm format-go tidy-go check-clean-repo update-common
+COMMON_IMPORTS ?= mirror-licenses dump-licenses lint-all lint-licenses lint-scripts lint-copyright-banner lint-go lint-yaml format-go tidy-go check-clean-repo update-common
 .PHONY: $(COMMON_IMPORTS)
 $(COMMON_IMPORTS):
 	@$(MAKE) --no-print-directory -f common/Makefile.common.mk $@
