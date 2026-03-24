@@ -792,6 +792,9 @@ To prepare the mesh for disabling the federation feature, configure the followin
 
 #### Install OSSM 3 control plane
 
+> [!IMPORTANT]
+> Before proceeding, review the [OSSM 2.6 to 3.0 Migration Guide](../README.md) for the pre-migration checklist and general guidance on migrating ClusterWide SMCP. The migration process involves several considerations that should be understood before continuing.
+
 1. East cluster:
 
    ```shell
