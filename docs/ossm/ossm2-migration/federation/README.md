@@ -966,6 +966,13 @@ To prepare the mesh for disabling the federation feature, configure the followin
    > Apply labels directly to the `Gateway` resource.
    > Labels applied to the namespace are not propagated to the `Gateway` and will have no effect on its configuration.
 
+1. Verify connectivity:
+
+    ```shell
+    keast exec -n client deploy/curl -c curl -- curl -v httpbin.a.svc.west-mesh-imports.local:8000/headers
+    keast exec -n client deploy/curl -c curl -- curl -v httpbin.b.svc.cluster.local:8000/headers
+    ```
+
 #### Post-migration steps
 
 1. **Resource cleanup** - once all proxies and gateways are managed by the new control plane, you can delete all OSSM 2-related resources. See [Cleaning up OpenShift Service Mesh 2.6 after migration](../cleaning-2.6/README.md#remove-26-control-planes) for detailed instructions.
