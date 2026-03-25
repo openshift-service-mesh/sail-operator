@@ -33,7 +33,9 @@ require (
 	k8s.io/apimachinery v0.34.3
 	k8s.io/cli-runtime v0.33.3
 	k8s.io/client-go v0.34.3
+	k8s.io/utils v0.0.0-20250820121507-0af2bda4dd1d
 	sigs.k8s.io/controller-runtime v0.22.5
+	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
@@ -175,7 +177,6 @@ require (
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250814151709-d7b6acb124c3 // indirect
 	k8s.io/kubectl v0.33.3 // indirect
-	k8s.io/utils v0.0.0-20250820121507-0af2bda4dd1d // indirect
 	oras.land/oras-go/v2 v2.6.0 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.32.1 // indirect
 	sigs.k8s.io/controller-tools v0.14.0 // indirect
@@ -184,7 +185,6 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.19.0 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
-	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
 replace istio.io/istio => github.com/openshift-service-mesh/istio v0.0.0-20260319123329-abdbf45d7cca
