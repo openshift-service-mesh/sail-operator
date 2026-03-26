@@ -72,7 +72,10 @@ main () {
   set -e
 
   # generate everything regardless of detected conflicts
-  rm -rf bundle/**/*.yaml resources/v* bundle.Dockerfile
+  # we can't remove servicemeshoperator3.clusterserviceversion.yaml as it's embedded in bundle/bundle.go
+  # and mirror-licenses make target fails if it's missing
+  find bundle -name "*.yaml" -not -name "servicemeshoperator3.clusterserviceversion.yaml" -delete
+  rm -rf resources/v* bundle.Dockerfile
   updateVersionsInOssmValuesYaml
   # even if we specify ossm/values.yaml via HELM_VALUES_FILE, helm by design merges annotations specified in chart/values.yaml and ossm/values.yaml
   # to only keep annotations specified in ossm/values.yaml, it's necessary to overwrite all annotations in chart/values.yaml
