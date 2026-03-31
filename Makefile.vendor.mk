@@ -5,6 +5,7 @@ DEFAULT_CHANNEL = stable
 HELM_VALUES_FILE = ossm/values.yaml
 USE_IMAGE_DIGESTS = false
 PATCH_HELM_VALUES = false
+OCP = true
 
 .PHONY: build-fips
 build-fips: ## Build sail-operator binary for FIPS mode.
