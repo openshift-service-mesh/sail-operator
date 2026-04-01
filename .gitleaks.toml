@@ -1,0 +1,8 @@
+[allowlist]
+  description = "Test-only certificates used in docs"
+
+  paths = [
+    '''docs/ossm/ossm2-migration/federation/east/ca-key.pem''',
+    '''docs/ossm/ossm2-migration/federation/west/ca-key.pem'''
+  ]
+
