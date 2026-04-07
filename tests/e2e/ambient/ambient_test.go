@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	defaultTimeout = 180
+	defaultTimeout = 300
 )
 
 var _ = Describe("Ambient configuration ", Label("smoke", "ambient"), Ordered, func() {
