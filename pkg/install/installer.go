@@ -126,6 +126,7 @@ func (inst *installer) resolveValues(opts Options) (string, *v1.Values, error) {
 		"",
 		inst.resourceFS,
 		opts.Revision,
+		nil,
 	)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to compute values: %w", err)
