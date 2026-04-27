@@ -203,6 +203,16 @@ func (k Kubectl) ForceDelete(kind, name string) error {
 	return k.Delete(kind, name)
 }
 
+// WaitForCondition waits for a condition on resources using kubectl wait
+func (k Kubectl) WaitForCondition(kind, condition, timeout string) error {
+	cmd := k.build(fmt.Sprintf(" wait %s --for=%s --all --timeout=%s", kind, condition, timeout))
+	_, err := k.executeCommand(cmd)
+	if err != nil {
+		return fmt.Errorf("error waiting for condition: %w", err)
+	}
+	return nil
+}
+
 // GetYAML returns the yaml of a resource
 func (k Kubectl) GetYAML(kind, name string) (string, error) {
 	cmd := k.build(fmt.Sprintf(" get %s %s -o yaml", kind, name))
