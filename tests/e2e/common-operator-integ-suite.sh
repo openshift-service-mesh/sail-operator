@@ -367,6 +367,34 @@ check_cluster_operators
 set +e
 # Disable to avoid failing the test run before generating the report.xml
 # Capture the test exit code and allow cleanup via trap to run
+
+# Set GOMEMLIMIT to 80% of container memory limit if not already set
+if [ -z "${GOMEMLIMIT:-}" ]; then
+  # Try cgroups v2 first, then v1
+  if [ -f /sys/fs/cgroup/memory.max ]; then
+    MEM_LIMIT=$(cat /sys/fs/cgroup/memory.max)
+    echo "DEBUG: Found cgroups v2 memory.max: ${MEM_LIMIT}"
+  elif [ -f /sys/fs/cgroup/memory/memory.limit_in_bytes ]; then
+    MEM_LIMIT=$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes)
+    echo "DEBUG: Found cgroups v1 memory.limit_in_bytes: ${MEM_LIMIT}"
+  else
+    echo "DEBUG: No cgroups memory limit file found, using default 4GiB"
+    # Default to 4GiB if we can't detect the limit
+    GOMEMLIMIT="4GiB"
+  fi
+  # Calculate 80% if we got a valid numeric limit (not "max" or very large value indicating no limit)
+  if [ -n "${MEM_LIMIT:-}" ] && [ "${MEM_LIMIT}" != "max" ] && [ "${MEM_LIMIT}" -lt 9223372036854771712 ] 2>/dev/null; then
+    GOMEMLIMIT=$((MEM_LIMIT * 80 / 100))
+    echo "Setting GOMEMLIMIT to 80% of container limit: ${GOMEMLIMIT} bytes"
+  fi
+fi
+
+# Export GOMEMLIMIT if set
+if [ -n "${GOMEMLIMIT:-}" ]; then
+  export GOMEMLIMIT
+  echo "GOMEMLIMIT set to: ${GOMEMLIMIT}"
+fi
+
 # shellcheck disable=SC2086
 IMAGE="${HUB}/${IMAGE_BASE}:${TAG}" \
 go run github.com/onsi/ginkgo/v2/ginkgo -tags e2e \

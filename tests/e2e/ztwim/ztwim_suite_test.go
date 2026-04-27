@@ -17,6 +17,9 @@
 package ztwim
 
 import (
+	"os"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/istio-ecosystem/sail-operator/pkg/env"
@@ -64,12 +67,39 @@ func TestZTWIM(t *testing.T) {
 	RunSpecs(t, "Zero Trust Workload Identity Manager Test Suite")
 }
 
+func logMemoryStats() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	GinkgoWriter.Printf("Memory Stats: Alloc=%dMB, Sys=%dMB, HeapAlloc=%dMB, HeapSys=%dMB, NumGC=%d\n",
+		m.Alloc/1024/1024, m.Sys/1024/1024, m.HeapAlloc/1024/1024, m.HeapSys/1024/1024, m.NumGC)
+
+	// Try to read container memory limit from cgroups
+	if data, err := os.ReadFile("/sys/fs/cgroup/memory.max"); err == nil {
+		GinkgoWriter.Printf("Container memory limit (cgroups v2): %s", string(data))
+	} else if data, err := os.ReadFile("/sys/fs/cgroup/memory/memory.limit_in_bytes"); err == nil {
+		GinkgoWriter.Printf("Container memory limit (cgroups v1): %s", string(data))
+	} else {
+		GinkgoWriter.Println("Could not read container memory limit from cgroups")
+	}
+
+	// Log GOMEMLIMIT if set
+	if gomemlimit := os.Getenv("GOMEMLIMIT"); gomemlimit != "" {
+		GinkgoWriter.Printf("GOMEMLIMIT: %s\n", gomemlimit)
+	}
+}
+
 func setup() {
 	GinkgoWriter.Println("************ Running Setup ************")
+
+	GinkgoWriter.Println("Memory diagnostics at test start:")
+	logMemoryStats()
 
 	GinkgoWriter.Println("Initializing k8s client")
 	cl, err = k8sclient.InitK8sClient("")
 	Expect(err).NotTo(HaveOccurred())
+
+	GinkgoWriter.Println("Memory after k8s client init:")
+	logMemoryStats()
 
 	k = kubectl.New()
 }

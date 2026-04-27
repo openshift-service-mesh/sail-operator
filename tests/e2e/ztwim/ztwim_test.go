@@ -54,10 +54,16 @@ var _ = Describe("ZTWIM Installation", Label("smoke", "ztwim", "slow"), Ordered,
 	Describe(fmt.Sprintf("Istio version: %s", latestVersion.Name), func() {
 		clr := cleaner.New(cl)
 		BeforeAll(func(ctx SpecContext) {
+			GinkgoWriter.Println("ZTWIM BeforeAll - Memory before namespace creation:")
+			logMemoryStats()
+
 			clr.Record(ctx)
 			Expect(k.CreateNamespace(controlPlaneNamespace)).To(Succeed(), "Istio namespace failed to be created")
 			Expect(k.CreateNamespace(istioCniNamespace)).To(Succeed(), "IstioCNI namespace failed to be created")
 			Expect(k.CreateNamespace(ztwimNamespace)).To(Succeed(), "ZTWIM Namespace failed to be created")
+
+			GinkgoWriter.Println("ZTWIM BeforeAll - Memory after namespace creation:")
+			logMemoryStats()
 		})
 
 		When("the ZTWIM Operator is deployed", func() {
