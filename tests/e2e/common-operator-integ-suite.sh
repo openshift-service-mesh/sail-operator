@@ -123,6 +123,7 @@ initialize_variables() {
   CI=${CI:-"false"}
   USE_INTERNAL_REGISTRY=${USE_INTERNAL_REGISTRY:-"false"}
   FIPS_CLUSTER=${FIPS_CLUSTER:-"false"}
+  COMMIT_HASH=$(git rev-parse --short HEAD)
 
   # Debug logging and fallback for GINKGO_FLAGS
   echo "CI environment: ${CI}"
@@ -149,16 +150,16 @@ initialize_variables() {
       # Scenario 2: CI mode with default HUB -> use external registry with proper CI tag
       echo "CI mode detected for OCP, using external registry ${HUB}"
       export USE_INTERNAL_REGISTRY="false"
-      # Use PR_NUMBER if available, otherwise generate timestamp tag
-      # Use TARGET_ARCH to differentiate tags for different architectures in CI, avoid race conditions in CI when multiple runs are pushing to the same default tag
+      # Use PR_NUMBER and commit hash to identify the image, avoid race conditions in CI when multiple runs are pushing to the same default tag
+      # Use TARGET_ARCH to differentiate tags for different architectures in CI
       if [ -n "${PR_NUMBER:-}" ]; then
-        TAG="pr-${PR_NUMBER}-${TARGET_ARCH}"
+        TAG="pr-${PR_NUMBER}-${COMMIT_HASH}-${TARGET_ARCH}"
         export TAG
         echo "Using PR-based tag: ${TAG}"
       else
-        TAG="ci-test-$(date +%s)-${TARGET_ARCH}"
+        TAG="ci-test-${COMMIT_HASH}-${TARGET_ARCH}"
         export TAG
-        echo "Using timestamp-based tag: ${TAG}"
+        echo "Using commit-based tag: ${TAG}"
       fi
     elif [ "${CI}" == "true" ]; then
       # Additional CI mode check - handle CI mode regardless of HUB value
@@ -225,8 +226,19 @@ install_operator() {
 }
 
 await_operator() {
-  echo "Awaiting sail-operator deployment on (KUBECONFIG=${KUBECONFIG})"
-  "${COMMAND}" wait --for=condition=available deployment/"${DEPLOYMENT_NAME}" -n "${NAMESPACE}" --timeout=5m
+  echo "Awaiting operator deployment on (KUBECONFIG=${KUBECONFIG})"
+  local name="${DEPLOYMENT_NAME}"
+  if [ "${OLM}" == "true" ]; then
+    local csv_name
+    local csv_file
+    csv_file=$(find "${WD}/../../bundle/manifests/" -name "*.clusterserviceversion.yaml" | head -1)
+    csv_name=$(yq eval '.spec.install.spec.deployments[0].name' "${csv_file}" 2>/dev/null || true)
+    if [ -n "${csv_name}" ]; then
+      echo "OLM mode: using deployment name from bundle CSV: ${csv_name}"
+      name="${csv_name}"
+    fi
+  fi
+  "${COMMAND}" wait --for=condition=available deployment/"${name}" -n "${NAMESPACE}" --timeout=5m
 }
 
 # shellcheck disable=SC2329  # Function is invoked indirectly via trap
@@ -287,11 +299,18 @@ if [ "${SKIP_BUILD}" == "false" ]; then
     fi
   fi
   # If OLM is enabled, deploy the operator using OLM
-  # We are skipping the deploy via OLM test on OCP because the workaround to avoid the certificate issue is not working.
-  # Jira ticket related to the limitation: https://issues.redhat.com/browse/OSSM-7993
-  if [ "${OLM}" == "true" ] && [ "${SKIP_DEPLOY}" == "false" ] && [ "${MULTICLUSTER}" == "false" ]; then    
+  # If PR_NUMBER is set we will tag the BUNDLE_IMG with the PR number and commit hash to avoid conflicts.
+  if [ "${OLM}" == "true" ] && [ "${SKIP_DEPLOY}" == "false" ] && [ "${MULTICLUSTER}" == "false" ]; then
     IMAGE_TAG_BASE="${HUB}/${IMAGE_BASE}"
-    BUNDLE_IMG="${IMAGE_TAG_BASE}-bundle:v${VERSION}"
+    if [ "${CI}" == "true" ]; then
+      if [ -n "${PR_NUMBER:-}" ]; then
+        BUNDLE_IMG="${IMAGE_TAG_BASE}-bundle:pr-${PR_NUMBER}-${COMMIT_HASH}-${TARGET_ARCH}"
+      else
+        BUNDLE_IMG="${IMAGE_TAG_BASE}-bundle:ci-test-${COMMIT_HASH}-${TARGET_ARCH}"
+      fi
+    else
+      BUNDLE_IMG="${IMAGE_TAG_BASE}-bundle:ci-test-${COMMIT_HASH}-${TARGET_ARCH}"
+    fi
 
     IMAGE="${HUB}/${IMAGE_BASE}:${TAG}" \
     IMAGE_TAG_BASE="${IMAGE_TAG_BASE}" \
@@ -348,6 +367,34 @@ check_cluster_operators
 set +e
 # Disable to avoid failing the test run before generating the report.xml
 # Capture the test exit code and allow cleanup via trap to run
+
+# Set GOMEMLIMIT to 80% of container memory limit if not already set
+if [ -z "${GOMEMLIMIT:-}" ]; then
+  # Try cgroups v2 first, then v1
+  if [ -f /sys/fs/cgroup/memory.max ]; then
+    MEM_LIMIT=$(cat /sys/fs/cgroup/memory.max)
+    echo "DEBUG: Found cgroups v2 memory.max: ${MEM_LIMIT}"
+  elif [ -f /sys/fs/cgroup/memory/memory.limit_in_bytes ]; then
+    MEM_LIMIT=$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes)
+    echo "DEBUG: Found cgroups v1 memory.limit_in_bytes: ${MEM_LIMIT}"
+  else
+    echo "DEBUG: No cgroups memory limit file found, using default 4GiB"
+    # Default to 4GiB if we can't detect the limit
+    GOMEMLIMIT="4GiB"
+  fi
+  # Calculate 80% if we got a valid numeric limit (not "max" or very large value indicating no limit)
+  if [ -n "${MEM_LIMIT:-}" ] && [ "${MEM_LIMIT}" != "max" ] && [ "${MEM_LIMIT}" -lt 9223372036854771712 ] 2>/dev/null; then
+    GOMEMLIMIT=$((MEM_LIMIT * 80 / 100))
+    echo "Setting GOMEMLIMIT to 80% of container limit: ${GOMEMLIMIT} bytes"
+  fi
+fi
+
+# Export GOMEMLIMIT if set
+if [ -n "${GOMEMLIMIT:-}" ]; then
+  export GOMEMLIMIT
+  echo "GOMEMLIMIT set to: ${GOMEMLIMIT}"
+fi
+
 # shellcheck disable=SC2086
 IMAGE="${HUB}/${IMAGE_BASE}:${TAG}" \
 go run github.com/onsi/ginkgo/v2/ginkgo -tags e2e \
