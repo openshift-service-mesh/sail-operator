@@ -23,6 +23,7 @@ import (
 	k8sclient "github.com/istio-ecosystem/sail-operator/tests/e2e/util/client"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/common"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/kubectl"
+	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/memreport"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/shell"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -53,7 +54,7 @@ func isOpenshift() bool {
 func TestZTWIM(t *testing.T) {
 	// SKIPPING test until https://github.com/istio-ecosystem/sail-operator/issues/1898 is fixed.
 	// This is causing test failures on CI and we want to unblock sync jobs.
-	t.Skip("Skipping ZTWIM test until https://github.com/istio-ecosystem/sail-operator/issues/1898 is fixed")
+
 	if multicluster {
 		t.Skip("Skipping test for multicluster")
 	}
@@ -64,6 +65,7 @@ func TestZTWIM(t *testing.T) {
 
 	RegisterFailHandler(Fail)
 	setup()
+	memreport.SetupMemoryReportingWithPrint("ZTWIM")
 	RunSpecs(t, "Zero Trust Workload Identity Manager Test Suite")
 }
 

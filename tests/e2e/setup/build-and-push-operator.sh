@@ -16,8 +16,10 @@
 
 set -eux -o pipefail
 
-WD=$(dirname "$0")
-WD=$(cd "${WD}" || exit; pwd)
+# Use BASH_SOURCE[0] instead of $0 to work correctly when script is sourced
+# Use _BUILD_WD to avoid overwriting parent script's WD variable
+_BUILD_WD=$(dirname "${BASH_SOURCE[0]}")
+_BUILD_WD=$(cd "${_BUILD_WD}" || exit; pwd)
 
 # The following variables must already be set and exported from the caller:
 # COMMAND, HUB, IMAGE_BASE, TAG, NAMESPACE
@@ -45,7 +47,7 @@ get_internal_registry() {
 
   ${COMMAND} create namespace istio-images || true
   ${COMMAND} create namespace "${NAMESPACE}" || true
-  envsubst < "${WD}/config/role-bindings.yaml" | ${COMMAND} apply -f -
+  envsubst < "${_BUILD_WD}/config/role-bindings.yaml" | ${COMMAND} apply -f -
 
   if [[ ${URL} == *".apps-crc.testing"* ]]; then
     echo "Logging into internal registry..."

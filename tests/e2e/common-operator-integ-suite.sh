@@ -264,7 +264,7 @@ initialize_variables
 export COMMAND OCP HUB IMAGE_BASE TAG NAMESPACE USE_INTERNAL_REGISTRY
 
 if [ "${SKIP_BUILD}" == "false" ]; then
-  "${WD}/setup/build-and-push-operator.sh"
+  source "${WD}/setup/build-and-push-operator.sh"
 
   if [ "${OCP}" = "true" ]; then
     # This is a workaround when pulling the image from internal registry
