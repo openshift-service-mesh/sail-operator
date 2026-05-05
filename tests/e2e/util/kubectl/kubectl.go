@@ -131,6 +131,39 @@ func (k Kubectl) ApplyString(yamlString string) error {
 	return nil
 }
 
+// ApplyStringWithForceConflicts applies the given yaml string with force conflicts
+func (k Kubectl) ApplyStringWithForceConflicts(yamlString string) error {
+	cmd := k.build(" apply --server-side --force-conflicts -f -")
+	_, err := shell.ExecuteCommandWithInput(cmd, yamlString)
+	if err != nil {
+		return fmt.Errorf("error applying yaml with force conflicts: %w", err)
+	}
+	return nil
+}
+
+// Rollout performs rollout operations (restart, status) on a resource
+func (k Kubectl) Rollout(action, kind, name string) error {
+	var subcmd string
+
+	switch action {
+	case "restart":
+		subcmd = fmt.Sprintf(" rollout restart %s/%s", kind, name)
+	case "status":
+		subcmd = fmt.Sprintf(" rollout status %s/%s --timeout=300s", kind, name)
+	default:
+		return fmt.Errorf("unsupported rollout action: %s", action)
+	}
+
+	cmd := k.build(subcmd)
+
+	_, err := shell.ExecuteShell(cmd, "")
+	if err != nil {
+		return fmt.Errorf("rollout %s failed: %w", action, err)
+	}
+
+	return nil
+}
+
 // Apply applies the given yaml file to the cluster
 func (k Kubectl) Apply(yamlFile string) error {
 	return k.applyWithOptions("-f", yamlFile)
