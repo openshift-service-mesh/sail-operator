@@ -20,11 +20,11 @@ deployment:
     images.v1_24_5.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:54cada48e5c9824f255f82daa2ef5bea236919e521d3ea49885f2883ced2b7bc
     images.v1_24_5.ztunnel: registry.redhat.io/openshift-service-mesh-dev-preview-beta/istio-ztunnel-rhel9@sha256:7ea9b82e192402566e69063a4787351be9f1ef50719bfd1a8f5d5940362b3f70
     # 1.24.6 will be replaced with Konflux built images
-    images.v1_24_6.cni: ${ISTIO_CNI_1_24}
-    images.v1_24_6.istiod: ${ISTIO_PILOT_1_24}
-    images.v1_24_6.must-gather: ${OSSM_MUST_GATHER_3_0}
-    images.v1_24_6.proxy: ${ISTIO_PROXY_1_24}
-    images.v1_24_6.ztunnel: ${ISTIO_ZTUNNEL_1_24}
+    images.v1_24_6.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:53dfc2c83c6b560bd35765a31de6d8f1c8ebcba46e6002fb81464c072d4b3757
+    images.v1_24_6.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:1ddfb65e74d8b25d5d563e2a155bcbefa35f84671d800c87c591c87608731679
+    images.v1_24_6.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:cd552e8d96dabd0a68185ebdc8ecc7a30ecbc8be208509105a6f4d8584469ea3
+    images.v1_24_6.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:73da183062575811bf19b79d39aeda0d662ff4b7aacd350610a4bd4565b08760
+    images.v1_24_6.ztunnel: registry.redhat.io/openshift-service-mesh-dev-preview-beta/istio-ztunnel-rhel9@sha256:97e887743e92c2bee88bbcae386bdd92aeacd6f93021f5f00d3eb66d39899688
     # 1.26.2 images are hardcoded to versions released with 3.1.0
     images.v1_26_2.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:14c5a52faf20267baa43d9a72ee6416f56fbc41dd640adc2aba3c4043802a0e9
     images.v1_26_2.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:028e10651db0d1ddb769a27c9483c6d41be6ac597f253afd9d599f395d9c82d8
@@ -50,11 +50,11 @@ deployment:
     images.v1_26_6.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:47100186c27934adeda3002bb04cac28980ca8854eee7d6e4f4b3f85562e9a8e
     images.v1_26_6.ztunnel: registry.redhat.io/openshift-service-mesh-tech-preview/istio-ztunnel-rhel9@sha256:f39e2c28ef36fce9f808f3946cc4e4126047e142ad84cb18c222cecceae29730
     # 1.26.8 will be replaced with Konflux built images
-    images.v1_26_8.cni: ${ISTIO_CNI_1_26}
-    images.v1_26_8.istiod: ${ISTIO_PILOT_1_26}
-    images.v1_26_8.must-gather: ${OSSM_MUST_GATHER_3_1}
-    images.v1_26_8.proxy: ${ISTIO_PROXY_1_26}
-    images.v1_26_8.ztunnel: ${ISTIO_ZTUNNEL_1_26}
+    images.v1_26_8.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:1f9b11100bc005ebb6943fb62f09d52dd5328c7352f7f892b3ed490b8ddba010
+    images.v1_26_8.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:18a22276d8c00900a366cef4d0347bf46a873f8f5cd6020258a54292d0d7b3f3
+    images.v1_26_8.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:12f5078187b5ef6bb96def4ffd7118dfbed53092b7b777b7d9f32d2c290d18a2
+    images.v1_26_8.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:77e31a544d871ec5474ca95c0604b43c65318d4cea10cdc0c3af4ac7232c61d7
+    images.v1_26_8.ztunnel: registry.redhat.io/openshift-service-mesh-tech-preview/istio-ztunnel-rhel9@sha256:262909b7a5c2157bfb5c7a9ebd3777aef0ab6fe848fc32b8c6d7dcdf7ad3cd19
     # 1.27.3 images are hardcoded to versions released with 3.2.1
     images.v1_27_3.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:ddadd677161ad8c1077dd156821d6b4e32742ccbb210e9c14696fa66a58c0867
     images.v1_27_3.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:0850242436e88f7d82f0f2126de064c7e0f09844f31d8ff0f53dc8d3908075d9
@@ -74,11 +74,11 @@ deployment:
     images.v1_27_8.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:234d58ad8033644a72f769ace359a5232c52a2532e851bd374334b3c4cf1d4d8
     images.v1_27_8.ztunnel: registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:cb6adbadc22ca80888f06094c82a402a43526d8a3081e47e6332bcf5355729db
     # 1.27.9 images will be replaced with Konflux built images and will be updated after 3.2.5 release
-    images.v1_27_9.cni: ${ISTIO_CNI_1_27}
-    images.v1_27_9.istiod: ${ISTIO_PILOT_1_27}
-    images.v1_27_9.must-gather: ${OSSM_MUST_GATHER_3_2}
-    images.v1_27_9.proxy: ${ISTIO_PROXY_1_27}
-    images.v1_27_9.ztunnel: ${ISTIO_ZTUNNEL_1_27}
+    images.v1_27_9.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:a1abe7921e317a85a94beb5381051ecd40eed238928e3a55cda5ce81a1ec106e
+    images.v1_27_9.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:364da8ce9226334909c615748c17e4a9dec7ca990dc0bd14436a59b6251729be
+    images.v1_27_9.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:87f4df6040a82855ffe0140b1d0ce293e71561e63a451242f9a789c60cdff03d
+    images.v1_27_9.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:13da0c29def202c26919eb234cd63a88daab5785008b25c37e1347b42f56966a
+    images.v1_27_9.ztunnel: registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:25a67234fe63a218decb6dc441144e30fbd494e55a9f9680fa5aefc71408cff8
 service:
   port: 8443
 serviceAccountName: servicemesh-operator3
@@ -132,7 +132,7 @@ csv:
     * [Documentation](https://docs.redhat.com/en/documentation/red_hat_openshift_service_mesh/latest/html/about/ossm-about-openshift-service-mesh)
     * [Bugs](https://issues.redhat.com/projects/OSSM)
   support: Red Hat, Inc.
-  version: 3.2.5
+  version: 3.2.6
   keywords:
   - istio
   - servicemesh
