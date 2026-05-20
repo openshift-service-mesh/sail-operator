@@ -27,10 +27,10 @@ const (
 type ZTunnelSpec struct {
 	// +sail:version
 	// Defines the version of Istio to install.
-	// Must be one of: v1.28-latest, v1.28.6, v1.28.5, v1.28.4, v1.27-latest, v1.27.9, v1.27.8, v1.27.5, v1.27.3.
-	// +operator-sdk:csv:customresourcedefinitions:type=spec,order=1,displayName="Istio Version",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:General", "urn:alm:descriptor:com.tectonic.ui:select:v1.28-latest", "urn:alm:descriptor:com.tectonic.ui:select:v1.28.6", "urn:alm:descriptor:com.tectonic.ui:select:v1.28.5", "urn:alm:descriptor:com.tectonic.ui:select:v1.28.4", "urn:alm:descriptor:com.tectonic.ui:select:v1.27-latest", "urn:alm:descriptor:com.tectonic.ui:select:v1.27.9", "urn:alm:descriptor:com.tectonic.ui:select:v1.27.8", "urn:alm:descriptor:com.tectonic.ui:select:v1.27.5", "urn:alm:descriptor:com.tectonic.ui:select:v1.27.3"}
-	// +kubebuilder:validation:Enum=v1.28-latest;v1.28.6;v1.28.5;v1.28.4;v1.27-latest;v1.27.9;v1.27.8;v1.27.5;v1.27.3
-	// +kubebuilder:default=v1.28.6
+	// Must be one of: v1.30-latest, v1.30.0, v1.28-latest, v1.28.6, v1.28.5, v1.28.4, v1.27-latest, v1.27.9, v1.27.8, v1.27.5, v1.27.3.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,order=1,displayName="Istio Version",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:General", "urn:alm:descriptor:com.tectonic.ui:select:v1.30-latest", "urn:alm:descriptor:com.tectonic.ui:select:v1.30.0", "urn:alm:descriptor:com.tectonic.ui:select:v1.28-latest", "urn:alm:descriptor:com.tectonic.ui:select:v1.28.6", "urn:alm:descriptor:com.tectonic.ui:select:v1.28.5", "urn:alm:descriptor:com.tectonic.ui:select:v1.28.4", "urn:alm:descriptor:com.tectonic.ui:select:v1.27-latest", "urn:alm:descriptor:com.tectonic.ui:select:v1.27.9", "urn:alm:descriptor:com.tectonic.ui:select:v1.27.8", "urn:alm:descriptor:com.tectonic.ui:select:v1.27.5", "urn:alm:descriptor:com.tectonic.ui:select:v1.27.3"}
+	// +kubebuilder:validation:Enum=v1.30-latest;v1.30.0;v1.28-latest;v1.28.6;v1.28.5;v1.28.4;v1.27-latest;v1.27.9;v1.27.8;v1.27.5;v1.27.3
+	// +kubebuilder:default=v1.30.0
 	Version string `json:"version"`
 
 	// +sail:profile
@@ -130,7 +130,7 @@ type ZTunnel struct {
 	// +optional
 	metav1.ObjectMeta `json:"metadata"`
 
-	// +kubebuilder:default={version: "v1.28.6", namespace: "ztunnel", profile: "ambient"}
+	// +kubebuilder:default={version: "v1.30.0", namespace: "ztunnel", profile: "ambient"}
 	// +optional
 	Spec ZTunnelSpec `json:"spec"`
 
