@@ -15,41 +15,6 @@
 # These defaults are type-checked at compile time.
 # Note: After modifying this file, run `make test` to ensure that the
 # generated defaults values from this files are valid.
-v1.30.0:
-  istio:
-    pilot:
-      env:
-        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
-v1.28.7:
-  istio:
-    pilot:
-      env:
-        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
-v1.28.6:
-  istio:
-    pilot:
-      env:
-        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
-v1.28.5:
-  istio:
-    pilot:
-      env:
-        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
-v1.28.4:
-  istio:
-    pilot:
-      env:
-        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
-v1.27.9:
-  istio:
-    pilot:
-      env:
-        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
-v1.27.8:
-  istio:
-    pilot:
-      env:
-        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"
 v1.27.5:
   istio:
     pilot:
