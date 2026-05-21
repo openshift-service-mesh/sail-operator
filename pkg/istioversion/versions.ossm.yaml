@@ -109,3 +109,16 @@ versions:
       - https://github.com/openshift-service-mesh/istio-release/raw/3ff052018d78531e97946f46292b4367f2b40e70/1.27.3-redhat/helm/gateway-1.27.3.tgz
       - https://github.com/openshift-service-mesh/istio-release/raw/3ff052018d78531e97946f46292b4367f2b40e70/1.27.3-redhat/helm/cni-1.27.3.tgz
       - https://github.com/openshift-service-mesh/istio-release/raw/3ff052018d78531e97946f46292b4367f2b40e70/1.27.3-redhat/helm/ztunnel-1.27.3.tgz
+  - name: v1.26-latest
+    ref: v1.26.8
+    eol: true
+  - name: v1.26.8
+    eol: true
+  - name: v1.26.6
+    eol: true
+  - name: v1.26.4
+    eol: true
+  - name: v1.26.3
+    eol: true
+  - name: v1.26.2
+    eol: true

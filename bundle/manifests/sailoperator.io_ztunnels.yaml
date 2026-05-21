@@ -3550,6 +3550,12 @@ spec:
                 - v1.27.8
                 - v1.27.5
                 - v1.27.3
+                - v1.26-latest
+                - v1.26.8
+                - v1.26.6
+                - v1.26.4
+                - v1.26.3
+                - v1.26.2
                 type: string
             required:
             - namespace
@@ -7144,6 +7150,12 @@ spec:
                 - v1.27.8
                 - v1.27.5
                 - v1.27.3
+                - v1.26-latest
+                - v1.26.8
+                - v1.26.6
+                - v1.26.4
+                - v1.26.3
+                - v1.26.2
                 type: string
             required:
             - namespace
