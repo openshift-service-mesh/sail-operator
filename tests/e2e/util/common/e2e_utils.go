@@ -517,3 +517,16 @@ func HaveContainersThat(matcher types.GomegaMatcher) types.GomegaMatcher {
 func ImageFromRegistry(regexp string) types.GomegaMatcher {
 	return HaveField("Image", MatchRegexp(regexp))
 }
+
+func EnsureNamespace(ctx context.Context, ctrlclient client.Client, namespace string) {
+	GinkgoHelper()
+	ns := &corev1.Namespace{}
+	if err := ctrlclient.Get(ctx, client.ObjectKey{Name: namespace}, ns); apierrors.IsNotFound(err) {
+		ns.Name = namespace
+		if err := ctrlclient.Create(ctx, ns); err != nil && !apierrors.IsAlreadyExists(err) {
+			Fail(fmt.Sprintf("Failed to create namespace: %s", err))
+		}
+	} else if err != nil {
+		Fail(fmt.Sprintf("Failed to get namespace: %s", err))
+	}
+}
