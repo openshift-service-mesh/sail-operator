@@ -3536,11 +3536,12 @@ spec:
                 default: v1.30.0
                 description: |-
                   Defines the version of Istio to install.
-                  Must be one of: v1.30-latest, v1.30.0, v1.28-latest, v1.28.6, v1.28.5, v1.28.4, v1.27-latest, v1.27.9, v1.27.8, v1.27.5, v1.27.3.
+                  Must be one of: v1.30-latest, v1.30.0, v1.28-latest, v1.28.7, v1.28.6, v1.28.5, v1.28.4, v1.27-latest, v1.27.9, v1.27.8, v1.27.5, v1.27.3.
                 enum:
                 - v1.30-latest
                 - v1.30.0
                 - v1.28-latest
+                - v1.28.7
                 - v1.28.6
                 - v1.28.5
                 - v1.28.4
@@ -7129,11 +7130,12 @@ spec:
                 default: v1.30.0
                 description: |-
                   Defines the version of Istio to install.
-                  Must be one of: v1.30-latest, v1.30.0, v1.28-latest, v1.28.6, v1.28.5, v1.28.4, v1.27-latest, v1.27.9, v1.27.8, v1.27.5, v1.27.3.
+                  Must be one of: v1.30-latest, v1.30.0, v1.28-latest, v1.28.7, v1.28.6, v1.28.5, v1.28.4, v1.27-latest, v1.27.9, v1.27.8, v1.27.5, v1.27.3.
                 enum:
                 - v1.30-latest
                 - v1.30.0
                 - v1.28-latest
+                - v1.28.7
                 - v1.28.6
                 - v1.28.5
                 - v1.28.4
