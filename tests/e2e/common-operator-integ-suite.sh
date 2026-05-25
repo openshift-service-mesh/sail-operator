@@ -181,6 +181,98 @@ initialize_variables() {
   if [ "${OCP}" == "true" ]; then COMMAND="oc"; fi
 }
 
+# MachineConfig monitoring functions
+MACHINECONFIG_MONITOR_PID=""
+MACHINECONFIG_BASELINE_FILE=""
+
+capture_machineconfig_baseline() {
+  if [ "${OCP}" != "true" ]; then
+    return 0
+  fi
+
+  MACHINECONFIG_BASELINE_FILE="${ARTIFACTS}/machineconfig_baseline.json"
+  echo "Capturing MachineConfig baseline..."
+
+  # Capture ControllerConfig spec (contains internalRegistryPullSecret)
+  oc get controllerconfig machine-config-controller -o json > "${MACHINECONFIG_BASELINE_FILE}" 2>/dev/null || true
+
+  if [ -f "${MACHINECONFIG_BASELINE_FILE}" ]; then
+    echo "MachineConfig baseline captured at ${MACHINECONFIG_BASELINE_FILE}"
+    echo "Baseline ControllerConfig spec keys:"
+    jq -r '.spec | keys[]' "${MACHINECONFIG_BASELINE_FILE}" 2>/dev/null || true
+  fi
+}
+
+monitor_machineconfig_changes() {
+  if [ "${OCP}" != "true" ]; then
+    return 0
+  fi
+
+  local baseline_file="$1"
+  local check_interval="${2:-60}"
+
+  echo "Starting MachineConfig monitor (interval: ${check_interval}s)"
+
+  while true; do
+    sleep "${check_interval}"
+
+    local current_file="${ARTIFACTS}/machineconfig_current_$$.json"
+    oc get controllerconfig machine-config-controller -o json > "${current_file}" 2>/dev/null || continue
+
+    # Compare ControllerConfig spec
+    local baseline_spec current_spec
+    baseline_spec=$(jq -c '.spec' "${baseline_file}" 2>/dev/null)
+    current_spec=$(jq -c '.spec' "${current_file}" 2>/dev/null)
+
+    if [ "$baseline_spec" != "$current_spec" ]; then
+      echo ""
+      echo "========================================"
+      echo "MACHINECONFIG CHANGE DETECTED at $(date)"
+      echo "========================================"
+      echo "=== CONTROLLERCONFIG SPEC DIFFERENCES ==="
+      echo "[CC-DIFF-START]"
+      for key in $(echo "$baseline_spec" "$current_spec" | jq -rs '[.[0], .[1]] | map(keys) | add | unique | .[]'); do
+        baseline_val=$(echo "$baseline_spec" | jq -c --arg k "$key" '.[$k]' 2>/dev/null)
+        current_val=$(echo "$current_spec" | jq -c --arg k "$key" '.[$k]' 2>/dev/null)
+        if [ "$baseline_val" != "$current_val" ]; then
+          echo "Field: $key"
+          echo "  Baseline: $baseline_val"
+          echo "  Current:  $current_val"
+        fi
+      done
+      echo "[CC-DIFF-END]"
+      echo "========================================"
+
+      # Update baseline to current for next comparison
+      cp "${current_file}" "${baseline_file}"
+    fi
+
+    rm -f "${current_file}"
+  done
+}
+
+start_machineconfig_monitor() {
+  if [ "${OCP}" != "true" ]; then
+    return 0
+  fi
+
+  capture_machineconfig_baseline
+
+  if [ -f "${MACHINECONFIG_BASELINE_FILE}" ]; then
+    monitor_machineconfig_changes "${MACHINECONFIG_BASELINE_FILE}" 60 &
+    MACHINECONFIG_MONITOR_PID=$!
+    echo "MachineConfig monitor started with PID ${MACHINECONFIG_MONITOR_PID}"
+  fi
+}
+
+stop_machineconfig_monitor() {
+  if [ -n "${MACHINECONFIG_MONITOR_PID}" ] && kill -0 "${MACHINECONFIG_MONITOR_PID}" 2>/dev/null; then
+    echo "Stopping MachineConfig monitor (PID ${MACHINECONFIG_MONITOR_PID})"
+    kill "${MACHINECONFIG_MONITOR_PID}" 2>/dev/null || true
+    wait "${MACHINECONFIG_MONITOR_PID}" 2>/dev/null || true
+  fi
+}
+
 check_cluster_operators() {
   # This function is only relevant for OCP clusters
   if [ "${OCP}" != "true" ]; then
@@ -252,6 +344,7 @@ uninstall_operator() {
 cleanup() {
   # Do not let cleanup errors affect the final exit code
   set +e
+  stop_machineconfig_monitor
   if [ "${OLM}" != "true" ] && [ "${SKIP_DEPLOY}" != "true" ]; then
     if [ "${MULTICLUSTER}" == true ]; then
       KUBECONFIG="${KUBECONFIG}" uninstall_operator || true
@@ -362,6 +455,9 @@ fi
 # Check that all cluster operators are stable before running the tests. This only applies to OCP clusters.
 # This is to avoid test failures due to cluster instability.
 check_cluster_operators
+
+# Start MachineConfig monitoring (OCP only)
+start_machineconfig_monitor
 
 set +e
 # Disable to avoid failing the test run before generating the report.xml
