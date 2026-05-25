@@ -230,14 +230,13 @@ monitor_machineconfig_changes() {
       echo "MACHINECONFIG CHANGE DETECTED at $(date)"
       echo "========================================"
       echo "=== CONTROLLERCONFIG SPEC DIFFERENCES ==="
+      echo "Detected at: $(date)"
       echo "[CC-DIFF-START]"
       for key in $(echo "$baseline_spec" "$current_spec" | jq -rs '[.[0], .[1]] | map(keys) | add | unique | .[]'); do
         baseline_val=$(echo "$baseline_spec" | jq -c --arg k "$key" '.[$k]' 2>/dev/null)
         current_val=$(echo "$current_spec" | jq -c --arg k "$key" '.[$k]' 2>/dev/null)
         if [ "$baseline_val" != "$current_val" ]; then
-          echo "Field: $key"
-          echo "  Baseline: $baseline_val"
-          echo "  Current:  $current_val"
+          echo "Field changed: $key"
         fi
       done
       echo "[CC-DIFF-END]"
