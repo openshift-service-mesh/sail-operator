@@ -97,6 +97,15 @@ metadata:
 	})
 
 	Describe("given Istio version", func() {
+		When("waiting 20 minutes for cluster stabilization", func() {
+			It("sleeps to allow MachineConfig updates to complete", func() {
+				Log("Starting 20 minute sleep at:", time.Now().UTC().Format(time.RFC3339))
+				time.Sleep(20 * time.Minute)
+				Log("Sleep completed at:", time.Now().UTC().Format(time.RFC3339))
+				Success("20 minute sleep completed")
+			})
+		})
+
 		for _, version := range istioversion.GetLatestPatchVersions() {
 			Context(version.Name, func() {
 				clr := cleaner.New(cl)
