@@ -18,6 +18,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 
 	"istio.io/istio/pkg/log"
@@ -50,7 +51,7 @@ func detectFipsMode(filepath string) {
 }
 
 // ApplyFipsValues sets pilot.env.COMPLIANCE_POLICY if FIPS mode is enabled in the system.
-func ApplyFipsValues(values *v1.Values) {
+func ApplyFipsValues(values *v1.Values, version *semver.Version) {
 	if !FipsEnabled || values == nil {
 		return
 	}
@@ -60,23 +61,48 @@ func ApplyFipsValues(values *v1.Values) {
 	if values.Pilot.Env == nil {
 		values.Pilot.Env = make(map[string]string)
 	}
-	if _, found := values.Pilot.Env["COMPLIANCE_POLICY"]; !found {
-		values.Pilot.Env["COMPLIANCE_POLICY"] = "fips-140-3-redhat"
+	// For versions < 1.30, the upstream compliance policy is supported.
+	// For 1.30, the Red Hat compliance policy is required because the upstream
+	// fips-140-3 compliance policy is not supported.
+	// TODO: When the upstream fips-140-3 compliance policy is supported,
+	// migrate to using that policy.
+	if version != nil && version.LessThan(istio1_30) {
+		// TODO: Remove this after 1.29 is no longer supported.
+		if _, found := values.Pilot.Env["COMPLIANCE_POLICY"]; !found {
+			values.Pilot.Env["COMPLIANCE_POLICY"] = "fips-140-2"
+		}
+	} else {
+		if _, found := values.Pilot.Env["COMPLIANCE_POLICY"]; !found {
+			values.Pilot.Env["COMPLIANCE_POLICY"] = "fips-140-3-redhat"
+		}
 	}
 }
 
 // ApplyZTunnelFipsValues sets ztunnel.env.TLS12_ENABLED if FIPS mode is enabled in the system.
-func ApplyZTunnelFipsValues(values *v1.ZTunnelValues) {
+// For versions >= 1.30, TLS12_ENABLED is removed because ztunnel
+// defaults to using only FIPS 140-3 approved ciphers.
+func ApplyZTunnelFipsValues(values *v1.ZTunnelValues, version *semver.Version) {
 	if !FipsEnabled || values == nil {
 		return
 	}
+
 	if values.ZTunnel == nil {
 		values.ZTunnel = &v1.ZTunnelConfig{}
 	}
 	if values.ZTunnel.Env == nil {
 		values.ZTunnel.Env = make(map[string]string)
 	}
-	if _, found := values.ZTunnel.Env["TLS12_ENABLED"]; !found {
-		values.ZTunnel.Env["TLS12_ENABLED"] = "true"
+
+	// For versions < 1.30, TLS12_ENABLED is used because only
+	// fips-140-2 is supported in openshift.
+	// For 1.30, we no longer need to set TLS12_ENABLED because
+	// fips-140-3 is supported on openshift and ZTunnel will use
+	// this by default. If the user manually specifies TLS12_ENABLED,
+	// it will still be honored.
+	// TODO: Remove this after 1.29 is no longer supported.
+	if version != nil && version.LessThan(istio1_30) {
+		if _, found := values.ZTunnel.Env["TLS12_ENABLED"]; !found {
+			values.ZTunnel.Env["TLS12_ENABLED"] = "true"
+		}
 	}
 }

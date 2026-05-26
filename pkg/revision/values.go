@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/fs"
 
+	"github.com/Masterminds/semver/v3"
 	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
@@ -62,7 +63,11 @@ func ComputeValues(
 	istiovalues.ApplyTLSConfig(tlsConfig, version, values)
 
 	// apply FipsValues on top of merged values from profile
-	istiovalues.ApplyFipsValues(values)
+	parsedVersion, err := semver.NewVersion(version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Istio version %q: %w", version, err)
+	}
+	istiovalues.ApplyFipsValues(values, parsedVersion)
 
 	// override values that are not configurable by the user
 	istiovalues.ApplyOverrides(activeRevisionName, namespace, values)

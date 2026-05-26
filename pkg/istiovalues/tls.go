@@ -25,7 +25,10 @@ import (
 	"istio.io/istio/pkg/log"
 )
 
-var istio1_29 = semver.MustParse("1.29.0")
+var (
+	istio1_29 = semver.MustParse("1.29.0")
+	istio1_30 = semver.MustParse("1.30.0")
+)
 
 // ApplyTLSConfig applies TLS configuration to the Istio values.
 // If TLS settings are already set, they are not overridden.
