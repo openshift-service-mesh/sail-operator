@@ -80,7 +80,7 @@ func TestApplyFipsValues(t *testing.T) {
 			inputValues: &v1.Values{},
 			expectValues: &v1.Values{
 				Pilot: &v1.PilotConfig{
-					Env: map[string]string{"COMPLIANCE_POLICY": "fips-140-2"},
+					Env: map[string]string{"COMPLIANCE_POLICY": "fips-140-3-redhat"},
 				},
 			},
 		},
@@ -96,7 +96,7 @@ func TestApplyFipsValues(t *testing.T) {
 				Pilot: &v1.PilotConfig{
 					Env: map[string]string{
 						"OTHER_VAR":         "value",
-						"COMPLIANCE_POLICY": "fips-140-2",
+						"COMPLIANCE_POLICY": "fips-140-3-redhat",
 					},
 				},
 			},

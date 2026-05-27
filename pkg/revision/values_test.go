@@ -120,7 +120,7 @@ spec:`)), 0o644))
 
 	expected := &v1.Values{
 		Pilot: &v1.PilotConfig{
-			Env: map[string]string{"COMPLIANCE_POLICY": "fips-140-2"},
+			Env: map[string]string{"COMPLIANCE_POLICY": "fips-140-3-redhat"},
 		},
 		Global: &v1.GlobalConfig{
 			Platform:       ptr.Of("openshift"),

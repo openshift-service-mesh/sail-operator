@@ -61,7 +61,7 @@ func ApplyFipsValues(values *v1.Values) {
 		values.Pilot.Env = make(map[string]string)
 	}
 	if _, found := values.Pilot.Env["COMPLIANCE_POLICY"]; !found {
-		values.Pilot.Env["COMPLIANCE_POLICY"] = "fips-140-2"
+		values.Pilot.Env["COMPLIANCE_POLICY"] = "fips-140-3-redhat"
 	}
 }
 
