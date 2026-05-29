@@ -356,8 +356,6 @@ spec:
 		// When TLSAdherence changes to StrictAllComponents, the operator should
 		// apply the TLS profile to both the metrics endpoint and the Istio resource.
 		It("syncs TLS settings when TLSAdherence is set to StrictAllComponents", func(ctx SpecContext) {
-			Skip("Test has flaky OOM issues due to multiple operator restarts and nil pointer panics on line 380")
-
 			if ocpMinorVersion < 22 {
 				Skip(fmt.Sprintf("TLSAdherence field requires OpenShift >= 4.22. Current version: '%d.%d'. Skipping test.", ocpMajorVersion, ocpMinorVersion))
 			}
