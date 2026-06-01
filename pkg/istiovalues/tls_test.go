@@ -269,3 +269,113 @@ func TestApplyTLSConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyZTunnelTLSConfig(t *testing.T) {
+	tests := []struct {
+		name         string
+		tlsConfig    *config.TLSConfig
+		istioVersion string
+		inputValues  *v1.ZTunnelValues
+		wantValues   *v1.ZTunnelValues
+	}{
+		{
+			name:         "nil TLS config does not change values",
+			tlsConfig:    nil,
+			istioVersion: "1.30.0",
+			inputValues:  &v1.ZTunnelValues{},
+			wantValues:   &v1.ZTunnelValues{},
+		},
+		{
+			name:         "nil values is safe",
+			tlsConfig:    &config.TLSConfig{CipherSuites: []uint16{tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}},
+			istioVersion: "1.30.0",
+			inputValues:  nil,
+			wantValues:   nil,
+		},
+		{
+			name: "empty cipher suites does not change values",
+			tlsConfig: &config.TLSConfig{
+				CipherSuites: []uint16{},
+			},
+			istioVersion: "1.30.0",
+			inputValues:  &v1.ZTunnelValues{},
+			wantValues:   &v1.ZTunnelValues{},
+		},
+		{
+			name: "skipped for istio < 1.30",
+			tlsConfig: &config.TLSConfig{
+				CipherSuites: []uint16{tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+			},
+			istioVersion: "1.29.0",
+			inputValues:  &v1.ZTunnelValues{},
+			wantValues:   &v1.ZTunnelValues{},
+		},
+		{
+			name: "applies cipher suites for istio 1.30+",
+			tlsConfig: &config.TLSConfig{
+				CipherSuites: []uint16{tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384},
+			},
+			istioVersion: "1.30.0",
+			inputValues:  &v1.ZTunnelValues{},
+			wantValues: &v1.ZTunnelValues{
+				ZTunnel: &v1.ZTunnelConfig{
+					Env: map[string]string{
+						"MESH_CIPHER_SUITES": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+					},
+				},
+			},
+		},
+		{
+			name: "does not override existing MESH_CIPHER_SUITES",
+			tlsConfig: &config.TLSConfig{
+				CipherSuites: []uint16{tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+			},
+			istioVersion: "1.30.0",
+			inputValues: &v1.ZTunnelValues{
+				ZTunnel: &v1.ZTunnelConfig{
+					Env: map[string]string{
+						"MESH_CIPHER_SUITES": "TLS_AES_128_GCM_SHA256",
+					},
+				},
+			},
+			wantValues: &v1.ZTunnelValues{
+				ZTunnel: &v1.ZTunnelConfig{
+					Env: map[string]string{
+						"MESH_CIPHER_SUITES": "TLS_AES_128_GCM_SHA256",
+					},
+				},
+			},
+		},
+		{
+			name: "preserves existing env vars",
+			tlsConfig: &config.TLSConfig{
+				CipherSuites: []uint16{tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+			},
+			istioVersion: "1.30.0",
+			inputValues: &v1.ZTunnelValues{
+				ZTunnel: &v1.ZTunnelConfig{
+					Env: map[string]string{
+						"TLS12_ENABLED": "true",
+					},
+				},
+			},
+			wantValues: &v1.ZTunnelValues{
+				ZTunnel: &v1.ZTunnelConfig{
+					Env: map[string]string{
+						"TLS12_ENABLED":      "true",
+						"MESH_CIPHER_SUITES": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ApplyZTunnelTLSConfig(tt.tlsConfig, tt.istioVersion, tt.inputValues)
+			if diff := cmp.Diff(tt.wantValues, tt.inputValues); diff != "" {
+				t.Errorf("ApplyZTunnelTLSConfig() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
