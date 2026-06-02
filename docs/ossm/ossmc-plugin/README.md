@@ -1,6 +1,6 @@
 # Using OpenShift Service Mesh Console plugin
 
-The OpenShift Service Mesh Console (OSSMC) plugin extends the OpenShift web console with a **Service Mesh** menu and enhanced tabs for workloads and services.
+The OpenShift Service Mesh Console (OSSMC) plugin extends the OpenShift web console with a **Service Mesh** menu and enhanced tabs for workloads, services, and Istio resources.
 
 ## About the OpenShift Service Mesh Console plugin
 
@@ -15,11 +15,19 @@ The OSSMC plugin provides a new category, **Service Mesh**, in the main OpenShif
 
 * **Traffic Graph:** Provides a full topology view of your mesh, represented by nodes and edges. Each node represents a component of the mesh and each edge represents traffic flowing through the mesh between components.
 
-* **Istio config:** Provides a list of all Istio configuration files in your mesh, with a column that provides a quick way to know if the configuration for each resource is valid.
-
 * **Mesh:** Provides detailed information about the Istio infrastructure status. It shows an infrastructure topology view with core and add-on components, their health, and how they are connected to each other.
 
-In the web console **Workloads** details page, the OSSMC plugin adds a **Service Mesh** tab that has the following subtabs:
+* **Namespaces:** Provides a list of namespaces participating in the mesh along with their health status and labels.
+
+* **Applications:** Provides a list of applications detected in the mesh. Clicking an application opens a detail page with subtabs for Overview, Traffic, Inbound Metrics, and Traces.
+
+* **Services:** Provides a list of services in the mesh. Clicking a service opens a detail page with subtabs for Overview, Traffic, Inbound Metrics, and Traces.
+
+* **Workloads:** Provides a list of workloads in the mesh along with their health status, type, and associated Istio configuration.
+
+* **Istio Config:** Provides a list of all Istio configuration files in your mesh, with a column that provides a quick way to know if the configuration for each resource is valid. You can also create new Istio configuration resources from this page.
+
+In the web console **Workloads** details page (Deployments, Pods, StatefulSets, DaemonSets, and other workload types), the OSSMC plugin adds a **Service Mesh** tab that has the following subtabs:
 
 * **Overview:** Shows a summary of the selected workload, including a localized topology graph showing the workload with all inbound and outbound edges and nodes.
 
@@ -27,15 +35,17 @@ In the web console **Workloads** details page, the OSSMC plugin adds a **Service
 
 * **Logs:** Shows the logs for the workload's containers. You can see container logs individually ordered by log time and how the Envoy sidecar proxy logs relate to your workload's application logs. You can enable the tracing span integration, which allows you to see which logs correspond to trace spans.
 
-* **Metrics:** Shows inbound and outbound metric graphs in the corresponding subtabs. All the workload metrics are here, providing a detailed view of the performance of your workload. You can enable the tracing span integration, which allows you to see which spans occurred at the same time as the metrics. With the span marker in the graph, you can see the specific spans associated with that timeframe.
+* **Inbound Metrics / Outbound Metrics:** Shows inbound and outbound metric graphs in the corresponding subtabs. All the workload metrics are here, providing a detailed view of the performance of your workload. You can enable the tracing span integration, which allows you to see which spans occurred at the same time as the metrics. With the span marker in the graph, you can see the specific spans associated with that timeframe.
 
 * **Traces:** Provides a chart showing the trace spans collected over the given timeframe. The trace spans show the most low-level detail within your workload application. The trace details further show heatmaps that provide a comparison of one span in relation to other requests and spans in the same timeframe.
 
 * **Envoy:** Shows information about the Envoy sidecar configuration.
 
-In the web console **Networking** details page, the OSSMC plugin adds a **Service Mesh** tab similar to the **Workloads** details page.
+In the web console **Services** details page, the OSSMC plugin adds a **Service Mesh** tab with subtabs for Overview, Traffic, Inbound Metrics, and Traces, similar to the **Workloads** details page.
 
 In the web console **Projects** details page, the OSSMC plugin adds a **Service Mesh** tab that provides traffic graph information about that project. It is the same information shown in the **Traffic Graph** page but specific to that project.
+
+In the web console detail pages for **Istio configuration resources** (such as VirtualService, DestinationRule, Gateway, AuthorizationPolicy, and others), the OSSMC plugin adds a **Service Mesh** tab that shows an overview and validation status for the resource.
 
 ## Installing the OpenShift Service Mesh Console plugin
 
