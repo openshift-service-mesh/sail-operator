@@ -30,7 +30,7 @@ MINOR_VERSION := $(shell echo "${VERSION}" | cut -f1,2 -d'.')
 # There are also GH workflows defined to release nightly and stable operators.
 # There is no need to define `replaces` and `skipRange` fields in the CSV as those fields are defined in the FBC and CSV values are ignored.
 # FBC is source of truth for OLM upgrade graph.
-PREVIOUS_VERSION ?= 1.29.1
+PREVIOUS_VERSION ?= 1.29.2
 
 OPERATOR_NAME ?= sailoperator
 VERSIONS_YAML_DIR ?= pkg/istioversion
@@ -119,7 +119,7 @@ KIND_IMAGE ?=
 ifeq ($(KIND_IMAGE),)
   ifeq ($(LOCAL_OS),Darwin)
     # If the OS is Darwin, set the image.
-    KIND_IMAGE := docker.io/kindest/node:v1.35.1
+    KIND_IMAGE := docker.io/kindest/node:v1.36.1
   endif
   # For other OS, KIND_IMAGE remains empty, which default to the upstream default image.
 endif
