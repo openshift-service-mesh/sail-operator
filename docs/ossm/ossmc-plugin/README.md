@@ -15,7 +15,7 @@ The plugin integrates into the OpenShift web console through the Main Navigation
 
 The OSSMC plugin adds a **Service Mesh** category to the main OpenShift web console navigation with the following menu options:
 
-* **Overview:** Provides a summary of your mesh, displayed as cards that represent the namespaces in the mesh.
+* **Overview:** Provides a summary of your mesh, including cluster and control plane status, data plane information, Istio configuration validation, application health, and service insights with error rates, latency and throughput metrics.
 
 * **Traffic Graph:** Provides a full topology view of your mesh, represented by nodes and edges. Each node represents a component of the mesh and each edge represents traffic flowing through the mesh between components.
 
@@ -94,7 +94,7 @@ You can install the OSSMC plugin by using the OpenShift web console.
 4. Use the **Create OSSMConsole** form to create an instance of the `OSSMConsole` custom resource (CR). **Name** and **Version** are the required fields.
 
     [!NOTE]
-    The **Version** field must match with the `spec.version` field in your Kiali custom resource (CR). If **Version** value is the string `default`, the Kiali Operator installs the OSSMC plugin with the same version as the operator. The `spec.version` field requires the `v` prefix in the version number. The version number must only include the major and minor version numbers (not the patch number); for example: `v1.73`.
+    The **Version** field must match with the `spec.version` field in your Kiali custom resource (CR). If **Version** value is the string `default`, the Kiali Operator installs the OSSMC plugin with the same version as the operator. The `spec.version` field requires the `v` prefix in the version number. The version number must only include the major and minor version numbers (not the patch number); for example: `v2.4`.
 
 5. Click **Create**.
 
@@ -132,7 +132,7 @@ You can install the OSSMC plugin by using the OpenShift CLI (`oc`).
     ```
 
     [!NOTE]
-    The OSSMC plugin version must match with the Kiali Server version. If `spec.version` field value is the string `default` or is not specified, the Kiali Operator installs OSSMC with the same version as the operator. The `spec.version` field requires the `v` prefix in the version number. The version number must only include the major and minor version numbers (not the patch number); for example: `v1.73`.
+    The OSSMC plugin version must match with the Kiali Server version. If `spec.version` field value is the string `default` or is not specified, the Kiali Operator installs OSSMC with the same version as the operator. The `spec.version` field requires the `v` prefix in the version number. The version number must only include the major and minor version numbers (not the patch number); for example: `v2.4`.
 
     The plugin resources deploy in the same namespace as the `OSSMConsole` CR.
 
