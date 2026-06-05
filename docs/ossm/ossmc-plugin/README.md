@@ -1,41 +1,57 @@
 # Using OpenShift Service Mesh Console plugin
 
-The OpenShift Service Mesh Console (OSSMC) plugin extends the OpenShift web console with a **Service Mesh** menu and enhanced tabs for workloads and services.
+The OpenShift Service Mesh Console (OSSMC) plugin extends the OpenShift web console, allowing you to monitor and manage your service mesh directly without switching to a separate application.
 
 ## About the OpenShift Service Mesh Console plugin
 
-The OpenShift Service Mesh Console (OSSMC) plugin is an extension to the OpenShift web console that provides visibility into your Service Mesh.
+The OpenShift Service Mesh Console (OSSMC) plugin is an OpenShift dynamic plugin that integrates Kiali functionality into the OpenShift web console, providing full visibility into your Service Mesh. It offers the same features as the standalone Kiali console but organized to fit the OpenShift web console experience.
 
 [!WARNING]
 The OSSMC plugin supports only one Kiali instance, regardless of its project access scope.
 
-The OSSMC plugin provides a new category, **Service Mesh**, in the main OpenShift web console navigation with the following menu options:
+The plugin integrates into the OpenShift web console through the Main Navigation Menu and enhanced detail pages for workloads, services, applications, Istio configuration, and projects.
+
+### Main Navigation Menu
+
+The OSSMC plugin adds a **Service Mesh** category to the main OpenShift web console navigation with the following menu options:
 
 * **Overview:** Provides a summary of your mesh, displayed as cards that represent the namespaces in the mesh.
 
 * **Traffic Graph:** Provides a full topology view of your mesh, represented by nodes and edges. Each node represents a component of the mesh and each edge represents traffic flowing through the mesh between components.
 
-* **Istio config:** Provides a list of all Istio configuration files in your mesh, with a column that provides a quick way to know if the configuration for each resource is valid.
+* **Mesh:** Provides detailed information about the service mesh infrastructure status. It shows an infrastructure topology view with core and add-on components, their health, and how they are connected to each other.
 
-* **Mesh:** Provides detailed information about the Istio infrastructure status. It shows an infrastructure topology view with core and add-on components, their health, and how they are connected to each other.
+* **Namespaces:** Provides a list of namespaces participating in the mesh with information about type, data plane mode, cluster, health, mTLS status, Istio configuration status, and labels.
 
-In the web console **Workloads** details page, the OSSMC plugin adds a **Service Mesh** tab that has the following subtabs:
+* **Applications:** Provides a list of applications detected in the mesh with information about health status and associated workloads.
 
-* **Overview:** Shows a summary of the selected workload, including a localized topology graph showing the workload with all inbound and outbound edges and nodes.
+* **Services:** Provides a list of services in the mesh with information about health, Istio configuration status, and labels.
 
-* **Traffic:** Shows information about all inbound and outbound traffic to the workload.
+* **Workloads:** Provides a list of workloads in the mesh with information about health status, type (Deployment, ReplicaSet, DaemonSet, StatefulSet, etc.), and associated Istio configuration.
 
-* **Logs:** Shows the logs for the workload's containers. You can see container logs individually ordered by log time and how the Envoy sidecar proxy logs relate to your workload's application logs. You can enable the tracing span integration, which allows you to see which logs correspond to trace spans.
+* **Istio Config:** Provides a list of all service mesh configuration resources, with a column that provides a quick way to know if the configuration for each resource is valid. The list page supports full filtering capabilities, including type, name, and validation status filters. You can also create new configuration resources from this page.
 
-* **Metrics:** Shows inbound and outbound metric graphs in the corresponding subtabs. All the workload metrics are here, providing a detailed view of the performance of your workload. You can enable the tracing span integration, which allows you to see which spans occurred at the same time as the metrics. With the span marker in the graph, you can see the specific spans associated with that timeframe.
+### Application, Workload, and Service Details
 
-* **Traces:** Provides a chart showing the trace spans collected over the given timeframe. The trace spans show the most low-level detail within your workload application. The trace details further show heatmaps that provide a comparison of one span in relation to other requests and spans in the same timeframe.
+The **Applications**, **Workloads** (Deployments, ReplicaSets, Pods, StatefulSets, DaemonSets), and **Services** detail pages provide the following subtabs:
 
-* **Envoy:** Shows information about the Envoy sidecar configuration.
+| Subtab | Description |
+| ------ | ----------- |
+| **Overview** | Shows a summary of the selected application, workload, or service, including a localized topology graph with all inbound and outbound edges and nodes. |
+| **Traffic** | Shows information about all inbound and outbound traffic. |
+| **Logs** | Shows the logs for the workload's containers. You can see container logs individually ordered by log time and how the Envoy sidecar proxy logs relate to your workload's application logs. You can enable the tracing span integration, which allows you to see which logs correspond to trace spans. Only available for workloads. |
+| **Inbound Metrics** | Shows inbound metric graphs, providing a detailed view of performance. You can enable the tracing span integration, which allows you to see which spans occurred at the same time as the metrics. With the span marker in the graph, you can see the specific spans associated with that timeframe. |
+| **Outbound Metrics** | Shows outbound metric graphs. Not available for services. |
+| **Traces** | Provides a chart showing the trace spans collected over the given timeframe. The trace spans show the most low-level detail within your application. The trace details further show heatmaps that provide a comparison of one span in relation to other requests and spans in the same timeframe. |
+| **Envoy** | Shows information about the Envoy sidecar configuration. Only available for workloads. |
 
-In the web console **Networking** details page, the OSSMC plugin adds a **Service Mesh** tab similar to the **Workloads** details page.
+### Istio Configuration Details
 
-In the web console **Projects** details page, the OSSMC plugin adds a **Service Mesh** tab that provides traffic graph information about that project. It is the same information shown in the **Traffic Graph** page but specific to that project.
+In the web console detail pages for **Istio configuration resources** (such as VirtualService, DestinationRule, Gateway, AuthorizationPolicy, and others), the OSSMC plugin adds a **Service Mesh** tab that shows an overview and validation status for the resource.
+
+### Project Details
+
+In the web console **Projects** details page, the OSSMC plugin adds a **Service Mesh** tab that shows the namespace detail page with a split-panel layout: the left panel contains stacked cards showing namespace attributes, resource links, and health information, while the right panel displays a namespace-scoped traffic minigraph.
 
 ## Installing the OpenShift Service Mesh Console plugin
 
@@ -56,16 +72,16 @@ The OSSMC plugin is only supported on OpenShift 4.15 and above. For OCP 4.14 use
 
 You can install the OSSMC plugin by using the OpenShift web console or the OpenShift CLI (`oc`).
 
-### Installing the OSSMC plugin by using the OpenShift web console
+### Installing by using the OpenShift web console
 
 You can install the OSSMC plugin by using the OpenShift web console.
 
 **Prerequisites**
 
-* You have the administrator access to the OpenShift web console.
-* You have installed the Red Hat OpenShift Service Mesh (OSSM).
-* You have installed the `Istio` control plane from OSSM 3.0.
-* You have installed the Kiali Server 2.4.
+* You have logged in to the OpenShift Container Platform cluster either through the web console as a user with the cluster-admin role, or with the oc login command, depending on the installation method.
+* You have installed the OpenShift Service Mesh Operator in the OpenShift Container Platform cluster.
+* You have installed the `Istio` Resource from OSSM.
+* You have installed the Kiali Server.
 
 **Procedure**
 
@@ -88,16 +104,16 @@ You can install the OSSMC plugin by using the OpenShift web console.
 
 2. Verify that the **Service Mesh** category is added in the main OpenShift web console navigation.
 
-### Installing the OSSMC plugin by using the CLI
+### Installing by using the CLI
 
 You can install the OSSMC plugin by using the OpenShift CLI (`oc`).
 
 **Prerequisites**
 
-* You have access to the OpenShift CLI on the cluster as an administrator.
-* You have installed the Red Hat OpenShift Service Mesh (OSSM).
-* You have installed the `Istio` control plane from OSSM 3.0.
-* You have installed the Kiali Server 2.4.
+* You have logged in to the OpenShift Container Platform cluster either through the web console as a user with the cluster-admin role, or with the oc login command, depending on the installation method.
+* You have installed the OpenShift Service Mesh Operator in the OpenShift Container Platform cluster.
+* You have installed the `Istio` Resource from OSSM.
+* You have installed the Kiali Server.
 
 **Procedure**
 
@@ -155,7 +171,7 @@ You must uninstall the OSSMC plugin before removing the Kiali Operator. Deleting
 $ oc patch <custom_resource_type> <custom_resource_name> -n <custom_resource_namespace> -p '{"metadata":{"finalizers": []}}' --type=merge
 ```
 
-### Uninstalling the OSSMC plugin by using the web console
+### Uninstalling using the web console
 
 You can uninstall the OSSMC plugin by using the OpenShift web console.
 
@@ -171,7 +187,7 @@ You can uninstall the OSSMC plugin by using the OpenShift web console.
 
 5. Confirm that you want to delete the plugin.
 
-### Uninstalling the OSSMC plugin by using the CLI
+### Uninstalling using the CLI
 
 You can uninstall the OSSMC plugin by using the OpenShift CLI (`oc`).
 
