@@ -29,6 +29,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	ztwimOperatorName = "openshift-zero-trust-workload-identity-manager"
+)
+
 var (
 	cl                    client.Client
 	err                   error

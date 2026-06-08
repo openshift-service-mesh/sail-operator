@@ -55,6 +55,25 @@ var _ = Describe("ZTWIM Installation", Label("smoke", "ztwim", "slow"), Ordered,
 		clr := cleaner.New(cl)
 		BeforeAll(func(ctx SpecContext) {
 			clr.Record(ctx)
+
+			// If the OCP cluster is from nightly build, the ZTWIM operator package
+			// might not be available. Check for the package existence and if it's missing, skip the test.
+			By("Verifying ZTWIM operator package is available in the catalog")
+			checkCmd := fmt.Sprintf(
+				`oc get packagemanifests -n openshift-marketplace %s -o jsonpath='{.status.catalogSource}' 2>/dev/null || echo "NOT_FOUND"`,
+				ztwimOperatorName)
+			catalogSource, err := shell.ExecuteShell(checkCmd, "")
+			if err != nil {
+				Skip(fmt.Sprintf("Failed to check for ZTWIM operator package availability: %v. Skipping test.", err))
+			}
+			if strings.TrimSpace(catalogSource) == "NOT_FOUND" || strings.TrimSpace(catalogSource) == "" {
+				Skip(fmt.Sprintf(
+					"ZTWIM operator package '%s' not found in operator catalog. "+
+						"This operator may not be available on this OpenShift version/configuration.",
+					ztwimOperatorName))
+			}
+			Success(fmt.Sprintf("ZTWIM operator package found in catalog: %s", strings.TrimSpace(catalogSource)))
+
 			Expect(k.CreateNamespace(controlPlaneNamespace)).To(Succeed(), "Istio namespace failed to be created")
 			Expect(k.CreateNamespace(istioCniNamespace)).To(Succeed(), "IstioCNI namespace failed to be created")
 			Expect(k.CreateNamespace(ztwimNamespace)).To(Succeed(), "ZTWIM Namespace failed to be created")
@@ -63,34 +82,34 @@ var _ = Describe("ZTWIM Installation", Label("smoke", "ztwim", "slow"), Ordered,
 		When("the ZTWIM Operator is deployed", func() {
 			BeforeAll(func() {
 				// Apply OperatorGroup YAML
-				operatorGroupYaml := `
+				operatorGroupYaml := fmt.Sprintf(`
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
-  name: openshift-zero-trust-workload-identity-manager
-  namespace: zero-trust-workload-identity-manager
+  name: %s
+  namespace: %s
 spec:
-  upgradeStrategy: Default`
+  upgradeStrategy: Default`, ztwimOperatorName, ztwimNamespace)
 				Expect(k.WithNamespace(ztwimNamespace).CreateFromString(operatorGroupYaml)).To(Succeed(), "OperatorGroup creation failed")
 
 				// Apply Subscription YAML
-				subscriptionYaml := `
+				subscriptionYaml := fmt.Sprintf(`
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
-  name: openshift-zero-trust-workload-identity-manager
-  namespace: zero-trust-workload-identity-manager
+  name: %s
+  namespace: %s
 spec:
   channel: stable-v1
-  name: openshift-zero-trust-workload-identity-manager
+  name: %s
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  installPlanApproval: Automatic`
+  installPlanApproval: Automatic`, ztwimOperatorName, ztwimNamespace, ztwimOperatorName)
 				Expect(k.WithNamespace(ztwimNamespace).CreateFromString(subscriptionYaml)).To(Succeed(), "Subscription creation failed")
 			})
 
 			It("should have subscription created successfully", func() {
-				output, err := k.WithNamespace(ztwimNamespace).GetYAML("subscription", "openshift-zero-trust-workload-identity-manager")
+				output, err := k.WithNamespace(ztwimNamespace).GetYAML("subscription", ztwimOperatorName)
 				Expect(err).NotTo(HaveOccurred(), "error getting subscription YAML")
 				Expect(output).To(ContainSubstring(ztwimNamespace), "Subscription is not created")
 			})
@@ -109,7 +128,7 @@ spec:
 				Expect(
 					k.WithNamespace(ztwimNamespace).Patch(
 						"subscription",
-						"openshift-zero-trust-workload-identity-manager",
+						ztwimOperatorName,
 						"merge",
 						`{"spec":{"config":{"env":[{"name":"CREATE_ONLY_MODE","value":"true"}]}}}`,
 					),
@@ -694,8 +713,8 @@ spec:
 		When("ZTWIM operator is deleted", func() {
 			BeforeEach(func() {
 				By("Deleting OLM Subscription and OperatorGroup")
-				Expect(k.WithNamespace(ztwimNamespace).Delete("subscription", "openshift-zero-trust-workload-identity-manager")).To(Succeed())
-				Expect(k.WithNamespace(ztwimNamespace).Delete("operatorgroup", "openshift-zero-trust-workload-identity-manager")).To(Succeed())
+				Expect(k.WithNamespace(ztwimNamespace).Delete("subscription", ztwimOperatorName)).To(Succeed())
+				Expect(k.WithNamespace(ztwimNamespace).Delete("operatorgroup", ztwimOperatorName)).To(Succeed())
 
 				By("Deleting ClusterServiceVersion (CSV) to permanently stop the Operator")
 				_ = k.WithNamespace(ztwimNamespace).Delete("csv", "--all")
