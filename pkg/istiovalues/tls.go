@@ -25,7 +25,10 @@ import (
 	"istio.io/istio/pkg/log"
 )
 
-var istio1_29 = semver.MustParse("1.29.0")
+var (
+	istio1_29 = semver.MustParse("1.29.0")
+	istio1_30 = semver.MustParse("1.30.0")
+)
 
 // ApplyTLSConfig applies TLS configuration to the Istio values.
 // If TLS settings are already set, they are not overridden.
@@ -83,6 +86,42 @@ func ApplyTLSConfig(tlsConfig *config.TLSConfig, istioVersion string, values *v1
 			log.Infof("Istio version %q is less than 1.29 and --tls-min-version flag for istiod is only supported on Istio 1.29+. Skipping sync of flag.", istioVersion)
 		}
 	}
+}
+
+// ApplyZTunnelTLSConfig sets the MESH_CIPHER_SUITES env var on ztunnel.
+// Only supported on Istio 1.30+. Existing user values are not overridden.
+func ApplyZTunnelTLSConfig(tlsConfig *config.TLSConfig, istioVersion string, values *v1.ZTunnelValues) {
+	if tlsConfig == nil || values == nil || len(tlsConfig.CipherSuites) == 0 {
+		return
+	}
+
+	v, err := semver.NewVersion(istioVersion)
+	if err != nil {
+		log.Warnf("failed to parse Istio version %q: %v", istioVersion, err)
+		return
+	}
+
+	if !v.GreaterThanEqual(istio1_30) {
+		log.Infof("Istio version %q is less than 1.30; skipping MESH_CIPHER_SUITES sync to ztunnel", istioVersion)
+		return
+	}
+
+	if values.ZTunnel == nil {
+		values.ZTunnel = &v1.ZTunnelConfig{}
+	}
+	if values.ZTunnel.Env == nil {
+		values.ZTunnel.Env = make(map[string]string)
+	}
+
+	if _, found := values.ZTunnel.Env["MESH_CIPHER_SUITES"]; found {
+		return
+	}
+
+	cipherNames := make([]string, len(tlsConfig.CipherSuites))
+	for i, id := range tlsConfig.CipherSuites {
+		cipherNames[i] = tls.CipherSuiteName(id)
+	}
+	values.ZTunnel.Env["MESH_CIPHER_SUITES"] = strings.Join(cipherNames, ",")
 }
 
 func tlsProtocolVersion(v uint16) v1.MeshConfigTLSConfigTLSProtocol {
