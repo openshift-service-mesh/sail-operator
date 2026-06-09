@@ -218,7 +218,7 @@ func logOperatorDebugInfo(k kubectl.Kubectl, artifactsDir, clusterName string) {
 	operator, err := k.GetYAML("deployment", deploymentName)
 	logDebugElement("=====Operator Deployment YAML=====", operator, err, &buf)
 
-	logs, err := k.Logs("deploy/"+deploymentName, ptr.Of(120*time.Second))
+	logs, err := k.Logs("deploy/"+deploymentName, nil)
 	logDebugElement("=====Operator logs=====", logs, err, &buf)
 
 	events, err := k.GetEvents()
@@ -520,7 +520,7 @@ func ImageFromRegistry(regexp string) types.GomegaMatcher {
 	return HaveField("Image", MatchRegexp(regexp))
 }
 
-func EnsureNamespace(ctx context.Context, ctrlclient client.Client, namespace string) {
+func EnsureNamespace(ctx context.Context, ctrlclient client.Client, namespace string) *corev1.Namespace {
 	GinkgoHelper()
 	ns := &corev1.Namespace{}
 	if err := ctrlclient.Get(ctx, client.ObjectKey{Name: namespace}, ns); apierrors.IsNotFound(err) {
@@ -531,6 +531,17 @@ func EnsureNamespace(ctx context.Context, ctrlclient client.Client, namespace st
 	} else if err != nil {
 		Fail(fmt.Sprintf("Failed to get namespace: %s", err))
 	}
+	return ns
+}
+
+func EnsureNamespaceWithCleanup(k kubectl.Kubectl, namespace string) {
+	GinkgoHelper()
+	Expect(k.CreateNamespace(namespace)).To(Succeed())
+	DeferCleanup(func() {
+		if err := k.Delete("namespace", namespace); err != nil {
+			Log(fmt.Sprintf("Failed to delete namespace: %s", err))
+		}
+	})
 }
 
 // GetProxyVersion extracts the Istio proxy version from a pod using istioctl proxy-status
