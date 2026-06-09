@@ -1,101 +1,123 @@
-# OpenShift Service Mesh Console plugin
+# Using OpenShift Service Mesh Console plugin
 
-The OpenShift Service Mesh Console (OSSMC) plugin is an extension to the OpenShift web console that provides visibility into your Service Mesh. With the OSSMC plugin installed, a new **Service Mesh** menu category is available in the navigation menu on the left side of the web console, as well as new **Service Mesh** tabs that enhance the existing **Workloads** and **Services** OpenShift console detail pages.
-
-The features of the OSSMC plugin are the same as those of the standalone Kiali Console, but the pages are organized differently to better integrate with the OpenShift console. The OSSMC plugin does not replace the Kiali Console, and after installing the OSSMC plugin, you can still access the standalone Kiali Console.
-
-[!IMPORTANT]
-If you are using a certificate that your browser does not initially trust, you must tell your browser to trust the certificate first before you are able to access the OSSMC plugin. To do this, go to the Kiali standalone user interface (UI) and tell the browser to accept its certificate.
+The OpenShift Service Mesh Console (OSSMC) plugin extends the OpenShift web console, allowing you to monitor and manage your service mesh directly without switching to a separate application.
 
 ## About the OpenShift Service Mesh Console plugin
 
-The OpenShift Service Mesh Console (OSSMC) plugin is an extension to the OpenShift web console that provides visibility into your Service Mesh.
+The OpenShift Service Mesh Console (OSSMC) plugin is an OpenShift dynamic plugin that integrates Kiali functionality into the OpenShift web console, providing full visibility into your Service Mesh. It offers the same features as the standalone Kiali console but organized to fit the OpenShift web console experience.
 
 [!WARNING]
-The OSSMC plugin only supports a single Kiali instance. Whether that Kiali instance is configured to access only a subset of OpenShift projects or has access cluster-wide to all projects does not matter. However, only a single Kiali instance can be accessed.
+The OSSMC plugin supports only one Kiali instance, regardless of its project access scope.
 
-The OSSMC plugin provides a new category, **Service Mesh**, in the main OpenShift web console navigation.
+The plugin integrates into the OpenShift web console through the Main Navigation Menu and enhanced detail pages for workloads, services, applications, Istio configuration, and projects.
 
-The following menu options are available under **Service Mesh** category:
+### Main Navigation Menu
 
-* **Overview** for a summary of your mesh, displayed as cards that represent the namespaces in the mesh.
-* **Traffic Graph** for a full topology view of your mesh, represented by nodes and edges, each node representing a component of the mesh and each edge representing traffic flowing through the mesh between components.
-* **Istio config** for a list of all Istio configuration files in your mesh, with a column that provides a quick way to know if the configuration for each resource is valid.
-* **Mesh** for detailed information about the Istio infrastructure status. It shows an infrastructure topology view with core and add-on components, their health, and how they are connected to each other.
+The OSSMC plugin adds a **Service Mesh** category to the main OpenShift web console navigation with the following menu options:
 
-Under the OpenShift **Workloads** details page, the OSSMC plugin adds a **Service Mesh** tab that contains the following subtabs:
+* **Overview:** Provides a summary of your mesh, including cluster and control plane status, data plane information, Istio configuration validation, application health, and service insights with error rates, latency and throughput metrics.
 
-* **Overview** subtab provides a summary of the selected workload, including a localized topology graph showing the workload with all inbound and outbound edges and nodes.
-* **Traffic** subtab displays information about all inbound and outbound traffic to the workload.
-* **Logs** subtab shows the logs for the workload's containers.
+* **Traffic Graph:** Provides a full topology view of your mesh, represented by nodes and edges. Each node represents a component of the mesh and each edge represents traffic flowing through the mesh between components.
 
-  * You can view container logs individually or in a unified fashion, ordered by log time. This is especially helpful to see how the Envoy sidecar proxy logs relate to your workload's application logs.
-  * You can enable the tracing span integration which then allows you to see which logs correspond to trace spans.
+* **Mesh:** Provides detailed information about the service mesh infrastructure status. It shows an infrastructure topology view with core and add-on components, their health, and how they are connected to each other.
 
-* **Metrics** subtab shows both inbound and outbound metric graphs in the corresponding subtabs. All the workload metrics can be displayed here, providing you with a detail view of the performance of your workload.
+* **Namespaces:** Provides a list of namespaces participating in the mesh with information about type, data plane mode, cluster, health, mTLS status, Istio configuration status, and labels.
 
-  * You can enable the tracing span integration which allows you to see which spans occurred at the same time as the metrics. Click a span marker in the graph to view the specific spans associated with that timeframe.
+* **Applications:** Provides a list of applications detected in the mesh with information about health status and associated workloads.
 
-* **Traces** provides a chart showing the trace spans collected over the given timeframe.
+* **Services:** Provides a list of services in the mesh with information about health, Istio configuration status, and labels.
 
-  * Click a bubble to drill down into those trace spans; the trace spans can provide you the most low-level detail within your workload application, down to the individual request level. The trace details view gives further details, including heatmaps that provide you with a comparison of one span in relation to other requests and spans in the same timeframe.
-  * If you hover over a cell in a heatmap, a tooltip gives some details on the cell data.
+* **Workloads:** Provides a list of workloads in the mesh with information about health status, type (Deployment, ReplicaSet, DaemonSet, StatefulSet, etc.), and associated Istio configuration.
 
-* **Envoy** subtab provides information about the Envoy sidecar configuration. This is useful when you need to dig down deep into the sidecar configuration when debugging things such as connectivity issues.
+* **Istio Config:** Provides a list of all service mesh configuration resources, with a column that provides a quick way to know if the configuration for each resource is valid. The list page supports full filtering capabilities, including type, name, and validation status filters. You can also create new configuration resources from this page.
 
-Under OpenShift **Networking** details page, the OSSMC plugin adds a **Service Mesh** tab to Services and contains the **Overview**, **Traffic**, **Inbound Metrics**, and **Traces** subtabs that are similar to the same subtabs found in **Workloads**.
+### Application, Workload, and Service Details
+
+The **Applications**, **Workloads** (Deployments, ReplicaSets, Pods, StatefulSets, DaemonSets), and **Services** detail pages provide the following subtabs:
+
+| Subtab | Description |
+| ------ | ----------- |
+| **Overview** | Shows a summary of the selected application, workload, or service, including a localized topology graph with all inbound and outbound edges and nodes. |
+| **Traffic** | Shows information about all inbound and outbound traffic. |
+| **Logs** | Shows the logs for the workload's containers. You can see container logs individually ordered by log time and how the Envoy sidecar proxy logs relate to your workload's application logs. You can enable the tracing span integration, which allows you to see which logs correspond to trace spans. Only available for workloads. |
+| **Inbound Metrics** | Shows inbound metric graphs, providing a detailed view of performance. You can enable the tracing span integration, which allows you to see which spans occurred at the same time as the metrics. With the span marker in the graph, you can see the specific spans associated with that timeframe. |
+| **Outbound Metrics** | Shows outbound metric graphs. Not available for services. |
+| **Traces** | Provides a chart showing the trace spans collected over the given timeframe. The trace spans show the most low-level detail within your application. The trace details further show heatmaps that provide a comparison of one span in relation to other requests and spans in the same timeframe. |
+| **Envoy** | Shows information about the Envoy sidecar configuration. Only available for workloads. |
+
+### Istio Configuration Details
+
+In the web console detail pages for **Istio configuration resources** (such as VirtualService, DestinationRule, Gateway, AuthorizationPolicy, and others), the OSSMC plugin adds a **Service Mesh** tab that shows an overview and validation status for the resource.
+
+### Project Details
+
+In the web console **Projects** details page, the OSSMC plugin adds a **Service Mesh** tab that shows the namespace detail page with a split-panel layout: the left panel contains stacked cards showing namespace attributes, resource links, and health information, while the right panel displays a namespace-scoped traffic minigraph.
 
 ## Installing the OpenShift Service Mesh Console plugin
 
-The OSSMC plugin can be installed in two ways: using the OpenShift web console or the OpenShift CLI.
+You can install the OSSMC plugin with the Kiali Operator by creating a `OSSMConsole` resource with the corresponding plugin settings. It is recommended to install the latest version of the Kiali Operator, even while installing a previous OSSMC plugin version, as it includes the latest z-stream release.
+
+### OSSM version compatibility
+
+| OSSM Version    | Kiali Server Version | OSSMC Plugin Version | OCP Version |
+| --------------- | -------------------- | -------------------- | ----------- |
+| 3.3             | v2.22                | v2.22                | 4.19+       |
+| 3.2             | v2.17                | v2.17                | 4.18+       |
+| 3.1             | v2.11                | v2.11                | 4.16+       |
+| 3.0             | v2.4                 | v2.4                 | 4.15+       |
+| 2.6             | v1.73                | v1.73                | 4.15 - 4.18 |
 
 [!NOTE]
-The OSSMC plugin is only supported on OpenShift 4.15 and above. For OCP 4.14 users, only the standalone Kiali Console will be accessible.
+The OSSMC plugin is only supported on OpenShift 4.15 and above. For OCP 4.14 users, only the standalone Kiali console is accessible.
 
-### Install via the OpenShift web console
+You can install the OSSMC plugin by using the OpenShift web console or the OpenShift CLI (`oc`).
 
-The following steps show how to install the OSSMC plugin via the OpenShift web console.
+### Installing by using the OpenShift web console
+
+You can install the OSSMC plugin by using the OpenShift web console.
 
 **Prerequisites**
 
-* Access to the OpenShift web console with administrator access.
-* Red Hat OpenShift Service Mesh (OSSM) is installed.
-* `Istio` control plane from OSSM 3.0 is installed.
-* Kiali Server 2.4 is installed.
+* You have logged in to the OpenShift Container Platform cluster either through the web console as a user with the cluster-admin role, or with the oc login command, depending on the installation method.
+* You have installed the OpenShift Service Mesh Operator in the OpenShift Container Platform cluster.
+* You have installed the `Istio` Resource from OSSM.
+* You have installed the Kiali Server.
 
 **Procedure**
 
 1. Navigate to **Installed Operators**.
 
-2. Click the **Kiali Operator** item to access to the operator details page.
+2. Click **Kiali Operator**.
 
-3. Click **Create instance** on the **Red Hat OpenShift Service Mesh Console** tile. Another way is to click **Create OSSMConsole** button under the **OpenShift Service Mesh Console** tab.
+3. Click **Create instance** on the **Red Hat OpenShift Service Mesh Console** tile. You can also click **Create OSSMConsole** button under the **OpenShift Service Mesh Console** tab.
 
-4. Use the **Create OSSMConsole** form to create an instance of the `OSSMConsole` custom resource (CR).
-
-    * **Name** and **Version** are required fields.
+4. Use the **Create OSSMConsole** form to create an instance of the `OSSMConsole` custom resource (CR). **Name** and **Version** are the required fields.
 
     [!NOTE]
-    The **Version** field must match the `spec.version` field in your Kiali CR. If the versions do not match, OSSMC will not work properly. In case the **Version** value is the string "default", the Kiali Operator will install OSSMC whose version is the same as the operator itself.
+    The **Version** field must match with the `spec.version` field in your Kiali custom resource (CR). If **Version** value is the string `default`, the Kiali Operator installs the OSSMC plugin with the same version as the operator. The `spec.version` field requires the `v` prefix in the version number. The version number must only include the major and minor version numbers (not the patch number); for example: `v2.4`.
 
 5. Click **Create**.
 
-6. Once the OpenShift Console UI detects the availability of the OSSM Console plugin, a message will appear in the OpenShift Console asking you to refresh it. You can use OSSMC once you refresh the OpenShift Console UI.
+**Verification**
 
-### Install via the OpenShift CLI
+1. Wait until the web console notifies you that the OSSMC plugin is installed and prompts you to refresh.
 
-The following steps show how to install the OSSMC plugin via the OpenShift CLI.
+2. Verify that the **Service Mesh** category is added in the main OpenShift web console navigation.
+
+### Installing by using the CLI
+
+You can install the OSSMC plugin by using the OpenShift CLI (`oc`).
 
 **Prerequisites**
 
-* Access to the OpenShift cluster via CLI with administrator privileges.
-* Red Hat OpenShift Service Mesh (OSSM) is installed.
-* `Istio` control plane from OSSM 3.0 is installed.
-* Kiali Server 2.4 is installed.
+* You have logged in to the OpenShift Container Platform cluster either through the web console as a user with the cluster-admin role, or with the oc login command, depending on the installation method.
+* You have installed the OpenShift Service Mesh Operator in the OpenShift Container Platform cluster.
+* You have installed the `Istio` Resource from OSSM.
+* You have installed the Kiali Server.
 
 **Procedure**
 
-1. Create a small `OSSMConsole` custom resource (CR) to instruct the operator to install the plugin:
+1. Create a `OSSMConsole` custom resource (CR) to install the plugin by running the following command:
 
     ```yaml
     cat <<EOM | oc apply -f -
@@ -110,11 +132,11 @@ The following steps show how to install the OSSMC plugin via the OpenShift CLI.
     ```
 
     [!NOTE]
-    If the `spec.version` field is not specified (or if set explicitly to the string “default”), then the Kiali Operator will install OSSMC whose version is the same as the operator itself. It is very important that the version of OSSMC be the same version as the Kiali Server that is installed. If the versions do not match, OSSMC will not work properly.
+    The OSSMC plugin version must match with the Kiali Server version. If `spec.version` field value is the string `default` or is not specified, the Kiali Operator installs OSSMC with the same version as the operator. The `spec.version` field requires the `v` prefix in the version number. The version number must only include the major and minor version numbers (not the patch number); for example: `v2.4`.
 
-    The plugin resources are deployed in the same namespace where the `OSSMConsole` CR is created.
+    The plugin resources deploy in the same namespace as the `OSSMConsole` CR.
 
-    If you have more than one Kiali installed in your cluster, you should tell OSSMC which one to communicate with. You do so via the “spec.kiali” settings in the OSSMConsole CR. For example:
+2. Optional: If more than one Kiali Server is installed in the cluster, specify the `spec.kiali` setting in the OSSMC CR by running a command similar to the following example:
 
     ```yaml
     cat <<EOM | oc apply -f -
@@ -131,47 +153,56 @@ The following steps show how to install the OSSMC plugin via the OpenShift CLI.
     EOM
     ```
 
-2. Go to the OpenShift web console.
+**Verification**
 
-3. If the OSSMC plugin is not available yet, a message will appear in the OpenShift Console asking to refresh once the OSSM Console plugin is ready. You can use OSSMC once you refresh the OpenShift Console UI.
+1. Go to the OpenShift web console.
+
+2. Verify that the **Service Mesh** category is added in the main OpenShift web console navigation.
+
+3. If the OSSMC plugin is not installed yet, wait until the web console notifies you that the OSSMC plugin is installed and prompts you to refresh.
 
 ## Uninstalling the OpenShift Service Mesh Console plugin
 
-The OSSMC plugin can be uninstalled in two ways: using the OpenShift web console or the OpenShift CLI.
+You can uninstall the OSSMC plugin by using the OpenShift web console or the OpenShift CLI (`oc`).
 
-[!NOTE]
-If you intend to also uninstall the Kiali Operator provided by Red Hat, you must first uninstall the OSSMC plugin, then uninstall Kiali and finally uninstall the Operator. If you uninstall the Operator before ensuring the `OSSMConsole` and `Kiali` CRs are deleted then you may have difficulty removing that CRs and their namespaces. If this occurs then you must manually remove the finalizer on the CR in order to delete it and its namespace. You can do this using: `$ oc patch <CR type> <CR name> -n <CR namespace> -p '{"metadata":{"finalizers": []}}' --type=merge`, where CR type is `kialis` or `ossmconsoles`.
+You must uninstall the OSSMC plugin before removing the Kiali Operator. Deleting the Operator first may leave OSSMC and Kiali CRs stuck, requiring manual removal of the finalizer. Use the following command with `<custom_resource_type>` as `kiali` or `ossmconsole` to remove the finalizer, if needed:
 
-### Uninstall via the OpenShift web console
+```console
+$ oc patch <custom_resource_type> <custom_resource_name> -n <custom_resource_namespace> -p '{"metadata":{"finalizers": []}}' --type=merge
+```
 
-The following steps show how to uninstall the OSSMC plugin via the OpenShift web console.
+### Uninstalling using the web console
+
+You can uninstall the OSSMC plugin by using the OpenShift web console.
 
 **Procedure**
 
 1. Navigate to **Installed Operators**.
 
-2. Click the **Kiali Operator** item to access to the operator details page.
+2. Click **Kiali Operator**.
 
 3. Select the **OpenShift Service Mesh Console** tab.
 
-4. Click **Delete OSSMConsole** option from the ossmconsole entry menu.
+4. Click **Delete OSSMConsole** option from the entry menu.
 
-5. Confirm the delete in the modal confirmation message.
+5. Confirm that you want to delete the plugin.
 
-### Uninstall via the OpenShift CLI
+### Uninstalling using the CLI
 
-The following steps show how to uninstall the OSSMC plugin via the OpenShift CLI.
+You can uninstall the OSSMC plugin by using the OpenShift CLI (`oc`).
 
 **Procedure**
 
-1. Remove the `OSSMC` custom resource (CR) by running the following command:
+1. Remove the OSSMC custom resource (CR) by running the following command:
 
     ```console
-    oc delete ossmconsoles <custom_resource_name> -n <custom_resource_namespace>
+    $ oc delete ossmconsoles <custom_resource_name> -n <custom_resource_namespace>
     ```
 
-2. Verify all CRs are deleted from all namespaces by running the following command:
+**Verification**
+
+1. Verify all the CRs are deleted from all namespaces by running the following command:
 
     ```console
-    for r in $(oc get ossmconsoles --ignore-not-found=true --all-namespaces -o custom-columns=NS:.metadata.namespace,N:.metadata.name --no-headers | sed 's/  */:/g'); do oc delete ossmconsoles -n $(echo $r|cut -d: -f1) $(echo $r|cut -d: -f2); done
+    $ for r in $(oc get ossmconsoles --ignore-not-found=true --all-namespaces -o custom-columns=NS:.metadata.namespace,N:.metadata.name --no-headers | sed 's/ */:/g'); do oc delete ossmconsoles -n $(echo $r|cut -d: -f1) $(echo $r|cut -d: -f2); done
     ```
