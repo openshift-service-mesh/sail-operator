@@ -270,6 +270,25 @@ spec:
 					Expect(err).NotTo(HaveOccurred(), "Failed to enable TLSAdherence feature gate")
 					Success("TLSAdherence feature gate enabled")
 
+					Step("Waiting for TLSAdherence feature gate to become active")
+					Eventually(func(g Gomega) {
+						fg := &configv1.FeatureGate{}
+						g.Expect(cl.Get(ctx, client.ObjectKey{Name: "cluster"}, fg)).To(Succeed())
+						found := false
+						for _, details := range fg.Status.FeatureGates {
+							for _, enabled := range details.Enabled {
+								if enabled.Name == "TLSAdherence" {
+									found = true
+									break
+								}
+							}
+						}
+						g.Expect(found).To(BeTrue(),
+							"TLSAdherence not yet listed in FeatureGate status; kube-apiserver may not have rolled out yet")
+					}).WithTimeout(30*time.Minute).WithPolling(30*time.Second).Should(Succeed(),
+						"TLSAdherence feature gate should appear in FeatureGate status after rollout")
+					Success("TLSAdherence feature gate is active")
+
 					Step("Waiting for kube-apiserver to finish rolling out after feature gate change")
 					Eventually(func(g Gomega) {
 						co := &configv1.ClusterOperator{}
@@ -356,8 +375,6 @@ spec:
 		// When TLSAdherence changes to StrictAllComponents, the operator should
 		// apply the TLS profile to both the metrics endpoint and the Istio resource.
 		It("syncs TLS settings when TLSAdherence is set to StrictAllComponents", func(ctx SpecContext) {
-			Skip("Test has flaky OOM issues due to multiple operator restarts and nil pointer panics on line 380")
-
 			if ocpMinorVersion < 22 {
 				Skip(fmt.Sprintf("TLSAdherence field requires OpenShift >= 4.22. Current version: '%d.%d'. Skipping test.", ocpMajorVersion, ocpMinorVersion))
 			}
@@ -420,7 +437,7 @@ spec:
 				g.Expect(ciphers).NotTo(BeEmpty(), "IstioRevision should have cipher suites")
 				g.Expect(ciphers).NotTo(ContainElement(markerCipherName),
 					"IstioRevision should not contain ECDHE-RSA-CHACHA20-POLY1305 after custom profile is applied")
-			}).Should(Succeed())
+			}).WithTimeout(5 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 
 			Step("Verifying metrics endpoint rejects the marker cipher")
 			Eventually(func() bool {
