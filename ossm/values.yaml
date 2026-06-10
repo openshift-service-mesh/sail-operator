@@ -4,14 +4,14 @@ deployment:
   # even if we specify ossm/values.yaml via HELM_VALUES_FILE, helm by design merges annotations specified in chart/values.yaml and ossm/values.yaml
   # to only keep annotations specified in ossm/values.yaml, it's necessary to overwrite all annotations in chart/values.yaml. This is done when merging upstream changes via ossm/merge_upstream.sh
   annotations:
-    images.v1_30_0.ztunnel: registry.istio.io/release/ztunnel:1.30.0
-    images.v1_30_0.istiod: registry.istio.io/release/pilot:1.30.0
-    images.v1_30_0.proxy: registry.istio.io/release/proxyv2:1.30.0
-    images.v1_30_0.cni: registry.istio.io/release/install-cni:1.30.0
-    images.v1_28_7.ztunnel: registry.istio.io/release/ztunnel:1.28.7
-    images.v1_28_7.istiod: registry.istio.io/release/pilot:1.28.7
-    images.v1_28_7.proxy: registry.istio.io/release/proxyv2:1.28.7
-    images.v1_28_7.cni: registry.istio.io/release/install-cni:1.28.7
+    images.v1_30_1.ztunnel: registry.istio.io/release/ztunnel:1.30.1
+    images.v1_30_1.istiod: registry.istio.io/release/pilot:1.30.1
+    images.v1_30_1.proxy: registry.istio.io/release/proxyv2:1.30.1
+    images.v1_30_1.cni: registry.istio.io/release/install-cni:1.30.1
+    images.v1_28_8.ztunnel: registry.istio.io/release/ztunnel:1.28.8
+    images.v1_28_8.istiod: registry.istio.io/release/pilot:1.28.8
+    images.v1_28_8.proxy: registry.istio.io/release/proxyv2:1.28.8
+    images.v1_28_8.cni: registry.istio.io/release/install-cni:1.28.8
     images.v1_28_6.ztunnel: registry.istio.io/release/ztunnel:1.28.6
     images.v1_28_6.istiod: registry.istio.io/release/pilot:1.28.6
     images.v1_28_6.proxy: registry.istio.io/release/proxyv2:1.28.6
