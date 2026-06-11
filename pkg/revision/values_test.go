@@ -35,8 +35,9 @@ import (
 //   - other (non-value) fields in the IstioRevision resource (e.g. the value global.istioNamespace is set from IstioRevision.spec.namespace)
 func TestComputeValues(t *testing.T) {
 	const (
-		namespace    = "istio-system"
-		version      = "my-version"
+		namespace = "istio-system"
+		// Needs to be valid semver
+		version      = "1.30.0"
 		revisionName = "my-revision"
 	)
 	resourceDir := t.TempDir()
@@ -95,8 +96,9 @@ spec:
 // TestFipsComputeValues tests that the pilot.env.COMPLIANCE_POLICY is set in values
 func TestFipsComputeValues(t *testing.T) {
 	const (
-		namespace    = "istio-system"
-		version      = "my-version"
+		namespace = "istio-system"
+		// Needs to be valid semver
+		version      = "1.30.0"
 		revisionName = "my-revision"
 	)
 	resourceDir := t.TempDir()
