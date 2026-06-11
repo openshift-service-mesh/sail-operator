@@ -87,6 +87,9 @@ func (r *ZTunnelReconciler) ComputeValues(version string, userValues *v1.ZTunnel
 	// Apply image digests from configuration, if not already set by user
 	userValues = istiovalues.ApplyZTunnelImageDigests(resolvedVersion, userValues, config.Config)
 
+	// apply TLS config from platform
+	istiovalues.ApplyZTunnelTLSConfig(r.cfg.TLSConfig, resolvedVersion, userValues)
+
 	// apply fips values
 	parsedVersion, err := semver.NewVersion(resolvedVersion)
 	if err != nil {
