@@ -6,6 +6,7 @@ HELM_VALUES_FILE = ossm/values.yaml
 VERSIONS_YAML_FILE ?= versions.ossm.yaml
 USE_IMAGE_DIGESTS = false
 GENERATE_RELATED_IMAGES = false
+PATCH_HELM_VALUES = false
 IMAGE ?= $$\{OSSM_OPERATOR_3_4\}
 
 .PHONY: build-fips
