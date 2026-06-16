@@ -119,7 +119,7 @@ KIND_IMAGE ?=
 ifeq ($(KIND_IMAGE),)
   ifeq ($(LOCAL_OS),Darwin)
     # If the OS is Darwin, set the image.
-    KIND_IMAGE := docker.io/kindest/node:v1.35.1
+    KIND_IMAGE := docker.io/kindest/node:v1.36.1
   endif
   # For other OS, KIND_IMAGE remains empty, which default to the upstream default image.
 endif
@@ -595,11 +595,11 @@ CRD_SCHEMA_CHECKER ?= $(LOCALBIN)/crd-schema-checker
 
 ## Tool Versions
 OPERATOR_SDK_VERSION ?= v1.42.2
-HELM_VERSION ?= v4.1.4
+HELM_VERSION ?= v4.2.0
 CONTROLLER_TOOLS_VERSION ?= v0.21.0
-CONTROLLER_RUNTIME_BRANCH ?= release-0.23
-OPM_VERSION ?= v1.67.0
-OLM_VERSION ?= v0.42.0
+CONTROLLER_RUNTIME_BRANCH ?= release-0.24
+OPM_VERSION ?= v1.71.0
+OLM_VERSION ?= v0.43.0
 GITLEAKS_VERSION ?= v8.30.1
 ISTIOCTL_VERSION ?= 1.26.2
 RUNME_VERSION ?= 3.16.11

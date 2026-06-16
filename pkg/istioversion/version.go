@@ -84,6 +84,23 @@ func Resolve(version string) (string, error) {
 	return info.Name, nil
 }
 
+func DefaultVersion() string {
+	return Default
+}
+
+func ValidateVersion(version string) error {
+	if version == "" {
+		return fmt.Errorf("version must not be empty")
+	}
+	if _, ok := Map[version]; !ok {
+		if IsEOLVersion(version) {
+			return fmt.Errorf("version %q is end-of-life and cannot be installed", version)
+		}
+		return fmt.Errorf("version %q is not supported", version)
+	}
+	return nil
+}
+
 // IsEOLVersion returns true if the version is known but has been marked end-of-life.
 func IsEOLVersion(version string) bool {
 	for _, eolVersion := range EOL {
@@ -185,4 +202,28 @@ func GetLatestPatchVersions() []VersionInfo {
 	})
 
 	return latestSlice
+}
+
+// GetTwoConsecutiveMinorVersions returns two consecutive minor versions (with their latest patches)
+// that are greater than or equal to the specified minimum version.
+// Returns the base (older) and new (newer) versions suitable for upgrade testing.
+func GetTwoConsecutiveMinorVersions(minVersion *semver.Version) (baseVer, newVer VersionInfo, err error) {
+	allLatestPatches := GetLatestPatchVersions()
+
+	// Filter: only keep versions >= minVersion
+	var filtered []VersionInfo
+	for _, v := range allLatestPatches {
+		if !v.Version.LessThan(minVersion) {
+			filtered = append(filtered, v)
+		}
+	}
+
+	if len(filtered) < 2 {
+		return baseVer, newVer, fmt.Errorf("insufficient versions available (need 2, found %d)", len(filtered))
+	}
+
+	// GetLatestPatchVersions() returns versions sorted descending, so:
+	// filtered[0] = newest version
+	// filtered[1] = second newest (previous minor)
+	return filtered[1], filtered[0], nil
 }
