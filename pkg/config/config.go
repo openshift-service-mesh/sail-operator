@@ -48,23 +48,13 @@ func Read(configFile string) error {
 	if err != nil {
 		return err
 	}
-	return decodeProperties(p)
-}
-
-func ReadBytes(data []byte) error {
-	p, err := properties.Load(data, properties.UTF8)
-	if err != nil {
-		return err
-	}
-	return decodeProperties(p)
-}
-
-func decodeProperties(p *properties.Properties) error {
+	// remove quotes
 	for _, key := range p.Keys() {
 		val, _ := p.Get(key)
 		_, _, _ = p.Set(key, strings.Trim(val, `"`))
 	}
-	if err := p.Decode(&Config); err != nil {
+	err = p.Decode(&Config)
+	if err != nil {
 		return err
 	}
 	// replace "_" in versions with "." (e.g. v1_20_0 => v1.20.0)
