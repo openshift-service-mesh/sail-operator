@@ -17,6 +17,7 @@ package install
 import (
 	"testing"
 
+	"github.com/istio-ecosystem/sail-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -36,6 +37,24 @@ func TestShouldReconcileOnDelete(t *testing.T) {
 
 	// Delete events should always trigger reconciliation
 	assert.True(t, shouldReconcileOnDelete(obj))
+}
+
+func TestIsOwnedResourceMatchesHelmManagedByLabel(t *testing.T) {
+	obj := &unstructured.Unstructured{}
+	obj.SetLabels(map[string]string{
+		constants.ManagedByLabelKey: defaultManagedByValue,
+	})
+
+	assert.True(t, isOwnedResource(obj, "default", defaultManagedByValue))
+}
+
+func TestIsOwnedResourceRejectsKubernetesManagedByLabel(t *testing.T) {
+	obj := &unstructured.Unstructured{}
+	obj.SetLabels(map[string]string{
+		constants.KubernetesAppManagedByKey: defaultManagedByValue,
+	})
+
+	assert.False(t, isOwnedResource(obj, "default", defaultManagedByValue))
 }
 
 func TestHasIgnoreAnnotation(t *testing.T) {
