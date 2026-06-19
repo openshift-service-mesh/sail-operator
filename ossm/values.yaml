@@ -80,7 +80,7 @@ deployment:
     images.v1_28_8.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:7718e06932e46f65789f5e1341989e2946cadbbd707ba7f7a69fbdbff3e1a60b
     images.v1_28_8.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:432c53b55c11fa1ee695e8c93f8bcb5800c86abba271fcaa595b9c29ec877dad
     images.v1_28_8.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:21ba735aa42afc8e022d2acdea213eb9d8cc81ae3f38cb08214ac7c2ff36fac9
-    images.v1_28_8.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:ae5ae0e657557850f0b24cc4f34242a4b22dad618ad5e02776711598aa78616e1
+    images.v1_28_8.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:e5ae0e657557850f0b24cc4f34242a4b22dad618ad5e02776711598aa78616e1
     images.v1_28_8.ztunnel: registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:b934852ee02264e4b8549a8216a732c55bab6cb1e744fb7ce83a5650b21a80e0
 service:
   port: 8443
