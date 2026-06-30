@@ -56,6 +56,24 @@ var _ = Describe("ZTWIM Installation", Label("smoke", "ztwim", "slow"), Ordered,
 		BeforeAll(func(ctx SpecContext) {
 			clr.Record(ctx)
 
+			// Debug: Log MachineConfigs and their owners to investigate MCP updates
+			By("Logging MachineConfigs and their owners for debugging")
+			mcOutput, err := shell.ExecuteShell(
+				`oc get machineconfigs -o name | xargs -I {} oc get {} -o jsonpath='{.metadata.name}: {.metadata.ownerReferences[*].name}{"\n"}'`,
+				"")
+			if err != nil {
+				fmt.Printf("=== MCP DEBUG (ZTWIM BeforeAll): Failed to get MachineConfigs: %v\n", err)
+			} else {
+				fmt.Printf("=== MCP DEBUG (ZTWIM BeforeAll): MachineConfigs and owners:\n%s\n", mcOutput)
+			}
+
+			mcpOutput, err := shell.ExecuteShell(`oc get mcp -o wide`, "")
+			if err != nil {
+				fmt.Printf("=== MCP DEBUG (ZTWIM BeforeAll): Failed to get MCP status: %v\n", err)
+			} else {
+				fmt.Printf("=== MCP DEBUG (ZTWIM BeforeAll): MachineConfigPool status:\n%s\n", mcpOutput)
+			}
+
 			// If the OCP cluster is from nightly build, the ZTWIM operator package
 			// might not be available. Check for the package existence and if it's missing, skip the test.
 			By("Verifying ZTWIM operator package is available in the catalog")
@@ -120,6 +138,25 @@ spec:
 					Should(Succeed(), fmt.Sprintf("Some pods in namespace %q are not ready", ztwimNamespace))
 
 				Success("All ZTWIM pods are ready")
+			})
+
+			It("logs MachineConfigs after ZTWIM operator deployment", func() {
+				By("Logging MachineConfigs after ZTWIM operator is deployed")
+				mcOutput, err := shell.ExecuteShell(
+					`oc get machineconfigs -o name | xargs -I {} oc get {} -o jsonpath='{.metadata.name}: {.metadata.ownerReferences[*].name}{"\n"}'`,
+					"")
+				if err != nil {
+					fmt.Printf("=== MCP DEBUG (After ZTWIM operator): Failed to get MachineConfigs: %v\n", err)
+				} else {
+					fmt.Printf("=== MCP DEBUG (After ZTWIM operator): MachineConfigs:\n%s\n", mcOutput)
+				}
+
+				mcpOutput, err := shell.ExecuteShell(`oc get mcp -o wide`, "")
+				if err != nil {
+					fmt.Printf("=== MCP DEBUG (After ZTWIM operator): Failed to get MCP status: %v\n", err)
+				} else {
+					fmt.Printf("=== MCP DEBUG (After ZTWIM operator): MachineConfigPool status:\n%s\n", mcpOutput)
+				}
 			})
 		})
 
@@ -279,6 +316,25 @@ spec:
 
 				Success("spire-agent rollout completed successfully")
 			})
+
+			It("logs MachineConfigs after Spire Agent deployment", func() {
+				By("Logging MachineConfigs after Spire Agent is deployed")
+				mcOutput, err := shell.ExecuteShell(
+					`oc get machineconfigs -o name | xargs -I {} oc get {} -o jsonpath='{.metadata.name}: {.metadata.ownerReferences[*].name}{"\n"}'`,
+					"")
+				if err != nil {
+					fmt.Printf("=== MCP DEBUG (After Spire Agent): Failed to get MachineConfigs: %v\n", err)
+				} else {
+					fmt.Printf("=== MCP DEBUG (After Spire Agent): MachineConfigs:\n%s\n", mcOutput)
+				}
+
+				mcpOutput, err := shell.ExecuteShell(`oc get mcp -o wide`, "")
+				if err != nil {
+					fmt.Printf("=== MCP DEBUG (After Spire Agent): Failed to get MCP status: %v\n", err)
+				} else {
+					fmt.Printf("=== MCP DEBUG (After Spire Agent): MachineConfigPool status:\n%s\n", mcpOutput)
+				}
+			})
 		})
 
 		When("Spiffe CSI Driver Deployed", func() {
@@ -307,6 +363,25 @@ spec:
 				).To(Succeed(), "spire-spiffe-csi-driver rollout did not complete successfully")
 
 				Success("spire-spiffe-csi-driver rollout completed successfully")
+			})
+
+			It("logs MachineConfigs after Spiffe CSI Driver deployment", func() {
+				By("Logging MachineConfigs after Spiffe CSI Driver is deployed")
+				mcOutput, err := shell.ExecuteShell(
+					`oc get machineconfigs -o name | xargs -I {} oc get {} -o jsonpath='{.metadata.name}: {.metadata.ownerReferences[*].name}{"\n"}'`,
+					"")
+				if err != nil {
+					fmt.Printf("=== MCP DEBUG (After Spiffe CSI Driver): Failed to get MachineConfigs: %v\n", err)
+				} else {
+					fmt.Printf("=== MCP DEBUG (After Spiffe CSI Driver): MachineConfigs:\n%s\n", mcOutput)
+				}
+
+				mcpOutput, err := shell.ExecuteShell(`oc get mcp -o wide`, "")
+				if err != nil {
+					fmt.Printf("=== MCP DEBUG (After Spiffe CSI Driver): Failed to get MCP status: %v\n", err)
+				} else {
+					fmt.Printf("=== MCP DEBUG (After Spiffe CSI Driver): MachineConfigPool status:\n%s\n", mcpOutput)
+				}
 			})
 		})
 
