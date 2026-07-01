@@ -360,122 +360,27 @@ spec:
 			})
 		})
 
-		When("the cert-manager-operator resources are deleted", func() {
-			BeforeEach(func() {
-				err := k.WithNamespace(certManagerOperatorNamespace).Delete("subscription", "openshift-cert-manager-operator")
-				if err != nil && !strings.Contains(err.Error(), "NotFound") {
-					Fail("Failed to delete Subscription: " + err.Error())
-				}
-
-				err = k.WithNamespace(certManagerOperatorNamespace).Delete("operatorgroup", "openshift-cert-manager-operator")
-				if err != nil && !strings.Contains(err.Error(), "NotFound") {
-					Fail("Failed to delete OperatorGroup: " + err.Error())
-				}
-			})
-
-			It("removes subscription from the cert-manager-operator namespace", func() {
-				Eventually(func() string {
-					output, _ := k.WithNamespace(certManagerOperatorNamespace).GetYAML("subscription", "openshift-cert-manager-operator")
-					return strings.TrimSpace(output)
-				}, 60*time.Second, 5*time.Second).Should(BeEmpty(), "subscription is not removed")
-				Success("subscription is removed")
-			})
-
-			It("removes operatorgroup from the cert-manager-operator namespace", func() {
-				Eventually(func() string {
-					output, _ := k.WithNamespace(certManagerOperatorNamespace).GetYAML("operatorgroup", "openshift-cert-manager-operator")
-					return strings.TrimSpace(output)
-				}, 60*time.Second, 5*time.Second).Should(BeEmpty(), "operatorgroup is not removed")
-				Success("operatorgroup is removed")
-			})
-		})
-
-		When("the cert-manager-operator resources are deleted", func() {
-			BeforeEach(func() {
-				// 1. Get the CSV name using generic kubectl/oc command via shell
-				// We need this to kill the operator deployment later.
-				csvName, err := shell.ExecuteShell(
-					fmt.Sprintf("oc get subscription openshift-cert-manager-operator -n %s -o jsonpath='{.status.installedCSV}'", certManagerOperatorNamespace),
-					"",
-				)
-				csvName = strings.TrimSpace(csvName)
-
-				// Ignore errors if sub is already gone, but log if found
-				if err == nil && csvName != "" {
-					fmt.Printf("Found CSV to delete: %s\n", csvName)
-				}
-
-				// 2. Delete the Subscription
-				err = k.WithNamespace(certManagerOperatorNamespace).Delete("subscription", "openshift-cert-manager-operator")
-				if err != nil && !strings.Contains(err.Error(), "NotFound") {
-					Fail("Failed to delete Subscription: " + err.Error())
-				}
-
-				// 3. Delete the OperatorGroup
-				err = k.WithNamespace(certManagerOperatorNamespace).Delete("operatorgroup", "openshift-cert-manager-operator")
-				if err != nil && !strings.Contains(err.Error(), "NotFound") {
-					Fail("Failed to delete OperatorGroup: " + err.Error())
-				}
-
-				// 4. Explicitly delete the CSV (This stops the Operator Pod)
-				if csvName != "" {
-					err = k.WithNamespace(certManagerOperatorNamespace).Delete("clusterserviceversion", csvName)
-					if err != nil && !strings.Contains(err.Error(), "NotFound") {
-						fmt.Printf("Warning: Failed to delete CSV %s: %v\n", csvName, err)
-					}
-				}
-			})
-
-			It("removes subscription from the cert-manager-operator namespace", func() {
-				Eventually(func() string {
-					// Use GetYAML generic method which we know exists
-					output, _ := k.WithNamespace(certManagerOperatorNamespace).GetYAML("subscription", "openshift-cert-manager-operator")
-					return strings.TrimSpace(output)
-				}, 60*time.Second, 5*time.Second).Should(BeEmpty(), "subscription is not removed")
-				Success("subscription is removed")
-			})
-
-			It("removes operatorgroup from the cert-manager-operator namespace", func() {
-				Eventually(func() string {
-					output, _ := k.WithNamespace(certManagerOperatorNamespace).GetYAML("operatorgroup", "openshift-cert-manager-operator")
-					return strings.TrimSpace(output)
-				}, 60*time.Second, 5*time.Second).Should(BeEmpty(), "operatorgroup is not removed")
-				Success("operatorgroup is removed")
-			})
-		})
 		// We are unable to use the standard cleanup method from other tests.
 		// Before deleting istio-csr we need to delete components that reference to istio-csr.
 		// For details, see: https://github.com/openshift-service-mesh/sail-operator/tree/main/docs/ossm/cert-manager
 		When("the IstioCSR is deleted", func() {
 			BeforeEach(func() {
 				Expect(k.WithNamespace(istioCSRNamespace).Delete("istiocsrs.operator.openshift.io", "default")).To(Succeed(), "Failed to delete istio-csr")
-				// Namespaced resources
-				Expect(k.WithNamespace(istioCSRNamespace).Delete("deployments.apps", "cert-manager-istio-csr")).To(Succeed(), "Failed to delete deployment")
-				Expect(k.WithNamespace(istioCSRNamespace).Delete("services", "cert-manager-istio-csr")).To(Succeed(), "Failed to delete service")
-				Expect(k.WithNamespace(istioCSRNamespace).Delete("serviceaccounts", "cert-manager-istio-csr")).To(Succeed(), "Failed to delete service account")
-				Expect(k.Delete("namespace", "cert-manager-operator")).To(Succeed(), "Failed to delete namespace")
-				Expect(k.Delete("namespace", "cert-manager")).To(Succeed(), "Failed to delete namespace")
-				Expect(k.Delete("namespace", "istio-system")).To(Succeed(), "Failed to delete namespace")
-				Expect(k.Delete("namespace", "istio-cni")).To(Succeed(), "Failed to delete namespace")
-				Expect(k.Delete("namespace", "httpbin")).To(Succeed(), "Failed to delete namespace")
-				Expect(k.Delete("namespace", "sleep")).To(Succeed(), "Failed to delete namespace")
 
-				By("Attempting to patch istiocsrs if it exists")
-				err := k.WithNamespace(istioCSRNamespace).Patch(
-					"istiocsrs.operator.openshift.io",
-					"default",
-					"merge",
-					`{"metadata":{"finalizers":[]}}`,
-				)
-				if err != nil {
-					// Small check to control istiocsr resources are not stuck
-					if strings.Contains(err.Error(), `"default" not found`) {
-						fmt.Println("Skipping patch. Cleanup succeeded")
-					} else {
-						Fail(fmt.Sprintf("Unexpected error patching istiocsrs: %v", err))
-					}
+				err = k.WithNamespace(istioCSRNamespace).Delete("deployments.apps", "cert-manager-istio-csr")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete deployment: " + err.Error())
 				}
-				Expect(k.Delete("namespace", "istio-csr")).To(Succeed(), "Failed to delete namespace")
+
+				err = k.WithNamespace(istioCSRNamespace).Delete("services", "cert-manager-istio-csr")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete service: " + err.Error())
+				}
+
+				err = k.WithNamespace(istioCSRNamespace).Delete("serviceaccounts", "cert-manager-istio-csr")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete service account: " + err.Error())
+				}
 			})
 
 			It("removes cert-manager-istio-csr resources from the cluster", func() {
@@ -495,6 +400,94 @@ spec:
 				}, 30*time.Second, 5*time.Second).Should(BeEmpty(), "service account not removed")
 
 				Success("All cert-manager-istio-csr resources are removed")
+			})
+		})
+
+		When("the cert-manager-operator resources are deleted", func() {
+			It("removes cert-manager operator resources and all namespaces", func() {
+				// Get the CSV name before deleting
+				csvName, err := shell.ExecuteShell(
+					fmt.Sprintf("oc get subscription openshift-cert-manager-operator -n %s -o jsonpath='{.status.installedCSV}'", certManagerOperatorNamespace),
+					"",
+				)
+				csvName = strings.TrimSpace(csvName)
+
+				if err == nil && csvName != "" {
+					fmt.Printf("Found CSV to delete: %s\n", csvName)
+				}
+
+				// Delete the Subscription and wait for removal
+				err = k.WithNamespace(certManagerOperatorNamespace).Delete("subscription", "openshift-cert-manager-operator")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete Subscription: " + err.Error())
+				}
+				Eventually(func() string {
+					output, _ := k.WithNamespace(certManagerOperatorNamespace).GetYAML("subscription", "openshift-cert-manager-operator")
+					return strings.TrimSpace(output)
+				}, 60*time.Second, 5*time.Second).Should(BeEmpty(), "subscription is not removed")
+				Success("Subscription removed")
+
+				// Delete the OperatorGroup and wait for removal
+				err = k.WithNamespace(certManagerOperatorNamespace).Delete("operatorgroup", "openshift-cert-manager-operator")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete OperatorGroup: " + err.Error())
+				}
+				Eventually(func() string {
+					output, _ := k.WithNamespace(certManagerOperatorNamespace).GetYAML("operatorgroup", "openshift-cert-manager-operator")
+					return strings.TrimSpace(output)
+				}, 60*time.Second, 5*time.Second).Should(BeEmpty(), "operatorgroup is not removed")
+				Success("OperatorGroup removed")
+
+				// Delete the CSV (This stops the Operator Pod) and wait for removal
+				if csvName != "" {
+					err = k.WithNamespace(certManagerOperatorNamespace).Delete("clusterserviceversion", csvName)
+					if err != nil && !strings.Contains(err.Error(), "NotFound") {
+						Fail("Failed to delete CSV: " + err.Error())
+					}
+					Eventually(func() string {
+						output, _ := k.WithNamespace(certManagerOperatorNamespace).GetYAML("clusterserviceversion", csvName)
+						return strings.TrimSpace(output)
+					}, 60*time.Second, 5*time.Second).Should(BeEmpty(), "CSV is not removed")
+					Success("CSV removed")
+				}
+
+				// Now delete all namespaces after operator resources are confirmed removed
+				err = k.Delete("namespace", "cert-manager-operator")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete namespace: " + err.Error())
+				}
+
+				err = k.Delete("namespace", "cert-manager")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete namespace: " + err.Error())
+				}
+
+				err = k.Delete("namespace", "istio-system")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete namespace: " + err.Error())
+				}
+
+				err = k.Delete("namespace", "istio-cni")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete namespace: " + err.Error())
+				}
+
+				err = k.Delete("namespace", "httpbin")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete namespace: " + err.Error())
+				}
+
+				err = k.Delete("namespace", "sleep")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete namespace: " + err.Error())
+				}
+
+				err = k.Delete("namespace", "istio-csr")
+				if err != nil && !strings.Contains(err.Error(), "NotFound") {
+					Fail("Failed to delete namespace: " + err.Error())
+				}
+
+				Success("All cert-manager operator resources and namespaces removed")
 			})
 		})
 
