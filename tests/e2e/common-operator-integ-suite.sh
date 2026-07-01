@@ -196,49 +196,51 @@ initialize_variables() {
 # This is necessary because OpenShift certificate rotation triggers MachineConfig
 # regeneration ~50-60 minutes after cluster creation, which causes node drains
 pause_worker_mcp() {
-  if [ "${OCP}" != "true" ]; then
-    return 0
-  fi
+  # if [ "${OCP}" != "true" ]; then
+  #   return 0
+  # fi
 
-  # Check if MachineConfigPool API is available (not on HyperShift)
-  if ! oc api-resources --api-group=machineconfiguration.openshift.io 2>/dev/null | grep -q machineconfigpool; then
-    echo "MachineConfigPool API not available (likely HyperShift) - skipping MCP pause"
-    return 0
-  fi
+  # # Check if MachineConfigPool API is available (not on HyperShift)
+  # if ! oc api-resources --api-group=machineconfiguration.openshift.io 2>/dev/null | grep -q machineconfigpool; then
+  #   echo "MachineConfigPool API not available (likely HyperShift) - skipping MCP pause"
+  #   return 0
+  # fi
 
-  echo "Pausing MachineConfigPools to prevent node drains during tests..."
-  if oc patch mcp/worker --type merge -p '{"spec":{"paused":true}}' 2>/dev/null; then
-    echo "Worker MachineConfigPool paused successfully"
-  else
-    echo "WARNING: Failed to pause worker MachineConfigPool - tests may be interrupted by node drains"
-  fi
-  if oc patch mcp/master --type merge -p '{"spec":{"paused":true}}' 2>/dev/null; then
-    echo "Master MachineConfigPool paused successfully"
-  else
-    echo "WARNING: Failed to pause master MachineConfigPool - tests may be interrupted by control plane drains"
-  fi
-  export MCP_PAUSED=true
+  # echo "Pausing MachineConfigPools to prevent node drains during tests..."
+  # if oc patch mcp/worker --type merge -p '{"spec":{"paused":true}}' 2>/dev/null; then
+  #   echo "Worker MachineConfigPool paused successfully"
+  # else
+  #   echo "WARNING: Failed to pause worker MachineConfigPool - tests may be interrupted by node drains"
+  # fi
+  # if oc patch mcp/master --type merge -p '{"spec":{"paused":true}}' 2>/dev/null; then
+  #   echo "Master MachineConfigPool paused successfully"
+  # else
+  #   echo "WARNING: Failed to pause master MachineConfigPool - tests may be interrupted by control plane drains"
+  # fi
+  # export MCP_PAUSED=true
+  return 0
 }
 
 # Unpauses the worker and master MachineConfigPools after tests complete
 # shellcheck disable=SC2329  # Function is invoked indirectly via trap
 unpause_worker_mcp() {
-  if [ "${MCP_PAUSED:-false}" != "true" ]; then
-    return 0
-  fi
+  # if [ "${MCP_PAUSED:-false}" != "true" ]; then
+  #   return 0
+  # fi
 
-  echo "Unpausing MachineConfigPools..."
-  if oc patch mcp/worker --type merge -p '{"spec":{"paused":false}}' 2>/dev/null; then
-    echo "Worker MachineConfigPool unpaused successfully"
-  else
-    echo "WARNING: Failed to unpause worker MachineConfigPool - manual intervention may be required"
-  fi
-  if oc patch mcp/master --type merge -p '{"spec":{"paused":false}}' 2>/dev/null; then
-    echo "Master MachineConfigPool unpaused successfully"
-  else
-    echo "WARNING: Failed to unpause master MachineConfigPool - manual intervention may be required"
-  fi
-  export MCP_PAUSED=false
+  # echo "Unpausing MachineConfigPools..."
+  # if oc patch mcp/worker --type merge -p '{"spec":{"paused":false}}' 2>/dev/null; then
+  #   echo "Worker MachineConfigPool unpaused successfully"
+  # else
+  #   echo "WARNING: Failed to unpause worker MachineConfigPool - manual intervention may be required"
+  # fi
+  # if oc patch mcp/master --type merge -p '{"spec":{"paused":false}}' 2>/dev/null; then
+  #   echo "Master MachineConfigPool unpaused successfully"
+  # else
+  #   echo "WARNING: Failed to unpause master MachineConfigPool - manual intervention may be required"
+  # fi
+  # export MCP_PAUSED=false
+  return 0
 }
 
 check_cluster_operators() {

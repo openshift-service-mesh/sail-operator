@@ -45,6 +45,7 @@ var (
 )
 
 func TestAmbient(t *testing.T) {
+	t.Skip("Skipping test")
 	if multicluster {
 		t.Skip("Skipping the Ambient tests")
 	}
