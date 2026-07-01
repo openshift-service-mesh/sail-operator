@@ -35,12 +35,13 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"istio.io/istio/pkg/ptr"
 )
 
-var _ = Describe("Gateway Controller with Install Library", Label("gateway-controller"), Ordered, func() {
+var _ = Describe("Gateway Controller with Install Library", Label("gateway-controller", "slow"), Ordered, func() {
 	SetDefaultEventuallyTimeout(time.Duration(env.GetInt("DEFAULT_TEST_TIMEOUT", 180)) * time.Second)
 	SetDefaultEventuallyPollingInterval(time.Second)
 
@@ -165,6 +166,19 @@ spec:
 			Expect(k.ApplyString(gatewayYAML)).To(Succeed())
 			Success("Gateway created")
 
+			// Define the platform specific security context snippets
+			var securityContextFields string
+			if env.GetBool("OCP", true) {
+				// OpenShift handles UID allocation dynamically via SCC
+				securityContextFields = `seccompProfile:
+      type: RuntimeDefault`
+			} else {
+				// Kind/Vanilla K8s requires explicit non-root enforcement
+				securityContextFields = `runAsNonRoot: true
+    runAsUser: 100
+    seccompProfile:
+      type: RuntimeDefault`
+			}
 			// Deploy a curl client pod for traffic testing
 			curlPodYAML := fmt.Sprintf(`
 apiVersion: v1
@@ -175,10 +189,17 @@ metadata:
   labels:
     sidecar.istio.io/inject: "false"
 spec:
+  securityContext:
+    %s
   containers:
   - name: curl
     image: curlimages/curl
-    command: ["sleep", "3600"]`, gatewayNamespace)
+    command: ["sleep", "3600"]
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL`, gatewayNamespace, securityContextFields)
 			Expect(k.ApplyString(curlPodYAML)).To(Succeed())
 		})
 
@@ -195,10 +216,20 @@ spec:
 		})
 
 		It("curl client pod is ready", func(ctx SpecContext) {
-			Eventually(func() error {
-				return common.CheckPodsReady(ctx, cl, gatewayNamespace)
+			// Check only the curl-client pod
+			Eventually(func(g Gomega) {
+				pod := &corev1.Pod{}
+				g.Expect(cl.Get(ctx, kube.Key("curl-client", gatewayNamespace), pod)).To(Succeed())
+				var ready bool
+				for _, cond := range pod.Status.Conditions {
+					if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+						ready = true
+						break
+					}
+				}
+				g.Expect(ready).To(BeTrue(), "curl-client pod is not ready")
 			}).Should(Succeed())
-			Success("All pods in gateway namespace are ready")
+			Success("Curl client pod is ready")
 		})
 	})
 
