@@ -410,6 +410,7 @@ func logFailedPodsDetails(k kubectl.Kubectl, namespace string, buf *strings.Buil
 
 // truncateForJUnit truncates strings that exceed maxJUnitErrorMessageSize
 // to prevent junit XML files from becoming excessively large.
+// comment to trigger test
 func truncateForJUnit(s string) string {
 	if len(s) <= maxJUnitErrorMessageSize {
 		return s
