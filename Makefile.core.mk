@@ -508,6 +508,11 @@ gen: gen-all-except-bundle bundle ## Generate everything.
 .PHONY: gen-all-except-bundle
 gen-all-except-bundle: operator-name operator-chart controller-gen gen-api gen-charts gen-manifests gen-code gen-api-docs mirror-licenses
 
+.PHONY: validate-ztunnel-values
+validate-ztunnel-values: ## Validate that upstream ztunnel Helm chart fields are present in Sail Operator ZTunnelConfig.
+	@echo "Validating ztunnel values completeness..."
+	go run hack/validate_ztunnel_values/validate_ztunnel_values.go
+
 .PHONY: gen-check
 gen-check: gen restore-manifest-dates check-clean-repo ## Verify that changes in generated resources have been checked in.
 
@@ -598,7 +603,7 @@ MISSPELL ?= $(LOCALBIN)/misspell
 CRD_SCHEMA_CHECKER ?= $(LOCALBIN)/crd-schema-checker
 
 ## Tool Versions
-OPERATOR_SDK_VERSION ?= v1.42.2
+OPERATOR_SDK_VERSION ?= v1.42.3
 HELM_VERSION ?= v4.2.2
 CONTROLLER_TOOLS_VERSION ?= v0.21.0
 CONTROLLER_RUNTIME_BRANCH ?= release-0.24
@@ -606,7 +611,7 @@ OPM_VERSION ?= v1.72.0
 OLM_VERSION ?= v0.45.0
 GITLEAKS_VERSION ?= v8.30.1
 ISTIOCTL_VERSION ?= 1.26.2
-RUNME_VERSION ?= 3.16.11
+RUNME_VERSION ?= 3.16.17
 MISSPELL_VERSION ?= v0.3.4
 CRD_SCHEMA_CHECKER_VERSION ?= release-4.22
 
