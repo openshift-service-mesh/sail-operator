@@ -259,21 +259,20 @@ spec:
 			_, err = fmt.Sscanf(cv.Status.Desired.Version, "%d.%d", &ocpMajorVersion, &ocpMinorVersion)
 			Expect(err).NotTo(HaveOccurred(), "Failed to parse ClusterVersion %q", cv.Status.Desired.Version)
 
-			// On OCP 4.22, TLSAdherence is behind a TechPreview feature gate.
+			// TLSAdherence is behind a TechPreview feature gate.
 			// Enable it via CustomNoUpgrade so the TLSAdherence field is available on the APIServer CRD.
-			// On OCP > 4.22, the feature gate is GA and does not need to be enabled.
 			// On OCP < 4.22, the TLSAdherence tests are skipped entirely.
-			if ocpMajorVersion == 4 && ocpMinorVersion == 22 {
+			if ocpMinorVersion >= 22 {
 				featureGate := &configv1.FeatureGate{}
 				err = cl.Get(ctx, client.ObjectKey{Name: "cluster"}, featureGate)
 				Expect(err).NotTo(HaveOccurred(), "Failed to get FeatureGate")
 
-				tlsAdherenceEnabled := featureGate.Spec.FeatureSet == configv1.CustomNoUpgrade &&
-					featureGate.Spec.CustomNoUpgrade != nil &&
-					slices.Contains(featureGate.Spec.CustomNoUpgrade.Enabled, "TLSAdherence")
+				tlsAdherenceEnabled := slices.ContainsFunc(featureGate.Status.FeatureGates, func(fg configv1.FeatureGateDetails) bool {
+					return slices.Contains(fg.Enabled, configv1.FeatureGateAttributes{Name: "TLSAdherence"})
+				})
 
 				if !tlsAdherenceEnabled {
-					Step("Enabling TLSAdherence feature gate on OCP 4.22")
+					Step("Enabling TLSAdherence feature gate")
 					featureGate.Spec.FeatureSet = configv1.CustomNoUpgrade
 					featureGate.Spec.CustomNoUpgrade = &configv1.CustomFeatureGates{
 						Enabled: []configv1.FeatureGateName{"TLSAdherence"},
@@ -328,17 +327,17 @@ spec:
 
 			DeferCleanup(func(ctx SpecContext) {
 				Step("Restoring the original APIServer TLS settings")
-				apiServer := &configv1.APIServer{}
-				err := cl.Get(ctx, apiServerKey, apiServer)
-				Expect(err).NotTo(HaveOccurred(), "Failed to get APIServer")
-				apiServer.Spec.TLSSecurityProfile = originalTLSProfile
-				// TLSAdherence cannot be set back to NoOpinion once set,
-				// so only restore it if the original was a non-empty value.
-				if originalTLSAdherence != configv1.TLSAdherencePolicyNoOpinion {
-					apiServer.Spec.TLSAdherence = originalTLSAdherence
-				}
-				err = cl.Update(ctx, apiServer)
-				Expect(err).NotTo(HaveOccurred(), "Failed to update APIServer TLS settings")
+				Eventually(func(g Gomega) {
+					apiServer := &configv1.APIServer{}
+					g.Expect(cl.Get(ctx, apiServerKey, apiServer)).To(Succeed(), "Failed to get APIServer")
+					apiServer.Spec.TLSSecurityProfile = originalTLSProfile
+					// TLSAdherence cannot be set back to NoOpinion once set,
+					// so only restore it if the original was a non-empty value.
+					if originalTLSAdherence != configv1.TLSAdherencePolicyNoOpinion {
+						apiServer.Spec.TLSAdherence = originalTLSAdherence
+					}
+					g.Expect(cl.Update(ctx, apiServer)).To(Succeed(), "Failed to update APIServer TLS settings")
+				}).WithTimeout(30 * time.Second).WithPolling(2 * time.Second).Should(Succeed())
 			})
 
 			Step("Creating Istio")
@@ -429,7 +428,8 @@ spec:
 				g.Expect(rev.Spec.Values.Pilot.ExtraContainerArgs).To(
 					ContainElement(ContainSubstring("--tls-cipher-suites=")),
 					"IstioRevision should have --tls-cipher-suites in pilot.extraContainerArgs")
-			}).Should(Succeed(), "IstioRevision is not syncing TLS settings but should be")
+			}).WithTimeout(5*time.Minute).WithPolling(5*time.Second).Should(Succeed(),
+				"IstioRevision is not syncing TLS settings but should be")
 
 			Step("Verifying metrics endpoint accepts the custom cipher")
 			Eventually(func() bool {
