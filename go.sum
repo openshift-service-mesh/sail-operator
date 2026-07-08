@@ -276,10 +276,6 @@ github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJw
 github.com/opencontainers/image-spec v1.1.1/go.mod h1:qpqAh3Dmcf36wStyyWU+kCeDgrGnAve2nCC8+7h8Q0M=
 github.com/openshift-service-mesh/istio v0.0.0-20260624162418-5e7bf7339f77 h1:5y4ExtI0v+4UrdxpKRVbAUiPdHWcSkEavN1Zl7iDwDk=
 github.com/openshift-service-mesh/istio v0.0.0-20260624162418-5e7bf7339f77/go.mod h1:8NizJ7umGNRXx/YZj1M/ViYy3cXk1guz7+Ca81KbCTc=
-github.com/openshift/api v0.0.0-20260320151444-324a1bcb9f55 h1:2h6bqs9ua3wrsQnxEbzys3/n5IohLC7Dyb/KgaVYC/A=
-github.com/openshift/api v0.0.0-20260320151444-324a1bcb9f55/go.mod h1:pyVjK0nZ4sRs4fuQVQ4rubsJdahI1PB94LnQ8sGdvxo=
-github.com/openshift/controller-runtime-common v0.0.0-20260318085703-1812aed6dbd2 h1:GrZlVichOCE/lz8fg1+eNrAtkM0VSlqa9buuzN0vnb0=
-github.com/openshift/controller-runtime-common v0.0.0-20260318085703-1812aed6dbd2/go.mod h1:XGabTMnNbz0M5Oa7IbscZp/jmcc7aHobvOCUWwkzKvM=
 github.com/openshift/api v0.0.0-20260630164038-90cdc3bbde7f h1:XVbZm6+tos469QuLh1dpLrKVP2NwoKDrA++G6fwXVyE=
 github.com/openshift/api v0.0.0-20260630164038-90cdc3bbde7f/go.mod h1:7WJ3IPaK6nmWT8bDcaNooHqd0H5WepjVqV/10VlkMEM=
 github.com/openshift/controller-runtime-common v0.0.0-20260428152732-64ee174f5e2e h1:k89oIo2EjX0PRSdi1kesktCyWp50SC9WwKurvupvRGs=
