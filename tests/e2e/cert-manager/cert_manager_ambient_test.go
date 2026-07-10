@@ -43,6 +43,25 @@ var _ = Describe("Cert-manager Installation", Label("smoke", "cert-manager", "sl
 		clr := cleaner.New(cl)
 		BeforeAll(func(ctx SpecContext) {
 			clr.Record(ctx)
+
+			// Debug: Log MachineConfigs and their owners to investigate MCP updates
+			By("Logging MachineConfigs and their owners for debugging")
+			mcOutput, err := shell.ExecuteShell(
+				`oc get machineconfigs -o name | xargs -I {} oc get {} -o jsonpath='{.metadata.name}: {.metadata.ownerReferences[*].name}{"\n"}'`,
+				"")
+			if err != nil {
+				fmt.Printf("=== MCP DEBUG: Failed to get MachineConfigs: %v\n", err)
+			} else {
+				fmt.Printf("=== MCP DEBUG (cert-manager-ambient BeforeAll): MachineConfigs and owners:\n%s\n", mcOutput)
+			}
+
+			mcpOutput, err := shell.ExecuteShell(`oc get mcp -o wide`, "")
+			if err != nil {
+				fmt.Printf("=== MCP DEBUG: Failed to get MCP status: %v\n", err)
+			} else {
+				fmt.Printf("=== MCP DEBUG (cert-manager-ambient BeforeAll): MachineConfigPool status:\n%s\n", mcpOutput)
+			}
+
 			Expect(k.CreateNamespace(controlPlaneNamespace)).To(Succeed(), "Istio namespace failed to be created")
 			Expect(k.CreateNamespace(istioCniNamespace)).To(Succeed(), "IstioCNI namespace failed to be created")
 			Expect(k.CreateNamespace(istioCSRNamespace)).To(Succeed(), "IstioCSR Namespace failed to be created")
@@ -106,6 +125,25 @@ spec:
 					Should(Succeed(), fmt.Sprintf("Some pods in namespace %q are not ready", certManagerNamespace))
 
 				Success("All cert-manager pods are ready")
+			})
+
+			It("logs MachineConfigs after cert-manager operator deployment", func() {
+				By("Logging MachineConfigs after cert-manager operator is deployed")
+				mcOutput, err := shell.ExecuteShell(
+					`oc get machineconfigs -o name | xargs -I {} oc get {} -o jsonpath='{.metadata.name}: {.metadata.ownerReferences[*].name}{"\n"}'`,
+					"")
+				if err != nil {
+					fmt.Printf("=== MCP DEBUG: Failed to get MachineConfigs: %v\n", err)
+				} else {
+					fmt.Printf("=== MCP DEBUG (After cert-manager-ambient operator): MachineConfigs:\n%s\n", mcOutput)
+				}
+
+				mcpOutput, err := shell.ExecuteShell(`oc get mcp -o wide`, "")
+				if err != nil {
+					fmt.Printf("=== MCP DEBUG: Failed to get MCP status: %v\n", err)
+				} else {
+					fmt.Printf("=== MCP DEBUG (After cert-manager-ambient operator): MachineConfigPool status:\n%s\n", mcpOutput)
+				}
 			})
 		})
 
@@ -219,6 +257,25 @@ spec:
 					Should(Succeed(), fmt.Sprintf("Some pods in namespace %q are not ready", certManagerNamespace))
 
 				Success("All cert-manager pods are ready")
+			})
+
+			It("logs MachineConfigs after IstioCSR deployment", func() {
+				By("Logging MachineConfigs after IstioCSR is deployed")
+				mcOutput, err := shell.ExecuteShell(
+					`oc get machineconfigs -o name | xargs -I {} oc get {} -o jsonpath='{.metadata.name}: {.metadata.ownerReferences[*].name}{"\n"}'`,
+					"")
+				if err != nil {
+					fmt.Printf("=== MCP DEBUG: Failed to get MachineConfigs: %v\n", err)
+				} else {
+					fmt.Printf("=== MCP DEBUG (After IstioCSR-ambient): MachineConfigs:\n%s\n", mcOutput)
+				}
+
+				mcpOutput, err := shell.ExecuteShell(`oc get mcp -o wide`, "")
+				if err != nil {
+					fmt.Printf("=== MCP DEBUG: Failed to get MCP status: %v\n", err)
+				} else {
+					fmt.Printf("=== MCP DEBUG (After IstioCSR-ambient): MachineConfigPool status:\n%s\n", mcpOutput)
+				}
 			})
 		})
 
