@@ -581,7 +581,7 @@ spec:
       serviceAccountName: curl
       containers:
       - name: curl
-        image: curlimages/curl:8.16.0
+        image: quay.io/curl/curl:8.16.0
         command:
         - /bin/sh
         - -c
