@@ -297,6 +297,29 @@ spec:
 			})
 
 			It("waits for spire-spiffe-csi-driver daemonset and rollout completes", func() {
+				By("Waiting for spire-spiffe-csi-driver DaemonSet to become ready")
+				Eventually(func() error {
+					yamlStr, err := k.WithNamespace(ztwimNamespace).GetYAML("daemonset", "spire-spiffe-csi-driver")
+					if err != nil {
+						return err
+					}
+
+					var ds daemonSetStatus
+					if err := yaml.Unmarshal([]byte(yamlStr), &ds); err != nil {
+						return fmt.Errorf("failed to parse daemonset YAML: %w", err)
+					}
+
+					if ds.Status.DesiredNumberScheduled != ds.Status.NumberReady {
+						return fmt.Errorf(
+							"spire-spiffe-csi-driver not ready: desired=%d, ready=%d",
+							ds.Status.DesiredNumberScheduled,
+							ds.Status.NumberReady,
+						)
+					}
+
+					return nil
+				}, 300*time.Second, 5*time.Second).Should(Succeed(), "spire-spiffe-csi-driver DaemonSet did not become available")
+
 				By("Waiting for spire-spiffe-csi-driver rollout to complete")
 				Expect(
 					k.WithNamespace(ztwimNamespace).Rollout(
