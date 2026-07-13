@@ -35,7 +35,8 @@ import (
 )
 
 var _ = Describe("Cert-manager Installation", Label("smoke", "cert-manager", "slow"), Ordered, func() {
-	SetDefaultEventuallyTimeout(180 * time.Second)
+	// FIX: Increased timeout to 10 minutes to allow OLM enough time to install the operator
+	SetDefaultEventuallyTimeout(10 * time.Minute)
 	SetDefaultEventuallyPollingInterval(time.Second)
 	debugInfoLogged := false
 
@@ -53,6 +54,26 @@ var _ = Describe("Cert-manager Installation", Label("smoke", "cert-manager", "sl
 
 		When("the Cert Manager Operator is deployed", func() {
 			BeforeAll(func() {
+				// Wait for the cert-manager package to be available in the catalog before
+				// subscribing. If the catalog pod is restarting or its index hasn't synced yet,
+				// OLM cannot resolve the package and will silently stall without creating an
+				// InstallPlan, causing the deployment to never appear.
+				Eventually(func() error {
+					val, err := shell.ExecuteShell(
+						"kubectl get packagemanifests openshift-cert-manager-operator"+
+							" -n openshift-marketplace -o jsonpath='{.status.catalogSource}' 2>/dev/null || echo NOT_FOUND",
+						"",
+					)
+					if err != nil {
+						return fmt.Errorf("error querying cert-manager package manifest: %w", err)
+					}
+					state := strings.TrimSpace(val)
+					if state == "NOT_FOUND" || state == "" {
+						return fmt.Errorf("openshift-cert-manager-operator package not found in catalog")
+					}
+					return nil
+				}, 5*time.Minute, 10*time.Second).Should(Succeed(), "cert-manager package never appeared in operator catalog")
+
 				operatorGroupYaml := `
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
