@@ -130,9 +130,11 @@ spec:
 		When("ZTWIM Operands Deployed", func() {
 			BeforeAll(func() {
 				if jwtIssuer == "" {
-					var err error
-					jwtIssuer, err = resolveJwtIssuer()
-					Expect(err).ToNot(HaveOccurred(), "Failed to resolve jwtIssuer")
+					Eventually(func() error {
+						var err error
+						jwtIssuer, err = resolveJwtIssuer()
+						return err
+					}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed to resolve jwtIssuer")
 				}
 
 				zeroTrustWorkloadIdentityManager := `
@@ -193,9 +195,9 @@ spec:
 				}, 60*time.Second, 2*time.Second).Should(Succeed(), "spire-server StatefulSet did not appear")
 
 				By("Restarting spire-server statefulset")
-				Expect(
-					k.WithNamespace(ztwimNamespace).Rollout("restart", "statefulset", "spire-server"),
-				).To(Succeed(), "Failed to restart spire-server")
+				Eventually(func() error {
+					return k.WithNamespace(ztwimNamespace).Rollout("restart", "statefulset", "spire-server")
+				}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed to restart spire-server")
 
 				By("Waiting for spire-server rollout to complete")
 				Eventually(func() error {
@@ -361,17 +363,15 @@ spec:
 			tojson | {data: {"oidc-discovery-provider.conf": .}}')
 			%[1]s patch configmap ${OIDC_DISCOVERY_CONFIG_MAP} -n "%[2]s" --patch "$PATCH_PAYLOAD"
 			`, bin, ztwimNamespace)
-				_, err := shell.ExecuteShell(patchCmd, "")
-				Expect(err).ToNot(HaveOccurred(), "Failed patching OIDC discovery provider configmap")
+				Eventually(func() error {
+					_, err := shell.ExecuteShell(patchCmd, "")
+					return err
+				}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed patching OIDC discovery provider configmap")
 
 				By("Restarting OIDC discovery provider deployment")
-				Expect(
-					k.WithNamespace(ztwimNamespace).Rollout(
-						"restart",
-						"deployment",
-						"spire-spiffe-oidc-discovery-provider",
-					),
-				).To(Succeed(), "Failed to restart OIDC discovery provider")
+				Eventually(func() error {
+					return k.WithNamespace(ztwimNamespace).Rollout("restart", "deployment", "spire-spiffe-oidc-discovery-provider")
+				}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed to restart OIDC discovery provider")
 
 				By("Waiting for OIDC discovery provider deployment to be available after restart")
 				Eventually(func() error {
@@ -416,10 +416,14 @@ spec:
 			base64 -d | \
 			sed 's/^/        /'
 			`, bin, ztwimNamespace)
-			extraRootCA, err := shell.ExecuteShell(cmd, "")
-			Expect(err).ToNot(HaveOccurred(), "Failed to get EXTRA_ROOT_CA")
+			var extraRootCA string
 
 			BeforeAll(func() {
+				Eventually(func() error {
+					var err error
+					extraRootCA, err = shell.ExecuteShell(cmd, "")
+					return err
+				}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed to get EXTRA_ROOT_CA")
 				istioYAML := `
 apiVersion: sailoperator.io/v1
 kind: Istio
@@ -614,14 +618,17 @@ spec:
 				curlPod, err := common.GetPodNameByLabel(ctx, cl, tpj, "app", "curl")
 				Expect(err).NotTo(HaveOccurred())
 
-				out, err := k.WithNamespace(tpj).Exec(
-					curlPod, // Arg 1: The Pod Name
-					"curl",  // Arg 2: The Container Name (matches 'name: curl' in your YAML)
-					"curl -s -o /dev/null -w %{http_code} http://httpbin", // Arg 3: The Command
-				)
-
-				Expect(err).NotTo(HaveOccurred())
-				Expect(strings.TrimSpace(out)).To(Equal("200"))
+				Eventually(func() error {
+					out, err := k.WithNamespace(tpj).Exec(curlPod, "curl",
+						"curl -s -o /dev/null -w %{http_code} http://httpbin")
+					if err != nil {
+						return err
+					}
+					if strings.TrimSpace(out) != "200" {
+						return fmt.Errorf("expected HTTP 200, got %q", strings.TrimSpace(out))
+					}
+					return nil
+				}, 60*time.Second, 5*time.Second).Should(Succeed(), "HTTP access to httpbin failed")
 			})
 
 			It("allows HTTP access after STRICT mTLS is enabled", func(ctx SpecContext) {
@@ -664,13 +671,17 @@ spec:
 				curlPod, err := common.GetPodNameByLabel(ctx, cl, tpj, "app", "curl")
 				Expect(err).NotTo(HaveOccurred(), "Failed to get curl pod name")
 
-				out, err := k.WithNamespace(tpj).Exec(
-					curlPod, // Arg 1: The Pod Name
-					"curl",  // Arg 2: The Container Name (matches 'name: curl' in your YAML)
-					"curl -s -o /dev/null -w %{http_code} http://httpbin", // Arg 3: The Command
-				)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(strings.TrimSpace(out)).To(Equal("200"))
+				Eventually(func() error {
+					out, err := k.WithNamespace(tpj).Exec(curlPod, "curl",
+						"curl -s -o /dev/null -w %{http_code} http://httpbin")
+					if err != nil {
+						return err
+					}
+					if strings.TrimSpace(out) != "200" {
+						return fmt.Errorf("expected HTTP 200, got %q", strings.TrimSpace(out))
+					}
+					return nil
+				}, 60*time.Second, 5*time.Second).Should(Succeed(), "HTTP access to httpbin with STRICT mTLS failed")
 			})
 		})
 
