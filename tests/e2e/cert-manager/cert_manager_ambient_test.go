@@ -26,11 +26,13 @@ import (
 	. "github.com/istio-ecosystem/sail-operator/pkg/test/util/ginkgo"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/cleaner"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/common"
+	. "github.com/istio-ecosystem/sail-operator/tests/e2e/util/gomega"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/shell"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -54,17 +56,13 @@ var _ = Describe("Cert-manager Installation", Label("smoke", "cert-manager", "sl
 
 		When("the Cert Manager Operator is deployed", func() {
 			BeforeAll(func() {
-				// Wait for the cert-manager package to be available in the catalog before
-				// subscribing. If the catalog pod is restarting or its index hasn't synced yet,
-				// OLM cannot resolve the package and will silently stall without creating an
-				// InstallPlan, causing the deployment to never appear.
-				Eventually(func() error {
-					_, err := k.WithNamespace("openshift-marketplace").GetYAML("packagemanifests", "openshift-cert-manager-operator")
-					if err != nil {
-						return fmt.Errorf("openshift-cert-manager-operator package not found in catalog: %w", err)
-					}
-					return nil
-				}, 5*time.Minute, 10*time.Second).Should(Succeed(), "cert-manager package never appeared in operator catalog")
+				// Check that the cert-manager operator package is available in the catalog.
+				// If it is missing (e.g. nightly build without the operator), skip the test
+				// so CI surfaces it as "skipped" rather than a hard failure.
+				_, err := k.WithNamespace("openshift-marketplace").GetYAML("packagemanifests", "openshift-cert-manager-operator")
+				if err != nil {
+					Skip("openshift-cert-manager-operator package not found in operator catalog; skipping test suite")
+				}
 
 				operatorGroupYaml := `
 apiVersion: operators.coreos.com/v1
@@ -393,8 +391,10 @@ spec:
 
 			sleepPod := &corev1.PodList{}
 			It("updates the status of pods to Running", func(ctx SpecContext) {
-				Eventually(common.CheckPodsReady).WithArguments(ctx, cl, common.SleepNamespace).Should(Succeed(), "Error checking status of sleep pod")
-				Eventually(common.CheckPodsReady).WithArguments(ctx, cl, common.HttpbinNamespace).Should(Succeed(), "Error checking status of httpbin pod")
+				Eventually(common.GetObject).WithArguments(ctx, cl, kube.Key("sleep", common.SleepNamespace), &appsv1.Deployment{}).
+					Should(HaveConditionStatus(appsv1.DeploymentAvailable, metav1.ConditionTrue), "Sleep deployment is not Available")
+				Eventually(common.GetObject).WithArguments(ctx, cl, kube.Key("httpbin", common.HttpbinNamespace), &appsv1.Deployment{}).
+					Should(HaveConditionStatus(appsv1.DeploymentAvailable, metav1.ConditionTrue), "Httpbin deployment is not Available")
 				Expect(cl.List(ctx, sleepPod, client.InNamespace(common.SleepNamespace))).To(Succeed(), "Error getting the pod in sleep namespace")
 
 				Success("Pods are ready")

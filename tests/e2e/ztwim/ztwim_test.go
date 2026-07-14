@@ -58,13 +58,10 @@ var _ = Describe("ZTWIM Installation", Label("smoke", "ztwim", "slow"), Ordered,
 			clr.Record(ctx)
 
 			By("Verifying ZTWIM operator package is available in the catalog")
-			Eventually(func() error {
-				_, err := k.WithNamespace("openshift-marketplace").GetYAML("packagemanifests", ztwimOperatorName)
-				if err != nil {
-					return fmt.Errorf("ZTWIM operator package '%s' not found in catalog: %w", ztwimOperatorName, err)
-				}
-				return nil
-			}, 5*time.Minute, 10*time.Second).Should(Succeed(), "ZTWIM operator package never appeared in operator catalog")
+			_, err := k.WithNamespace("openshift-marketplace").GetYAML("packagemanifests", ztwimOperatorName)
+			if err != nil {
+				Skip(fmt.Sprintf("ZTWIM operator package '%s' not found in operator catalog; skipping test suite", ztwimOperatorName))
+			}
 			Success(fmt.Sprintf("ZTWIM operator package '%s' found in catalog", ztwimOperatorName))
 
 			Expect(k.CreateNamespace(controlPlaneNamespace)).To(Succeed(), "Istio namespace failed to be created")
