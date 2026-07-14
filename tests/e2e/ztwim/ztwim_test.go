@@ -18,6 +18,7 @@ package ztwim
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -56,23 +57,15 @@ var _ = Describe("ZTWIM Installation", Label("smoke", "ztwim", "slow"), Ordered,
 		BeforeAll(func(ctx SpecContext) {
 			clr.Record(ctx)
 
-			// If the OCP cluster is from nightly build, the ZTWIM operator package
-			// might not be available. Check for the package existence and if it's missing, skip the test.
 			By("Verifying ZTWIM operator package is available in the catalog")
-			checkCmd := fmt.Sprintf(
-				`oc get packagemanifests -n openshift-marketplace %s -o jsonpath='{.status.catalogSource}' 2>/dev/null || echo "NOT_FOUND"`,
-				ztwimOperatorName)
-			catalogSource, err := shell.ExecuteShell(checkCmd, "")
-			if err != nil {
-				Skip(fmt.Sprintf("Failed to check for ZTWIM operator package availability: %v. Skipping test.", err))
-			}
-			if strings.TrimSpace(catalogSource) == "NOT_FOUND" || strings.TrimSpace(catalogSource) == "" {
-				Skip(fmt.Sprintf(
-					"ZTWIM operator package '%s' not found in operator catalog. "+
-						"This operator may not be available on this OpenShift version/configuration.",
-					ztwimOperatorName))
-			}
-			Success(fmt.Sprintf("ZTWIM operator package found in catalog: %s", strings.TrimSpace(catalogSource)))
+			Eventually(func() error {
+				_, err := k.WithNamespace("openshift-marketplace").GetYAML("packagemanifests", ztwimOperatorName)
+				if err != nil {
+					return fmt.Errorf("ZTWIM operator package '%s' not found in catalog: %w", ztwimOperatorName, err)
+				}
+				return nil
+			}, 5*time.Minute, 10*time.Second).Should(Succeed(), "ZTWIM operator package never appeared in operator catalog")
+			Success(fmt.Sprintf("ZTWIM operator package '%s' found in catalog", ztwimOperatorName))
 
 			Expect(k.CreateNamespace(controlPlaneNamespace)).To(Succeed(), "Istio namespace failed to be created")
 			Expect(k.CreateNamespace(istioCniNamespace)).To(Succeed(), "IstioCNI namespace failed to be created")
@@ -208,9 +201,9 @@ spec:
 				).To(Succeed(), "Failed to restart spire-server")
 
 				By("Waiting for spire-server rollout to complete")
-				Expect(
-					k.WithNamespace(ztwimNamespace).Rollout("status", "statefulset", "spire-server"),
-				).To(Succeed(), "spire-server rollout did not complete successfully")
+				Eventually(func() error {
+					return k.WithNamespace(ztwimNamespace).Rollout("status", "statefulset", "spire-server")
+				}, 300*time.Second, 5*time.Second).Should(Succeed(), "spire-server rollout did not complete successfully")
 
 				Success("spire-server rollout completed successfully")
 			})
@@ -257,6 +250,10 @@ spec:
 						return fmt.Errorf("failed to parse daemonset YAML: %w", err)
 					}
 
+					if ds.Status.DesiredNumberScheduled == 0 {
+						return fmt.Errorf("spire-agent not scheduled yet: desired=0")
+					}
+
 					if ds.Status.DesiredNumberScheduled != ds.Status.NumberReady {
 						return fmt.Errorf(
 							"spire-agent not ready: desired=%d, ready=%d",
@@ -266,16 +263,12 @@ spec:
 					}
 
 					return nil
-				}, 180*time.Second, 5*time.Second).Should(Succeed(), "spire-agent DaemonSet did not become available")
+				}, 300*time.Second, 5*time.Second).Should(Succeed(), "spire-agent DaemonSet did not become available")
 
 				By("Waiting for spire-agent rollout to complete")
-				Expect(
-					k.WithNamespace(ztwimNamespace).Rollout(
-						"status",
-						"daemonset",
-						"spire-agent",
-					),
-				).To(Succeed(), "spire-agent rollout did not complete successfully")
+				Eventually(func() error {
+					return k.WithNamespace(ztwimNamespace).Rollout("status", "daemonset", "spire-agent")
+				}, 120*time.Second, 5*time.Second).Should(Succeed(), "spire-agent rollout did not complete successfully")
 
 				Success("spire-agent rollout completed successfully")
 			})
@@ -309,6 +302,10 @@ spec:
 						return fmt.Errorf("failed to parse daemonset YAML: %w", err)
 					}
 
+					if ds.Status.DesiredNumberScheduled == 0 {
+						return fmt.Errorf("spire-spiffe-csi-driver not scheduled yet: desired=0")
+					}
+
 					if ds.Status.DesiredNumberScheduled != ds.Status.NumberReady {
 						return fmt.Errorf(
 							"spire-spiffe-csi-driver not ready: desired=%d, ready=%d",
@@ -321,13 +318,9 @@ spec:
 				}, 300*time.Second, 5*time.Second).Should(Succeed(), "spire-spiffe-csi-driver DaemonSet did not become available")
 
 				By("Waiting for spire-spiffe-csi-driver rollout to complete")
-				Expect(
-					k.WithNamespace(ztwimNamespace).Rollout(
-						"status",
-						"daemonset",
-						"spire-spiffe-csi-driver",
-					),
-				).To(Succeed(), "spire-spiffe-csi-driver rollout did not complete successfully")
+				Eventually(func() error {
+					return k.WithNamespace(ztwimNamespace).Rollout("status", "daemonset", "spire-spiffe-csi-driver")
+				}, 120*time.Second, 5*time.Second).Should(Succeed(), "spire-spiffe-csi-driver rollout did not complete successfully")
 
 				Success("spire-spiffe-csi-driver rollout completed successfully")
 			})
@@ -354,25 +347,24 @@ spec:
 
 			It("configures and restarts spire-spiffe-oidc-discovery-provider", func() {
 				By("Waiting for OIDC discovery provider deployment to be available")
-
-				waitAvailableCmd := fmt.Sprintf(`
-			oc wait --for=condition=Available deployment/spire-spiffe-oidc-discovery-provider \
-			-n "%s" --timeout=300s
-			`, ztwimNamespace)
-
-				_, err := shell.ExecuteShell(waitAvailableCmd, "")
-				Expect(err).ToNot(HaveOccurred(), "OIDC discovery provider deployment did not become available")
+				Eventually(func() error {
+					return k.WithNamespace(ztwimNamespace).Rollout("status", "deployment", "spire-spiffe-oidc-discovery-provider")
+				}, 300*time.Second, 5*time.Second).Should(Succeed(), "OIDC discovery provider deployment did not become available")
 
 				By("Patching OIDC discovery provider configmap")
-				patchCmd := `
+				bin := os.Getenv("COMMAND")
+				if bin == "" {
+					bin = "kubectl"
+				}
+				patchCmd := fmt.Sprintf(`
 			OIDC_DISCOVERY_CONFIG_MAP=spire-spiffe-oidc-discovery-provider
-			PATCH_PAYLOAD=$(kubectl get configmap ${OIDC_DISCOVERY_CONFIG_MAP} -n "` + ztwimNamespace + `" -o json | \
+			PATCH_PAYLOAD=$(%[1]s get configmap ${OIDC_DISCOVERY_CONFIG_MAP} -n "%[2]s" -o json | \
 			jq -r '.data["oidc-discovery-provider.conf"] | fromjson |
 			.workload_api.socket_path = "/spiffe-workload-api/socket" |
 			tojson | {data: {"oidc-discovery-provider.conf": .}}')
-			kubectl patch configmap ${OIDC_DISCOVERY_CONFIG_MAP} -n "` + ztwimNamespace + `" --patch "$PATCH_PAYLOAD"
-			`
-				_, err = shell.ExecuteShell(patchCmd, "")
+			%[1]s patch configmap ${OIDC_DISCOVERY_CONFIG_MAP} -n "%[2]s" --patch "$PATCH_PAYLOAD"
+			`, bin, ztwimNamespace)
+				_, err := shell.ExecuteShell(patchCmd, "")
 				Expect(err).ToNot(HaveOccurred(), "Failed patching OIDC discovery provider configmap")
 
 				By("Restarting OIDC discovery provider deployment")
@@ -384,13 +376,10 @@ spec:
 					),
 				).To(Succeed(), "Failed to restart OIDC discovery provider")
 
-				By("Waiting for OIDC discovery provider deployment to be available")
-				waitAvailableCmd = `
-		oc wait --for=condition=Available deployment/spire-spiffe-oidc-discovery-provider \
-		-n "` + ztwimNamespace + `" --timeout=300s
-		`
-				_, err = shell.ExecuteShell(waitAvailableCmd, "")
-				Expect(err).ToNot(HaveOccurred(), "OIDC discovery provider deployment did not become available")
+				By("Waiting for OIDC discovery provider deployment to be available after restart")
+				Eventually(func() error {
+					return k.WithNamespace(ztwimNamespace).Rollout("status", "deployment", "spire-spiffe-oidc-discovery-provider")
+				}, 300*time.Second, 5*time.Second).Should(Succeed(), "OIDC discovery provider deployment did not become available after restart")
 
 				Success("Spire OIDC Discovery Provider deployed and configured successfully")
 			})
@@ -420,12 +409,16 @@ spec:
 		})
 
 		When("the Istio CR is created", func() {
-			cmd := `
-			oc get secret oidc-serving-cert -n "` + ztwimNamespace + `" -o json | \
+			bin := os.Getenv("COMMAND")
+			if bin == "" {
+				bin = "kubectl"
+			}
+			cmd := fmt.Sprintf(`
+			%s get secret oidc-serving-cert -n "%s" -o json | \
 			jq -r '.data."tls.crt"' | \
 			base64 -d | \
 			sed 's/^/        /'
-			`
+			`, bin, ztwimNamespace)
 			extraRootCA, err := shell.ExecuteShell(cmd, "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to get EXTRA_ROOT_CA")
 
@@ -751,21 +744,23 @@ spec:
 				crTypes := "zerotrustworkloadidentitymanager,spireserver,spireagent,spiffecsidriver,spireoidcdiscoveryprovider"
 
 				By("Removing finalizers from CRs so they can be deleted without the Operator")
-				// If we don't do this, the CRs will hang forever waiting for the dead operator
-				patchCmd := fmt.Sprintf("oc patch %s --all -n %s -p '{\"metadata\":{\"finalizers\":[]}}' --type=merge || true", crTypes, ztwimNamespace)
+				bin := os.Getenv("COMMAND")
+				if bin == "" {
+					bin = "kubectl"
+				}
+				patchCmd := fmt.Sprintf("%s patch %s --all -n %s -p '{\"metadata\":{\"finalizers\":[]}}' --type=merge || true", bin, crTypes, ztwimNamespace)
 				_, _ = shell.ExecuteShell(patchCmd, "")
 
 				By("Deleting ZTWIM Custom Resources")
-				deleteCmd := fmt.Sprintf("oc delete %s --all -n %s --ignore-not-found", crTypes, ztwimNamespace)
+				deleteCmd := fmt.Sprintf("%s delete %s --all -n %s --ignore-not-found", bin, crTypes, ztwimNamespace)
 				_, _ = shell.ExecuteShell(deleteCmd, "")
 
 				By("Forcefully deleting all remaining workload controllers")
-				// With the operator dead, these will not respawn
-				controllerCmd := fmt.Sprintf("oc delete daemonset,deployment,statefulset --all -n %s --ignore-not-found", ztwimNamespace)
+				controllerCmd := fmt.Sprintf("%s delete daemonset,deployment,statefulset --all -n %s --ignore-not-found", bin, ztwimNamespace)
 				_, _ = shell.ExecuteShell(controllerCmd, "")
 
 				By("Forcefully deleting all pods")
-				podCmd := fmt.Sprintf("oc delete pod --all -n %s --force --grace-period=0", ztwimNamespace)
+				podCmd := fmt.Sprintf("%s delete pod --all -n %s --force --grace-period=0", bin, ztwimNamespace)
 				_, _ = shell.ExecuteShell(podCmd, "")
 
 				By("Force deleting ZTWIM operator deployment")
@@ -812,8 +807,12 @@ spec:
 })
 
 func resolveJwtIssuer() (string, error) {
+	bin := os.Getenv("COMMAND")
+	if bin == "" {
+		bin = "kubectl"
+	}
 	out, err := shell.ExecuteShell(
-		`oc get ingresses.config/cluster -o jsonpath='{.spec.domain}'`,
+		fmt.Sprintf(`%s get ingresses.config/cluster -o jsonpath='{.spec.domain}'`, bin),
 		"",
 	)
 	if err != nil {

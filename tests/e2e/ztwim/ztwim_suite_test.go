@@ -23,7 +23,6 @@ import (
 	k8sclient "github.com/istio-ecosystem/sail-operator/tests/e2e/util/client"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/common"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/kubectl"
-	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/shell"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -50,7 +49,7 @@ var (
 
 // isOpenshift dynamically checks if the cluster is OCP by looking for a core OpenShift API resource
 func isOpenshift() bool {
-	_, err := shell.ExecuteShell("kubectl get clusterversion", "")
+	_, err := kubectl.New().GetYAML("clusterversion", "version")
 	return err == nil
 }
 
