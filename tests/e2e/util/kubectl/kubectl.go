@@ -302,6 +302,9 @@ func (k Kubectl) Exec(pod, container, command string) (string, error) {
 
 // isWebSocketCloseError returns true for WebSocket close 1006 (abnormal closure) errors.
 func isWebSocketCloseError(err error) bool {
+	if err == nil {
+		return false
+	}
 	msg := err.Error()
 	return strings.Contains(msg, "websocket: close 1006") ||
 		strings.Contains(msg, "abnormal closure")
