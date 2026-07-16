@@ -17,12 +17,14 @@
 package ztwim
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/istio-ecosystem/sail-operator/pkg/env"
 	k8sclient "github.com/istio-ecosystem/sail-operator/tests/e2e/util/client"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/common"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/kubectl"
+	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/shell"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,6 +64,12 @@ func TestZTWIM(t *testing.T) {
 		t.Skip("Skipping test: ZTWIM is only supported on OpenShift (OCP)")
 	}
 
+	// TODO: remove this validation once the ZTWIN operator supports ARM architecture
+	// Currently the spire-spiffe-csi-driver pod has an init container that fails on ARM architecture, which causes this test to fails.
+	if isARMArchitecture() {
+		t.Skip("Skipping test on ARM architecture")
+	}
+
 	RegisterFailHandler(Fail)
 	setup()
 	RunSpecs(t, "Zero Trust Workload Identity Manager Test Suite")
@@ -75,4 +83,45 @@ func setup() {
 	Expect(err).NotTo(HaveOccurred())
 
 	k = kubectl.New()
+}
+
+func isARMArchitecture() bool {
+	nodes, err := shell.ExecuteCommand("kubectl get nodes -o json")
+	if err != nil {
+		GinkgoWriter.Println("Error getting nodes:", err)
+		return false
+	}
+	// Parse the JSON output to check node architecture
+	type NodeInfo struct {
+		Architecture string `json:"architecture"`
+	}
+	type NodeStatus struct {
+		NodeInfo NodeInfo `json:"nodeInfo"`
+	}
+	type Node struct {
+		Metadata struct {
+			Name string `json:"name"`
+		} `json:"metadata"`
+		Status NodeStatus `json:"status"`
+	}
+	type NodeList struct {
+		Items []Node `json:"items"`
+	}
+
+	var nodeList NodeList
+	err = json.Unmarshal([]byte(nodes), &nodeList)
+	if err != nil {
+		GinkgoWriter.Println("Error parsing nodes JSON:", err)
+		return false
+	}
+
+	for _, node := range nodeList.Items {
+		arch := node.Status.NodeInfo.Architecture
+		GinkgoWriter.Println("Node:", node.Metadata.Name, "Architecture:", arch)
+		if arch == "arm64" || arch == "arm" {
+			GinkgoWriter.Println("Detected ARM architecture on node:", node.Metadata.Name)
+			return true
+		}
+	}
+	return false
 }
