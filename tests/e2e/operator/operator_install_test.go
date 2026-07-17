@@ -72,10 +72,10 @@ var sailCRDs = []string{
 // profile but intentionally omitted from the custom TLS profile used in tests.
 // Its absence distinguishes Custom from Intermediate on both the metrics endpoint
 // and in the IstioRevision values.
-const markerCipher = "ECDHE-RSA-CHACHA20-POLY1305"
+const markerCipher = "ECDHE-RSA-AES128-GCM-SHA256"
 
 // markerCipherName is the Go TLS cipher name for the marker cipher.
-const markerCipherName = "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+const markerCipherName = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
 
 var (
 	apiServerKey = client.ObjectKey{Name: crtls.APIServerName}
@@ -90,10 +90,16 @@ var (
 var _ = Describe("Operator", Label("smoke", "operator"), Ordered, func() {
 	SetDefaultEventuallyTimeout(time.Duration(env.GetInt("DEFAULT_TEST_TIMEOUT", 180)) * time.Second)
 	SetDefaultEventuallyPollingInterval(time.Second)
+	debugInfoLogged := false
 	clr := cleaner.New(cl)
 	BeforeAll(func(ctx SpecContext) {
 		clr.Record(ctx)
 		DeferCleanup(func(ctx SpecContext) {
+			if CurrentSpecReport().Failed() {
+				common.LogDebugInfo(common.Operator, k)
+				debugInfoLogged = true
+			}
+
 			clr.Cleanup(ctx)
 		})
 	})
@@ -221,7 +227,7 @@ spec:
 	// a specific TLS 1.2 cipher) and the TLS settings synced to the IstioRevision resource.
 	// Test 1 runs on all OpenShift clusters. Tests 2 and 3 require OpenShift >= 4.22
 	// because the TLSAdherence field was introduced in 4.22.
-	Describe("TLS profile change", Label("openshift"), func() {
+	Describe("TLS profile change", Label("tls-profile"), func() {
 		var ocpMinorVersion int
 		var ocpMajorVersion int
 
@@ -315,17 +321,17 @@ spec:
 
 			DeferCleanup(func(ctx SpecContext) {
 				Step("Restoring the original APIServer TLS settings")
-				apiServer := &configv1.APIServer{}
-				err := cl.Get(ctx, apiServerKey, apiServer)
-				Expect(err).NotTo(HaveOccurred(), "Failed to get APIServer")
-				apiServer.Spec.TLSSecurityProfile = originalTLSProfile
-				// TLSAdherence cannot be set back to NoOpinion once set,
-				// so only restore it if the original was a non-empty value.
-				if originalTLSAdherence != configv1.TLSAdherencePolicyNoOpinion {
-					apiServer.Spec.TLSAdherence = originalTLSAdherence
-				}
-				err = cl.Update(ctx, apiServer)
-				Expect(err).NotTo(HaveOccurred(), "Failed to update APIServer TLS settings")
+				Eventually(func(g Gomega) {
+					apiServer := &configv1.APIServer{}
+					g.Expect(cl.Get(ctx, apiServerKey, apiServer)).To(Succeed(), "Failed to get APIServer")
+					apiServer.Spec.TLSSecurityProfile = originalTLSProfile
+					// TLSAdherence cannot be set back to NoOpinion once set,
+					// so only restore it if the original was a non-empty value.
+					if originalTLSAdherence != configv1.TLSAdherencePolicyNoOpinion {
+						apiServer.Spec.TLSAdherence = originalTLSAdherence
+					}
+					g.Expect(cl.Update(ctx, apiServer)).To(Succeed(), "Failed to update APIServer TLS settings")
+				}).WithTimeout(30 * time.Second).WithPolling(2 * time.Second).Should(Succeed())
 			})
 
 			Step("Creating Istio")
@@ -367,7 +373,7 @@ spec:
 
 			Step("Verifying metrics endpoint still accepts the marker cipher")
 			Expect(metricsEndpointAcceptsCipher(k, markerCipher, "1.2")).To(BeTrue(),
-				"Metrics endpoint should accept ECDHE-RSA-CHACHA20-POLY1305 when TLSAdherence is NoOpinion (custom profile not applied)")
+				"Metrics endpoint should accept ECDHE-RSA-AES128-GCM-SHA256 when TLSAdherence is NoOpinion (custom profile not applied)")
 			Success("TLS settings were not synced when TLSAdherence is NoOpinion")
 		})
 
@@ -416,7 +422,8 @@ spec:
 				g.Expect(rev.Spec.Values.Pilot.ExtraContainerArgs).To(
 					ContainElement(ContainSubstring("--tls-cipher-suites=")),
 					"IstioRevision should have --tls-cipher-suites in pilot.extraContainerArgs")
-			}).Should(Succeed(), "IstioRevision is not syncing TLS settings but should be")
+			}).WithTimeout(5*time.Minute).WithPolling(5*time.Second).Should(Succeed(),
+				"IstioRevision is not syncing TLS settings but should be")
 
 			Step("Verifying metrics endpoint accepts the custom cipher")
 			Eventually(func() bool {
@@ -425,7 +432,7 @@ spec:
 				"Metrics endpoint should accept ECDHE-RSA-AES256-GCM-SHA384 when TLS profile includes it")
 			Success("TLS settings were synced after TLSAdherence change to StrictAllComponents")
 
-			Step("Applying custom TLS profile without ECDHE-RSA-CHACHA20-POLY1305")
+			Step("Applying custom TLS profile without ECDHE-RSA-AES128-GCM-SHA256")
 			applyCustomTLSProfile(ctx, cl, customTLSProfileCiphers)
 
 			Step("Verifying IstioRevision cipher suites no longer include the marker cipher")
@@ -435,14 +442,14 @@ spec:
 				ciphers := getIstioRevisionCipherSuites(rev)
 				g.Expect(ciphers).NotTo(BeEmpty(), "IstioRevision should have cipher suites")
 				g.Expect(ciphers).NotTo(ContainElement(markerCipherName),
-					"IstioRevision should not contain ECDHE-RSA-CHACHA20-POLY1305 after custom profile is applied")
+					"IstioRevision should not contain ECDHE-RSA-AES128-GCM-SHA256 after custom profile is applied")
 			}).WithTimeout(5 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 
 			Step("Verifying metrics endpoint rejects the marker cipher")
 			Eventually(func() bool {
 				return metricsEndpointAcceptsCipher(k, markerCipher, "1.2")
 			}).Should(BeFalse(),
-				"Metrics endpoint should reject ECDHE-RSA-CHACHA20-POLY1305 after custom profile is applied")
+				"Metrics endpoint should reject ECDHE-RSA-AES128-GCM-SHA256 after custom profile is applied")
 			Success("TLS settings were updated after profile change")
 		})
 	})
@@ -452,7 +459,7 @@ spec:
 			return
 		}
 
-		if CurrentSpecReport().Failed() {
+		if CurrentSpecReport().Failed() && !debugInfoLogged {
 			common.LogDebugInfo(common.Operator, k)
 		}
 	})
