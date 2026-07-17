@@ -399,3 +399,13 @@ func getKustomizeDir(appName string) string {
 
 	return filepath.Join(project.RootDir, "tests", "e2e", "samples", appName)
 }
+
+// ApplyStringWithForceConflicts applies yaml using server-side apply and forces conflicts
+func (k Kubectl) ApplyStringWithForceConflicts(yamlString string) error {
+	cmd := k.build(" apply --server-side --force-conflicts -f -")
+	_, err := shell.ExecuteCommandWithInput(cmd, yamlString)
+	if err != nil {
+		return fmt.Errorf("error applying yaml with force conflicts: %w", err)
+	}
+	return nil
+}
