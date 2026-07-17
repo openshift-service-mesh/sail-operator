@@ -196,12 +196,14 @@ spec:
 
 				By("Restarting spire-server statefulset")
 				Eventually(func() error {
-					return k.WithNamespace(ztwimNamespace).Rollout("restart", "statefulset", "spire-server")
+					_, err := k.WithNamespace(ztwimNamespace).RolloutRestart("statefulset/spire-server")
+					return err
 				}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed to restart spire-server")
 
 				By("Waiting for spire-server rollout to complete")
 				Eventually(func() error {
-					return k.WithNamespace(ztwimNamespace).Rollout("status", "statefulset", "spire-server")
+					_, err := k.WithNamespace(ztwimNamespace).RolloutStatus("statefulset/spire-server")
+					return err
 				}, 300*time.Second, 5*time.Second).Should(Succeed(), "spire-server rollout did not complete successfully")
 
 				Success("spire-server rollout completed successfully")
@@ -266,7 +268,8 @@ spec:
 
 				By("Waiting for spire-agent rollout to complete")
 				Eventually(func() error {
-					return k.WithNamespace(ztwimNamespace).Rollout("status", "daemonset", "spire-agent")
+					_, err := k.WithNamespace(ztwimNamespace).RolloutStatus("daemonset/spire-agent")
+					return err
 				}, 120*time.Second, 5*time.Second).Should(Succeed(), "spire-agent rollout did not complete successfully")
 
 				Success("spire-agent rollout completed successfully")
@@ -318,7 +321,8 @@ spec:
 
 				By("Waiting for spire-spiffe-csi-driver rollout to complete")
 				Eventually(func() error {
-					return k.WithNamespace(ztwimNamespace).Rollout("status", "daemonset", "spire-spiffe-csi-driver")
+					_, err := k.WithNamespace(ztwimNamespace).RolloutStatus("daemonset/spire-spiffe-csi-driver")
+					return err
 				}, 120*time.Second, 5*time.Second).Should(Succeed(), "spire-spiffe-csi-driver rollout did not complete successfully")
 
 				Success("spire-spiffe-csi-driver rollout completed successfully")
@@ -347,7 +351,8 @@ spec:
 			It("configures and restarts spire-spiffe-oidc-discovery-provider", func() {
 				By("Waiting for OIDC discovery provider deployment to be available")
 				Eventually(func() error {
-					return k.WithNamespace(ztwimNamespace).Rollout("status", "deployment", "spire-spiffe-oidc-discovery-provider")
+					_, err := k.WithNamespace(ztwimNamespace).RolloutStatus("deployment/spire-spiffe-oidc-discovery-provider")
+					return err
 				}, 300*time.Second, 5*time.Second).Should(Succeed(), "OIDC discovery provider deployment did not become available")
 
 				By("Patching OIDC discovery provider configmap")
@@ -370,12 +375,14 @@ spec:
 
 				By("Restarting OIDC discovery provider deployment")
 				Eventually(func() error {
-					return k.WithNamespace(ztwimNamespace).Rollout("restart", "deployment", "spire-spiffe-oidc-discovery-provider")
+					_, err := k.WithNamespace(ztwimNamespace).RolloutRestart("deployment/spire-spiffe-oidc-discovery-provider")
+					return err
 				}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed to restart OIDC discovery provider")
 
 				By("Waiting for OIDC discovery provider deployment to be available after restart")
 				Eventually(func() error {
-					return k.WithNamespace(ztwimNamespace).Rollout("status", "deployment", "spire-spiffe-oidc-discovery-provider")
+					_, err := k.WithNamespace(ztwimNamespace).RolloutStatus("deployment/spire-spiffe-oidc-discovery-provider")
+					return err
 				}, 300*time.Second, 5*time.Second).Should(Succeed(), "OIDC discovery provider deployment did not become available after restart")
 
 				Success("Spire OIDC Discovery Provider deployed and configured successfully")
