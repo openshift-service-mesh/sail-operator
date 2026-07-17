@@ -615,10 +615,11 @@ spec:
 			})
 
 			It("allows HTTP access before mTLS is enforced", func(ctx SpecContext) {
-				curlPod, err := common.GetPodNameByLabel(ctx, cl, tpj, "app", "curl")
-				Expect(err).NotTo(HaveOccurred())
-
 				Eventually(func() error {
+					curlPod, err := common.GetPodNameByLabel(ctx, cl, tpj, "app", "curl")
+					if err != nil {
+						return err
+					}
 					out, err := k.WithNamespace(tpj).Exec(curlPod, "curl",
 						"curl -s -o /dev/null -w %{http_code} http://httpbin")
 					if err != nil {
@@ -668,10 +669,11 @@ spec:
 
 				Expect(k.WithNamespace(tpj).ApplyString(mtlsYAML)).To(Succeed())
 
-				curlPod, err := common.GetPodNameByLabel(ctx, cl, tpj, "app", "curl")
-				Expect(err).NotTo(HaveOccurred(), "Failed to get curl pod name")
-
 				Eventually(func() error {
+					curlPod, err := common.GetPodNameByLabel(ctx, cl, tpj, "app", "curl")
+					if err != nil {
+						return err
+					}
 					out, err := k.WithNamespace(tpj).Exec(curlPod, "curl",
 						"curl -s -o /dev/null -w %{http_code} http://httpbin")
 					if err != nil {
