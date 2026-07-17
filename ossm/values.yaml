@@ -82,6 +82,12 @@ deployment:
     images.v1_28_8.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:50a4a4aacebe31c525bc67735a4fafe4dc4fdaae2abb13d1837872bbaaabfcd2
     images.v1_28_8.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:e1c587919c651e10658506ba86637c08e9e2984aae797ab78364dfc2c7e0e0cb
     images.v1_28_8.ztunnel: registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:dfe3db9c8ca90597d54a21afb090ecfa00353efb110efefcea53fc986ff3c425
+    # 1.28.10 images will be replaced with Konflux built images and will be updated after 3.3.6 release
+    images.v1_28_10.cni: ${ISTIO_CNI_1_28}
+    images.v1_28_10.istiod: ${ISTIO_PILOT_1_28}
+    images.v1_28_10.must-gather: ${OSSM_MUST_GATHER_3_3}
+    images.v1_28_10.proxy: ${ISTIO_PROXY_1_28}
+    images.v1_28_10.ztunnel: ${ISTIO_ZTUNNEL_1_28}
 service:
   port: 8443
 serviceAccountName: servicemesh-operator3
