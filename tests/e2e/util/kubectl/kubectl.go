@@ -25,6 +25,7 @@ import (
 
 	"github.com/istio-ecosystem/sail-operator/pkg/test/project"
 	"github.com/istio-ecosystem/sail-operator/tests/e2e/util/shell"
+	"github.com/onsi/gomega"
 )
 
 type Kubectl struct {
@@ -279,14 +280,34 @@ func (k Kubectl) GetSecret(secret string) (string, error) {
 	return output, nil
 }
 
-// Exec executes a command in the pod or specific container
+// Exec executes a command in the pod or specific container, retrying on transient WebSocket close
+// 1006 errors that occur on ARM64/Graviton2 when SPIRE ECDSA mTLS handshakes are slow.
 func (k Kubectl) Exec(pod, container, command string) (string, error) {
 	cmd := k.build(fmt.Sprintf(" exec %s %s -- %s", pod, containerFlag(container), command))
-	output, err := k.executeCommand(cmd)
-	if err != nil {
-		return "", err
+
+	var output string
+	var execErr error
+	// Noop fail handler: propagate the error to the caller rather than failing the test on timeout.
+	g := gomega.NewGomega(func(string, ...int) {})
+	g.Eventually(func() error {
+		output, execErr = k.executeCommand(cmd)
+		if isWebSocketCloseError(execErr) {
+			return execErr // keep retrying on transient WebSocket drops
+		}
+		return nil // success or non-retryable error — stop
+	}).WithTimeout(30 * time.Second).WithPolling(2 * time.Second).Should(gomega.Succeed())
+
+	return output, execErr
+}
+
+// isWebSocketCloseError returns true for WebSocket close 1006 (abnormal closure) errors.
+func isWebSocketCloseError(err error) bool {
+	if err == nil {
+		return false
 	}
-	return output, nil
+	msg := err.Error()
+	return strings.Contains(msg, "websocket: close 1006") ||
+		strings.Contains(msg, "abnormal closure")
 }
 
 // GetEvents returns the events of a namespace
