@@ -18,11 +18,11 @@ versions:
     repo: https://github.com/istio/istio
     commit: 1.30.3
     charts:
-      - https://istio-release.storage.googleapis.com/charts/base-1.30.3.tgz
-      - https://istio-release.storage.googleapis.com/charts/istiod-1.30.3.tgz
-      - https://istio-release.storage.googleapis.com/charts/gateway-1.30.3.tgz
-      - https://istio-release.storage.googleapis.com/charts/cni-1.30.3.tgz
-      - https://istio-release.storage.googleapis.com/charts/ztunnel-1.30.3.tgz
+      - https://github.com/openshift-service-mesh/istio-release/raw/c81a7ff0ec7e930d0d90158649dc6bbe6e9a0e67/1.30.3-redhat/helm/base-1.30.3.tgz
+      - https://github.com/openshift-service-mesh/istio-release/raw/c81a7ff0ec7e930d0d90158649dc6bbe6e9a0e67/1.30.3-redhat/helm/istiod-1.30.3.tgz
+      - https://github.com/openshift-service-mesh/istio-release/raw/c81a7ff0ec7e930d0d90158649dc6bbe6e9a0e67/1.30.3-redhat/helm/gateway-1.30.3.tgz
+      - https://github.com/openshift-service-mesh/istio-release/raw/c81a7ff0ec7e930d0d90158649dc6bbe6e9a0e67/1.30.3-redhat/helm/cni-1.30.3.tgz
+      - https://github.com/openshift-service-mesh/istio-release/raw/c81a7ff0ec7e930d0d90158649dc6bbe6e9a0e67/1.30.3-redhat/helm/ztunnel-1.30.3.tgz
   - name: v1.30.1
     version: 1.30.1
     repo: https://github.com/istio/istio
