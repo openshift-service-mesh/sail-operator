@@ -18,7 +18,6 @@ package library
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -33,7 +32,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	configv1 "github.com/openshift/api/config/v1"
-	"helm.sh/helm/v4/pkg/storage/driver"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -85,14 +83,7 @@ var _ = Describe("Library Reconciliation", Label("library", "reconciliation"), O
 			Expect(err).NotTo(HaveOccurred())
 
 			DeferCleanup(func() {
-				// lib.Uninstall may race with Helm's internal purge step: after finding
-				// the release, the secret can be deleted concurrently before Helm purges
-				// it, producing a spurious ErrReleaseNotFound. EnsureNamespaceWithCleanup
-				// deletes the namespace afterward regardless, so no state is left behind.
-				// Any other error is unexpected and must be reported.
-				if err := lib.Uninstall(ctx, namespace, revision); err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
-					Expect(err).NotTo(HaveOccurred(), "unexpected error uninstalling Helm chart")
-				}
+				Expect(lib.Uninstall(ctx, namespace, revision)).To(Succeed())
 				lib.Stop()
 				Success("Cleaned up TLS test")
 			})
@@ -197,14 +188,7 @@ var _ = Describe("Library Reconciliation", Label("library", "reconciliation"), O
 			Expect(err).NotTo(HaveOccurred())
 
 			DeferCleanup(func() {
-				// lib.Uninstall may race with Helm's internal purge step: after finding
-				// the release, the secret can be deleted concurrently before Helm purges
-				// it, producing a spurious ErrReleaseNotFound. EnsureNamespaceWithCleanup
-				// deletes the namespace afterward regardless, so no state is left behind.
-				// Any other error is unexpected and must be reported.
-				if err := lib.Uninstall(ctx, namespace, revision); err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
-					Expect(err).NotTo(HaveOccurred(), "unexpected error uninstalling Helm chart")
-				}
+				Expect(lib.Uninstall(ctx, namespace, revision)).To(Succeed())
 				lib.Stop()
 				Success("Cleaned up reconcile loop test")
 			})
@@ -291,12 +275,18 @@ var _ = Describe("Library Reconciliation", Label("library", "reconciliation"), O
 			webhookKey := types.NamespacedName{
 				Name: fmt.Sprintf("istio-validator-%s-%s", revision, namespace),
 			}
-			webhook := &admissionv1.ValidatingWebhookConfiguration{}
-			Expect(cl.Get(ctx, webhookKey, webhook)).To(Succeed())
 
-			webhook.Webhooks[0].Name = "xyz.xyz.xyz"
-			webhook.Webhooks[0].FailurePolicy = ptr.Of(admissionv1.Fail)
-			Expect(cl.Update(ctx, webhook)).To(Succeed())
+			// Refresh and retry: the background reconciler may update the webhook
+			// concurrently (causing a 409 conflict on Update) or transiently clear
+			// the Webhooks list, so we assert rather than index directly.
+			Eventually(func(g Gomega) {
+				webhook := &admissionv1.ValidatingWebhookConfiguration{}
+				g.Expect(cl.Get(ctx, webhookKey, webhook)).To(Succeed())
+				g.Expect(webhook.Webhooks).NotTo(BeEmpty(), "webhook has no entries")
+				webhook.Webhooks[0].Name = "xyz.xyz.xyz"
+				webhook.Webhooks[0].FailurePolicy = ptr.Of(admissionv1.Fail)
+				g.Expect(cl.Update(ctx, webhook)).To(Succeed())
+			}).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				restored := &admissionv1.ValidatingWebhookConfiguration{}
