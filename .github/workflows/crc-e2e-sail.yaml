@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   preflight:
     name: Resolve Build Image
@@ -15,6 +18,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.base_ref || github.ref }}
+          persist-credentials: false
           sparse-checkout: |
             common/scripts/setup_env.sh
           sparse-checkout-cone-mode: false
@@ -42,6 +46,8 @@ jobs:
       image: ${{ needs.preflight.outputs.image }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Login to quay.io
         uses: docker/login-action@v3
@@ -66,6 +72,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Start CRC MicroShift cluster
         uses: crc-org/crc-github-action@v1
@@ -75,11 +83,13 @@ jobs:
 
       - name: Run e2e tests inside builder container
         run: |
+          mkdir -p "${{ github.workspace }}/artifacts"
           docker run --rm \
             --network=host \
             --privileged \
             -v "${{ github.workspace }}":/work \
             -v "$HOME/.kube":/root/.kube \
+            -v "${{ github.workspace }}/artifacts":/tmp/artifacts \
             -e KUBECONFIG=/root/.kube/config \
             -e HUB=quay.io/sail-dev \
             -e TAG=${{ needs.build-push.outputs.tag }} \
@@ -96,5 +106,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-results
-          path: /tmp/artifacts/
+          path: ${{ github.workspace }}/artifacts/
           if-no-files-found: warn
