@@ -6,18 +6,95 @@ on:
   workflow_dispatch:
 
 jobs:
-  crc-microshift:
-    name: Run MicroShift cluster and execute e2e tests
+  preflight:
+    name: Resolve Build Image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.get-image.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref || github.ref }}
+          sparse-checkout: |
+            common/scripts/setup_env.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Extract IMAGE_VERSION from base branch
+        id: get-image
+        run: |
+          version=$(grep -E '^\s*IMAGE_VERSION=' common/scripts/setup_env.sh \
+                    | grep -v ':-' | head -1 | sed 's/.*IMAGE_VERSION=//')
+          if [[ -z "${version}" ]]; then
+            echo "::error::Could not extract IMAGE_VERSION from common/scripts/setup_env.sh"
+            exit 1
+          fi
+          image="registry.istio.io/testing/build-tools:${version}"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "Resolved build image: ${image}"
+
+  build-push:
+    name: Build and push operator image
+    needs: preflight
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.build.outputs.tag }}
+    container:
+      image: ${{ needs.preflight.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to quay.io
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Build and push operator image
+        id: build
+        env:
+          HUB: quay.io/sail-dev
+          BUILD_WITH_CONTAINER: "0"
+        run: |
+          TAG="crc-${{ github.run_id }}"
+          make docker-push HUB=${HUB} TAG=${TAG}
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    name: Run e2e tests on MicroShift
+    needs: [preflight, build-push]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Start CRC MicroShift cluster
         uses: crc-org/crc-github-action@v1
         with:
-          pull-secret: ${{ secrets.CRC_PULL_SECRET || 'dummy' }}
+          pull-secret: ${{ secrets.CRC_PULL_SECRET }}
           preset: microshift
 
-      - name: Verify cluster is reachable
-        run: oc version
+      - name: Run e2e tests inside builder container
+        run: |
+          docker run --rm \
+            --network=host \
+            --privileged \
+            -v "${{ github.workspace }}":/work \
+            -v "$HOME/.kube":/root/.kube \
+            -e KUBECONFIG=/root/.kube/config \
+            -e HUB=quay.io/sail-dev \
+            -e TAG=${{ needs.build-push.outputs.tag }} \
+            -e CI=true \
+            -e BUILD_WITH_CONTAINER=0 \
+            -e SKIP_BUILD=true \
+            -e XDG_CACHE_HOME=/tmp/cache \
+            -e ARTIFACTS=/tmp/artifacts \
+            ${{ needs.preflight.outputs.image }} \
+            bash -c "cd /work && make test.e2e.ocp"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: /tmp/artifacts/
+          if-no-files-found: warn
