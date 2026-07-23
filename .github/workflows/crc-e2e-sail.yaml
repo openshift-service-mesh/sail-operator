@@ -15,7 +15,7 @@ jobs:
       - name: Start CRC MicroShift cluster
         uses: crc-org/crc-github-action@v1
         with:
-          pull-secret: ${{ secrets.CRC_PULL_SECRET }}
+          pull-secret: ${{ secrets.CRC_PULL_SECRET || 'dummy' }}
           preset: microshift
 
       - name: Verify cluster is reachable
