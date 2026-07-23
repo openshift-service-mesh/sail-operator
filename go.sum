@@ -274,8 +274,8 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=
 github.com/opencontainers/image-spec v1.1.1/go.mod h1:qpqAh3Dmcf36wStyyWU+kCeDgrGnAve2nCC8+7h8Q0M=
-github.com/openshift-service-mesh/istio v0.0.0-20260722090847-5ae93449a5d1 h1:xCP/LyaSTZPZ9vMf7/lrfiE867Z+e5sF+uzxPWSQ7yk=
-github.com/openshift-service-mesh/istio v0.0.0-20260722090847-5ae93449a5d1/go.mod h1:CCx2DwNZvbhvKHRpu6C9pdP2el/H5BWnOO1QWzwo3E8=
+github.com/openshift-service-mesh/istio v0.0.0-20260723184732-d8ba7391ba3a h1:rxVoJayhV2KT3jySVCjBktJzjhSIXboSJq3dJ3v36A0=
+github.com/openshift-service-mesh/istio v0.0.0-20260723184732-d8ba7391ba3a/go.mod h1:CCx2DwNZvbhvKHRpu6C9pdP2el/H5BWnOO1QWzwo3E8=
 github.com/openshift/api v0.0.0-20260630164038-90cdc3bbde7f h1:XVbZm6+tos469QuLh1dpLrKVP2NwoKDrA++G6fwXVyE=
 github.com/openshift/api v0.0.0-20260630164038-90cdc3bbde7f/go.mod h1:7WJ3IPaK6nmWT8bDcaNooHqd0H5WepjVqV/10VlkMEM=
 github.com/openshift/controller-runtime-common v0.0.0-20260428152732-64ee174f5e2e h1:k89oIo2EjX0PRSdi1kesktCyWp50SC9WwKurvupvRGs=
