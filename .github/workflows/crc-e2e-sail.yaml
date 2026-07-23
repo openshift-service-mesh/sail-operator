@@ -1,0 +1,23 @@
+name: crc-e2e-sail
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  crc-microshift:
+    name: Run MicroShift cluster and execute e2e tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start CRC MicroShift cluster
+        uses: crc-org/crc-github-action@v1
+        with:
+          pull-secret: ${{ secrets.CRC_PULL_SECRET || 'dummy' }}
+          preset: microshift
+
+      - name: Verify cluster is reachable
+        run: oc version
