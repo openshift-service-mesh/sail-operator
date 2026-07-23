@@ -3,6 +3,7 @@ name: crc-e2e-sail
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   crc-microshift:
