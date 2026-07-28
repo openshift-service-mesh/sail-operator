@@ -561,6 +561,7 @@ operator-chart: download-istio-charts # pull the charts first as they are requir
 ifeq ($(PATCH_HELM_VALUES), true)
 	@hack/patch-values.sh ${HELM_VALUES_FILE}
 endif
+	@hack/gen-images-go.sh ${HELM_VALUES_FILE}
 
 .PHONY: update-istio
 update-istio: ## Update the Istio commit hash in the 'latest' entry in versions.yaml to the latest commit in the branch.
@@ -607,8 +608,8 @@ OPERATOR_SDK_VERSION ?= v1.42.3
 HELM_VERSION ?= v4.2.3
 CONTROLLER_TOOLS_VERSION ?= v0.21.0
 CONTROLLER_RUNTIME_BRANCH ?= release-0.24
-OPM_VERSION ?= v1.72.0
-OLM_VERSION ?= v0.45.0
+OPM_VERSION ?= v1.73.0
+OLM_VERSION ?= v0.46.0
 GITLEAKS_VERSION ?= v8.30.1
 ISTIOCTL_VERSION ?= 1.26.2
 RUNME_VERSION ?= 3.17.2
