@@ -435,10 +435,20 @@ pause_worker_mcp
 set +e
 # Disable to avoid failing the test run before generating the report.xml
 # Capture the test exit code and allow cleanup via trap to run
+
+# GINKGO_LABEL_FILTER provides a dedicated, quoted-safe way to pass a Ginkgo
+# label-filter expression so that logical operators (&&, ||, !) are not
+# interpreted by the shell. It is ignored when GINKGO_FLAGS already carries a
+# --label-filter to preserve backward compatibility with existing callers.
+LABEL_FILTER_ARGS=()
+if [ -n "${GINKGO_LABEL_FILTER:-}" ] && [[ "${GINKGO_FLAGS:-}" != *"--label-filter"* ]]; then
+  LABEL_FILTER_ARGS=("--label-filter=${GINKGO_LABEL_FILTER}")
+fi
+
 # shellcheck disable=SC2086
 IMAGE="${HUB}/${IMAGE_BASE}:${TAG}" \
 go run github.com/onsi/ginkgo/v2/ginkgo -tags e2e \
---timeout 60m --junit-report="${ARTIFACTS}/report.xml" ${GINKGO_FLAGS:-} "${WD}"/...
+--timeout 60m --junit-report="${ARTIFACTS}/report.xml" ${GINKGO_FLAGS:-} "${LABEL_FILTER_ARGS[@]}" "${WD}"/...
 TEST_EXIT_CODE=$?
 
 exit "${TEST_EXIT_CODE}"
