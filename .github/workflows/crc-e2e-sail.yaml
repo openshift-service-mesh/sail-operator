@@ -1,8 +1,6 @@
 name: crc-e2e-sail
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -119,32 +117,6 @@ jobs:
             -e "GINKGO_LABEL_FILTER=${{ matrix.suite.filter }}" \
             ${{ needs.preflight.outputs.image }} \
             bash -c "git config --global --add safe.directory /work && cd /work && make test.e2e.ocp"
-
-      - name: Debug - pod status and logs on failure
-        if: failure()
-        run: |
-          echo "=== Pods in all namespaces ==="
-          oc get pods -A
-          echo "=== istio-cni pod describe ==="
-          oc describe pods -n istio-cni -l k8s-app=istio-cni-node || true
-          echo "=== istio-cni pod logs (current + previous) ==="
-          oc logs -n istio-cni -l k8s-app=istio-cni-node --tail=100 --prefix || true
-          oc logs -n istio-cni -l k8s-app=istio-cni-node --previous --tail=100 --prefix || true
-          echo "=== ztunnel pod describe ==="
-          oc describe pods -n ztunnel -l app=ztunnel || true
-          echo "=== ztunnel pod logs (current + previous) ==="
-          oc logs -n ztunnel -l app=ztunnel --tail=100 --prefix || true
-          oc logs -n ztunnel -l app=ztunnel --previous --tail=100 --prefix || true
-          echo "=== istiod pod describe ==="
-          oc describe pods -n istio-system -l app=istiod || true
-          echo "=== istiod pod logs ==="
-          oc logs -n istio-system -l app=istiod --tail=100 --prefix || true
-          echo "=== sail-operator pod logs ==="
-          oc logs -n sail-operator -l app.kubernetes.io/name=sail-operator --tail=100 || true
-          echo "=== Recent events ==="
-          oc get events -n istio-system --sort-by='.lastTimestamp' || true
-          oc get events -n istio-cni --sort-by='.lastTimestamp' || true
-          oc get events -n ztunnel --sort-by='.lastTimestamp' || true
 
       - name: Upload test results
         if: always()
