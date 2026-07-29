@@ -77,6 +77,7 @@ func NewReconciler(reconcilerCfg config.ReconcilerConfig, client client.Client, 
 // +kubebuilder:rbac:groups=sailoperator.io,resources=istiorevisiontags/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=sailoperator.io,resources=istiorevisiontags/finalizers,verbs=update
 // +kubebuilder:rbac:groups="admissionregistration.k8s.io",resources=mutatingwebhookconfigurations,verbs="*"
+// +kubebuilder:rbac:groups="admissionregistration.k8s.io",resources=validatingwebhookconfigurations,verbs="*"
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 //
@@ -203,7 +204,10 @@ func (r *Reconciler) installHelmCharts(ctx context.Context, tag *v1.IstioRevisio
 	if err != nil {
 		return fmt.Errorf("failed to install/update Helm chart %q: %w", revisionTagsChartName, err)
 	}
-	if tag.Name == v1.DefaultRevision {
+	if tag.Name == v1.DefaultRevisionTag {
+		if err := values.Set("defaultRevision", rev.Name); err != nil {
+			return err
+		}
 		_, err := r.ChartManager.UpgradeOrInstallChart(ctx, r.Config.ResourceFS, r.getChartPath(rev, constants.BaseChartName),
 			values, r.Config.OperatorNamespace, getReleaseName(tag, constants.BaseChartName), &ownerReference)
 		if err != nil {
@@ -226,8 +230,7 @@ func (r *Reconciler) uninstallHelmCharts(ctx context.Context, tag *v1.IstioRevis
 		return fmt.Errorf("failed to uninstall Helm chart %q: %w", revisionTagsChartName, err)
 	}
 	if tag.Name == v1.DefaultRevisionTag {
-		_, err := r.ChartManager.UninstallChart(ctx, getReleaseName(tag, constants.BaseChartName), r.Config.OperatorNamespace)
-		if err != nil {
+		if _, err := r.ChartManager.UninstallChart(ctx, getReleaseName(tag, constants.BaseChartName), r.Config.OperatorNamespace); err != nil {
 			return fmt.Errorf("failed to uninstall Helm chart %q: %w", constants.BaseChartName, err)
 		}
 	}
@@ -278,7 +281,10 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// cluster-scoped resources
 		Watches(&v1.Istio{}, operatorResourcesHandler).
 		Watches(&v1.IstioRevision{}, operatorResourcesHandler).
-		Watches(&admissionv1.MutatingWebhookConfiguration{}, ownedResourceHandler).
+		Watches(&admissionv1.MutatingWebhookConfiguration{}, ownedResourceHandler,
+			builder.WithPredicates(webhookConfigPredicate())).
+		Watches(&admissionv1.ValidatingWebhookConfiguration{}, ownedResourceHandler,
+			builder.WithPredicates(webhookConfigPredicate())).
 		Complete(reconciler.NewStandardReconcilerWithFinalizer[*v1.IstioRevisionTag](r.Client, r.Reconcile, r.Finalize, constants.FinalizerName))
 }
 
@@ -466,6 +472,42 @@ func (r *Reconciler) mapOperatorResourceToReconcileRequest(ctx context.Context, 
 		}
 	}
 	return requests
+}
+
+func webhookConfigPredicate() predicate.Funcs {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.TypedUpdateEvent[client.Object]) bool {
+			if e.ObjectOld == nil || e.ObjectNew == nil {
+				return false
+			}
+
+			// Istiod updates the caBundle and failurePolicy fields in its webhook configs.
+			// We must ignore changes to these fields to prevent an endless update loop.
+			// We must use deep copies to avoid mutating the shared informer cache.
+			oldCopy := e.ObjectOld.DeepCopyObject().(client.Object)
+			newCopy := e.ObjectNew.DeepCopyObject().(client.Object)
+			clearIgnoredFields(oldCopy)
+			clearIgnoredFields(newCopy)
+			return !reflect.DeepEqual(newCopy, oldCopy)
+		},
+	}
+}
+
+func clearIgnoredFields(obj client.Object) {
+	obj.SetResourceVersion("")
+	obj.SetGeneration(0)
+	obj.SetManagedFields(nil)
+	switch webhookConfig := obj.(type) {
+	case *admissionv1.ValidatingWebhookConfiguration:
+		for i := range len(webhookConfig.Webhooks) {
+			webhookConfig.Webhooks[i].FailurePolicy = nil
+			webhookConfig.Webhooks[i].ClientConfig.CABundle = nil
+		}
+	case *admissionv1.MutatingWebhookConfiguration:
+		for i := range len(webhookConfig.Webhooks) {
+			webhookConfig.Webhooks[i].ClientConfig.CABundle = nil
+		}
+	}
 }
 
 // ignoreStatusChange returns a predicate that ignores watch events where only the resource status changes; if
