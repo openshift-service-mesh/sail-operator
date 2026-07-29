@@ -118,6 +118,9 @@ jobs:
             ${{ needs.preflight.outputs.image }} \
             bash -c "git config --global --add safe.directory /work && cd /work && make test.e2e.ocp"
 
+      - name: Print OpenShift version
+        run: oc version
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
