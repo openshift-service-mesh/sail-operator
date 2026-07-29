@@ -1,23 +1,130 @@
 name: crc-e2e-sail
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
-jobs:
-  crc-microshift:
-    name: Run MicroShift cluster and execute e2e tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+permissions:
+  contents: read
 
-      - name: Start CRC MicroShift cluster
+jobs:
+  preflight:
+    name: Resolve Build Image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.get-image.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref || github.ref }}
+          persist-credentials: false
+          sparse-checkout: |
+            common/scripts/setup_env.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Extract IMAGE_VERSION from base branch
+        id: get-image
+        run: |
+          version=$(grep -E '^\s*IMAGE_VERSION=' common/scripts/setup_env.sh \
+                    | grep -v ':-' | head -1 | sed 's/.*IMAGE_VERSION=//')
+          if [[ -z "${version}" ]]; then
+            echo "::error::Could not extract IMAGE_VERSION from common/scripts/setup_env.sh"
+            exit 1
+          fi
+          image="registry.istio.io/testing/build-tools:${version}"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "Resolved build image: ${image}"
+
+  build-push:
+    name: Build and push operator image
+    needs: preflight
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.build.outputs.tag }}
+    container:
+      image: ${{ needs.preflight.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Login to quay.io
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Build and push operator image
+        id: build
+        shell: bash
+        env:
+          HUB: quay.io/sail-dev
+          BUILD_WITH_CONTAINER: "0"
+        run: |
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          COMMIT_HASH="${GITHUB_SHA:0:7}"
+          TAG="ci-test-${COMMIT_HASH}-amd64"
+          make docker-push HUB=${HUB} TAG=${TAG}
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    name: e2e / ${{ matrix.suite.name }}
+    needs: [preflight, build-push]
+    runs-on: sail-runner
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          # Basic operator health: CRDs, deployment, metrics — no istiod required.
+          # Uses the `operator` label to avoid catching other smoke-tagged suites (e.g. ztwim).
+          - name: operator
+            filter: "operator && !tls-profile && !cert-manager"
+          # Core sidecar mode: istiod lifecycle and control-plane configuration.
+          - name: sidecar
+            filter: "control-plane"
+          # Ambient mesh mode
+          - name: ambient
+            filter: "ambient && !cert-manager"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Start CRC OpenShift cluster
         uses: crc-org/crc-github-action@v1
         with:
-          pull-secret: ${{ secrets.CRC_PULL_SECRET || 'dummy' }}
-          preset: microshift
+          pull-secret: ${{ secrets.CRC_PULL_SECRET }}
+          preset: openshift
 
-      - name: Verify cluster is reachable
+      - name: Run e2e tests inside builder container
+        run: |
+          mkdir -p "${{ github.workspace }}/artifacts"
+          docker run --rm \
+            --network=host \
+            --privileged \
+            -v "${{ github.workspace }}":/work \
+            -v "$HOME/.kube":/root/.kube \
+            -v "${{ github.workspace }}/artifacts":/tmp/artifacts \
+            -e KUBECONFIG=/root/.kube/config \
+            -e HUB=quay.io/sail-dev \
+            -e TAG=${{ needs.build-push.outputs.tag }} \
+            -e CI=true \
+            -e BUILD_WITH_CONTAINER=0 \
+            -e SKIP_BUILD=true \
+            -e XDG_CACHE_HOME=/tmp/cache \
+            -e ARTIFACTS=/tmp/artifacts \
+            -e "GINKGO_LABEL_FILTER=${{ matrix.suite.filter }}" \
+            ${{ needs.preflight.outputs.image }} \
+            bash -c "git config --global --add safe.directory /work && cd /work && make test.e2e.ocp"
+
+      - name: Print OpenShift version
         run: oc version
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-${{ matrix.suite.name }}
+          path: ${{ github.workspace }}/artifacts/
+          if-no-files-found: warn
