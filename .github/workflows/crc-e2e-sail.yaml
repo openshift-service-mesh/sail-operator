@@ -96,6 +96,7 @@ jobs:
         with:
           pull-secret: ${{ secrets.CRC_PULL_SECRET }}
           preset: openshift
+          memory: 14336
 
       - name: Run e2e tests inside builder container
         run: |
