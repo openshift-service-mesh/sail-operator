@@ -45,6 +45,14 @@ var _ = Describe("Cert-manager Installation", Label("smoke", "cert-manager", "sl
 	Describe(fmt.Sprintf("Istio version: %s", latestVersion.Name), func() {
 		clr := cleaner.New(cl)
 		BeforeAll(func(ctx SpecContext) {
+			// Check that the cert-manager operator package is available in the catalog.
+			// If it is missing (e.g. nightly build without the operator), skip the entire
+			// suite so CI surfaces it as "skipped" rather than a hard failure.
+			_, err := k.WithNamespace("openshift-marketplace").GetYAML("packagemanifests", "openshift-cert-manager-operator")
+			if err != nil {
+				Skip("openshift-cert-manager-operator package not found in operator catalog; skipping test suite")
+			}
+
 			clr.Record(ctx)
 			Expect(k.CreateNamespace(controlPlaneNamespace)).To(Succeed(), "Istio namespace failed to be created")
 			Expect(k.CreateNamespace(istioCniNamespace)).To(Succeed(), "IstioCNI namespace failed to be created")
@@ -56,14 +64,6 @@ var _ = Describe("Cert-manager Installation", Label("smoke", "cert-manager", "sl
 
 		When("the Cert Manager Operator is deployed", func() {
 			BeforeAll(func() {
-				// Check that the cert-manager operator package is available in the catalog.
-				// If it is missing (e.g. nightly build without the operator), skip the test
-				// so CI surfaces it as "skipped" rather than a hard failure.
-				_, err := k.WithNamespace("openshift-marketplace").GetYAML("packagemanifests", "openshift-cert-manager-operator")
-				if err != nil {
-					Skip("openshift-cert-manager-operator package not found in operator catalog; skipping test suite")
-				}
-
 				operatorGroupYaml := `
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
