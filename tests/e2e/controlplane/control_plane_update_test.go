@@ -133,7 +133,9 @@ metadata:
 spec:
   mtls:
     mode: STRICT`, controlPlaneNamespace)
-					Expect(k.CreateFromString(peerAuthYAML)).To(Succeed(),
+					Eventually(func() error {
+						return k.CreateFromString(peerAuthYAML)
+					}, 30*time.Second, 5*time.Second).Should(Succeed(),
 						"VWC should allow creating valid Istio resources; if this fails, the istiod-default-validator may point to the wrong service")
 					DeferCleanup(func() {
 						if err := k.Delete("peerauthentication", "vwc-test"); err != nil {
