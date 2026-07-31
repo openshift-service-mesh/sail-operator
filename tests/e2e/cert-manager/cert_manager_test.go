@@ -231,10 +231,10 @@ spec:
 
 			It("has IstioCSR pods running", func(ctx SpecContext) {
 				Eventually(common.CheckPodsReady).
-					WithArguments(ctx, cl, certManagerNamespace).
-					Should(Succeed(), fmt.Sprintf("Some pods in namespace %q are not ready", certManagerNamespace))
+					WithArguments(ctx, cl, istioCSRNamespace).
+					Should(Succeed(), fmt.Sprintf("Some pods in namespace %q are not ready", istioCSRNamespace))
 
-				Success("All cert-manager pods are ready")
+				Success("All IstioCSR pods are ready")
 			})
 		})
 

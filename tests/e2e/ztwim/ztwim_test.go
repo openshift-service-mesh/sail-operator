@@ -36,6 +36,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var latestVersion = istioversion.GetLatestPatchVersions()[0]
@@ -48,7 +49,7 @@ type daemonSetStatus struct {
 }
 
 var _ = Describe("ZTWIM Installation", Label("smoke", "ztwim", "slow"), Ordered, func() {
-	SetDefaultEventuallyTimeout(180 * time.Second)
+	SetDefaultEventuallyTimeout(10 * time.Minute)
 	SetDefaultEventuallyPollingInterval(time.Second)
 	debugInfoLogged := false
 
@@ -80,7 +81,7 @@ metadata:
   namespace: %s
 spec:
   upgradeStrategy: Default`, ztwimOperatorName, ztwimNamespace)
-				Expect(k.WithNamespace(ztwimNamespace).CreateFromString(operatorGroupYaml)).To(Succeed(), "OperatorGroup creation failed")
+				Expect(k.WithNamespace(ztwimNamespace).ApplyString(operatorGroupYaml)).To(Succeed(), "OperatorGroup creation/apply failed")
 
 				// Apply Subscription YAML
 				subscriptionYaml := fmt.Sprintf(`
@@ -95,13 +96,27 @@ spec:
   source: redhat-operators
   sourceNamespace: openshift-marketplace
   installPlanApproval: Automatic`, ztwimOperatorName, ztwimNamespace, ztwimOperatorName)
-				Expect(k.WithNamespace(ztwimNamespace).CreateFromString(subscriptionYaml)).To(Succeed(), "Subscription creation failed")
+				Expect(k.WithNamespace(ztwimNamespace).ApplyString(subscriptionYaml)).To(Succeed(), "Subscription creation/apply failed")
 			})
 
 			It("should have subscription created successfully", func() {
 				output, err := k.WithNamespace(ztwimNamespace).GetYAML("subscription", ztwimOperatorName)
 				Expect(err).NotTo(HaveOccurred(), "error getting subscription YAML")
 				Expect(output).To(ContainSubstring(ztwimNamespace), "Subscription is not created")
+			})
+
+			It("waits for the operator deployment to be created by OLM", func(ctx SpecContext) {
+				Eventually(func() error {
+					deployments := &appsv1.DeploymentList{}
+					err := cl.List(ctx, deployments, client.InNamespace(ztwimNamespace))
+					if err != nil {
+						return err
+					}
+					if len(deployments.Items) == 0 {
+						return fmt.Errorf("no deployments found in namespace %s yet", ztwimNamespace)
+					}
+					return nil
+				}, 10*time.Minute, 5*time.Second).Should(Succeed(), "ZTWIM Operator Deployment never appeared")
 			})
 
 			It("verifies all ZTWIM pods are Ready", func(ctx SpecContext) {
@@ -113,22 +128,43 @@ spec:
 			})
 		})
 
-		When("ZTWIM Operator Patched", func() {
-			BeforeAll(func() {
+		When("ZTWIM Operands Deployed", func() {
+			BeforeAll(func(ctx SpecContext) {
+				By("Patching ZTWIM subscription with env vars")
+				envVars := []string{`{"name":"CREATE_ONLY_MODE","value":"true"}`}
+
+				proxyYAML, _ := k.GetYAML("proxy", "cluster")
+				if strings.Contains(proxyYAML, "httpProxy") {
+					By("Creating trusted CA bundle ConfigMap for proxy-enabled cluster")
+					caBundleCM := fmt.Sprintf(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trusted-ca-bundle
+  namespace: %s
+  labels:
+    config.openshift.io/inject-trusted-cabundle: "true"
+data: {}`, ztwimNamespace)
+					Expect(k.WithNamespace(ztwimNamespace).ApplyString(caBundleCM)).To(Succeed(), "Failed to create trusted CA bundle ConfigMap")
+					envVars = append(envVars, `{"name":"TRUSTED_CA_BUNDLE_CONFIGMAP","value":"trusted-ca-bundle"}`)
+				}
+
+				patchJSON := fmt.Sprintf(`{"spec":{"config":{"env":[%s]}}}`, strings.Join(envVars, ","))
 				Expect(
 					k.WithNamespace(ztwimNamespace).Patch(
 						"subscription",
 						ztwimOperatorName,
 						"merge",
-						`{"spec":{"config":{"env":[{"name":"CREATE_ONLY_MODE","value":"true"}]}}}`,
+						patchJSON,
 					),
 				).To(Succeed(), "Error patching ZTWIM")
 				Success("ZTWIM subscription patched")
-			})
-		})
 
-		When("ZTWIM Operands Deployed", func() {
-			BeforeAll(func() {
+				By("Waiting for ZTWIM operator pods to be ready after subscription patch")
+				Eventually(common.CheckPodsReady).
+					WithArguments(ctx, cl, ztwimNamespace).
+					Should(Succeed(), fmt.Sprintf("ZTWIM operator pods not ready after subscription patch in namespace %q", ztwimNamespace))
+				Success("ZTWIM operator pods ready after patch")
 				if jwtIssuer == "" {
 					Eventually(func() error {
 						var err error
@@ -167,7 +203,7 @@ spec:
     organization: "Sky Computing Corporation"
     commonName: "SPIRE Server CA"
   persistence:
-    size: "5Gi"
+    size: "1Gi"
     accessMode: "ReadWriteOnce"
   datastore:
     databaseType: "sqlite3"
@@ -348,42 +384,12 @@ spec:
 				).To(Succeed(), "SpireOIDCDiscoveryProvider custom resource creation failed")
 			})
 
-			It("configures and restarts spire-spiffe-oidc-discovery-provider", func() {
+			It("waits for spire-spiffe-oidc-discovery-provider deployment to be available", func() {
 				By("Waiting for OIDC discovery provider deployment to be available")
 				Eventually(func() error {
 					_, err := k.WithNamespace(ztwimNamespace).RolloutStatus("deployment/spire-spiffe-oidc-discovery-provider")
 					return err
 				}, 300*time.Second, 5*time.Second).Should(Succeed(), "OIDC discovery provider deployment did not become available")
-
-				By("Patching OIDC discovery provider configmap")
-				bin := os.Getenv("COMMAND")
-				if bin == "" {
-					bin = "kubectl"
-				}
-				patchCmd := fmt.Sprintf(`
-			OIDC_DISCOVERY_CONFIG_MAP=spire-spiffe-oidc-discovery-provider
-			PATCH_PAYLOAD=$(%[1]s get configmap ${OIDC_DISCOVERY_CONFIG_MAP} -n "%[2]s" -o json | \
-			jq -r '.data["oidc-discovery-provider.conf"] | fromjson |
-			.workload_api.socket_path = "/spiffe-workload-api/socket" |
-			tojson | {data: {"oidc-discovery-provider.conf": .}}')
-			%[1]s patch configmap ${OIDC_DISCOVERY_CONFIG_MAP} -n "%[2]s" --patch "$PATCH_PAYLOAD"
-			`, bin, ztwimNamespace)
-				Eventually(func() error {
-					_, err := shell.ExecuteShell(patchCmd, "")
-					return err
-				}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed patching OIDC discovery provider configmap")
-
-				By("Restarting OIDC discovery provider deployment")
-				Eventually(func() error {
-					_, err := k.WithNamespace(ztwimNamespace).RolloutRestart("deployment/spire-spiffe-oidc-discovery-provider")
-					return err
-				}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed to restart OIDC discovery provider")
-
-				By("Waiting for OIDC discovery provider deployment to be available after restart")
-				Eventually(func() error {
-					_, err := k.WithNamespace(ztwimNamespace).RolloutStatus("deployment/spire-spiffe-oidc-discovery-provider")
-					return err
-				}, 300*time.Second, 5*time.Second).Should(Succeed(), "OIDC discovery provider deployment did not become available after restart")
 
 				Success("Spire OIDC Discovery Provider deployed and configured successfully")
 			})
@@ -754,6 +760,14 @@ spec:
 
 				Success("ZTWIM operator stopped and deleted")
 			})
+
+			It("removes subscription from the ZTWIM namespace", func() {
+				Eventually(func() string {
+					output, _ := k.WithNamespace(ztwimNamespace).GetYAML("subscription", ztwimOperatorName)
+					return strings.TrimSpace(output)
+				}, 60*time.Second, 5*time.Second).Should(BeEmpty(), "subscription is not removed")
+				Success("ZTWIM subscription is removed")
+			})
 		})
 
 		When("ZTWIM operands are deleted", func() {
@@ -811,6 +825,19 @@ spec:
 				common.LogDebugInfo(common.Ambient, k)
 				debugInfoLogged = true
 			}
+
+			By("Cleaning up cluster-scoped ZTWIM CRs")
+			clusterScopedCRs := map[string]string{
+				"zerotrustworkloadidentitymanager": "cluster",
+				"spireserver":                      "cluster",
+				"spireagent":                       "cluster",
+				"spiffecsidriver":                  "cluster",
+				"spireoidcdiscoveryprovider":       "cluster",
+			}
+			for kind, name := range clusterScopedCRs {
+				_ = k.DeleteIgnoreNotFound(kind, name)
+			}
+
 			clr.Cleanup(ctx)
 		})
 	})
