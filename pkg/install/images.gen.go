@@ -38,12 +38,6 @@ func init() {
 			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:a5934a176e87c452b98d7006bc5e0709b22d80b478bd9b9f13f23ffc612552d9",
 			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:cb6adbadc22ca80888f06094c82a402a43526d8a3081e47e6332bcf5355729db",
 		},
-		"v1.27.9": {
-			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:ec18f6e4f40610d872c9b0c9b6fa1b5701107609d86da8dc0e4488dea2b7273f",
-			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:ff4c42d8f13bebf89b2294dd9c5abaf5bbd751ced8b89cb882f89c070e17aef2",
-			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:d31cdf38fdc469d55602b35ab12d25a20d1bd09f983f8a24af100e87825035dd",
-			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:3c8a4ca43654cd3172bd18bc5b7442c14ace9849a6778d91851530bf6e605d02",
-		},
 		"v1.28.4": {
 			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:978f840ceda7eb00c6f15740bcd60e241bee732cd215e9de464ce431b0156ffa",
 			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:ba78d718627a0662f61ec633fdd2867ba5c24be6bdbc6df672d46456fb399dba",
