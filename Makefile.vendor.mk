@@ -1,4 +1,4 @@
-VERSION = 3.3.6
+VERSION = 3.3.7
 OPERATOR_NAME = servicemeshoperator3
 CHANNELS = "stable,stable-3.3"
 DEFAULT_CHANNEL=stable
