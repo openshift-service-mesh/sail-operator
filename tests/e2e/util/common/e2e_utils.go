@@ -378,25 +378,6 @@ func withClusterName(m string, k kubectl.Kubectl) string {
 	return m + " on " + k.ClusterName
 }
 
-// CheckPodConnectivityWithError tests connectivity from podName to httpbin in destNamespace
-// and returns an error instead of calling Expect directly. This allows callers wrapped in
-// Eventually to retry on transient failures (e.g. 503 during proxy startup/upgrade).
-func CheckPodConnectivityWithError(podName, containerName, srcNamespace, destNamespace string, k kubectl.Kubectl) error {
-	command := fmt.Sprintf(`curl -o /dev/null -s -w "%%{http_code}\n" httpbin.%s.svc.cluster.local:8000/get`, destNamespace)
-	response, err := k.WithNamespace(srcNamespace).Exec(podName, containerName, command)
-	if err != nil {
-		return fmt.Errorf("error connecting to the %q pod: %w", podName, err)
-	}
-	if !strings.Contains(response, "200") {
-		return fmt.Errorf("unexpected response from %s pod: %s", podName, strings.TrimSpace(response))
-	}
-	return nil
-}
-
-func CheckPodConnectivity(podName, containerName, srcNamespace, destNamespace string, k kubectl.Kubectl) {
-	Expect(CheckPodConnectivityWithError(podName, containerName, srcNamespace, destNamespace, k)).To(Succeed())
-}
-
 func HaveContainersThat(matcher types.GomegaMatcher) types.GomegaMatcher {
 	return HaveField("Spec.Template.Spec.Containers", matcher)
 }
@@ -470,6 +451,24 @@ func GetProxyVersion(podName, namespace string) (*semver.Version, error) {
 		return version, fmt.Errorf("error parsing proxy version %q: %w", versionStr, err)
 	}
 	return version, err
+}
+
+// GetProxyVersionFromPod extracts the Istio proxy version directly from the pod's
+// istio-proxy container by executing pilot-agent version. This approach does not
+// require XDS connectivity to istiod, making it more reliable during control plane
+// upgrades when istiod may be temporarily inaccessible.
+func GetProxyVersionFromPod(podName, namespace string) (*semver.Version, error) {
+	k := kubectl.New().WithNamespace(namespace)
+	output, err := k.Exec(podName, "istio-proxy", "pilot-agent version")
+	if err != nil {
+		return nil, fmt.Errorf("error getting proxy version from pod %s: %w", podName, err)
+	}
+
+	matches := istiodVersionRegex.FindStringSubmatch(output)
+	if len(matches) > 1 && matches[1] != "" {
+		return semver.NewVersion(matches[1])
+	}
+	return nil, fmt.Errorf("error getting proxy version from pod %s: version not found in output: %s", podName, output)
 }
 
 // GetIstioProxyContainer finds and returns the istio-proxy container from a pod
