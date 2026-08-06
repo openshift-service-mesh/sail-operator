@@ -141,6 +141,7 @@ inputFiles:
       - LogAsJson
       - Logging
       - NativeNftables
+      - NetworkPolicy
       - Platform
       - Tag
       - Variant

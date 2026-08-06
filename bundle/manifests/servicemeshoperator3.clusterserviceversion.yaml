@@ -737,6 +737,7 @@ spec:
                 - config.openshift.io
               resources:
                 - apiservers
+                - clusterversions
               verbs:
                 - get
                 - list
