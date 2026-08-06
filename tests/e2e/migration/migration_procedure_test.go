@@ -137,7 +137,7 @@ var _ = Describe("Migration Procedure Validation", Ordered,
 						sleepPod := pods.Items[0].Name
 
 						Eventually(func() error {
-							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/get", 5, "200")
+							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/get", "200", 5)
 						}).Should(Succeed())
 						Success("L4 connectivity verified in sidecar mode")
 					})
@@ -209,7 +209,7 @@ spec:
 
 						// Test that VirtualService routes traffic correctly
 						Eventually(func() error {
-							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/get", 5, "200")
+							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/get", "200", 5)
 						}).Should(Succeed())
 						Success("VirtualService routing verified in sidecar mode")
 					})
@@ -222,12 +222,12 @@ spec:
 
 						// Test allowed path
 						Eventually(func() error {
-							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/get", 5, "200")
+							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/get", "200", 5)
 						}).Should(Succeed())
 
 						// Test denied path
 						Eventually(func() error {
-							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/deny", 5, "403")
+							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/deny", "403", 5)
 						}).Should(Succeed())
 
 						Success("AuthorizationPolicy enforcement verified in sidecar mode")
@@ -376,7 +376,7 @@ spec:
 
 						Eventually(func() error {
 							targetURL := fmt.Sprintf("httpbin.%s.svc.cluster.local:8000/get", workloadNamespace)
-							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", targetURL, 5, "200")
+							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", targetURL, "200", 5)
 						}).Should(Succeed())
 						Success("L4 connectivity verified with HBONE-aware sidecars in coexistence mode")
 					})
@@ -449,19 +449,39 @@ spec:
 						Success("Pods running in ambient mode without sidecars")
 					})
 
-					It("verifies workloads are registered with ztunnel", func(ctx SpecContext) {
-						pods := &corev1.PodList{}
-						Expect(cl.List(ctx, pods, client.InNamespace(workloadNamespace))).To(Succeed())
-						Expect(pods.Items).NotTo(BeEmpty())
-
-						// Verify pods are detected by ztunnel
+					It("verifies CNI redirection is configured for workload pods", func(ctx SpecContext) {
+						// Checks that istio-cni has set the ambient.istio.io/redirection annotation,
+						// which means traffic interception rules for ztunnel are in place.
+						// End-to-end ztunnel registration is verified by the L4 connectivity test below.
 						Eventually(func(g Gomega) {
+							pods := &corev1.PodList{}
+							g.Expect(cl.List(ctx, pods, client.InNamespace(workloadNamespace))).To(Succeed())
+
+							workloadPods := []corev1.Pod{}
 							for _, pod := range pods.Items {
-								// Check pod annotations indicate ambient mode
-								g.Expect(pod.Annotations).To(HaveKey("ambient.istio.io/redirection"))
+								if pod.DeletionTimestamp != nil || pod.Status.Phase != corev1.PodRunning {
+									continue
+								}
+								isWaypoint := false
+								for key := range pod.Labels {
+									if key == "gateway.istio.io/managed" || key == "gateway.networking.k8s.io/gateway-name" {
+										isWaypoint = true
+										break
+									}
+								}
+								if !isWaypoint {
+									workloadPods = append(workloadPods, pod)
+								}
 							}
-						}).Should(Succeed())
-						Success("Workloads registered with ztunnel")
+
+							g.Expect(workloadPods).NotTo(BeEmpty(), "Expected at least one non-waypoint workload pod")
+							for _, pod := range workloadPods {
+								g.Expect(pod.Annotations).To(HaveKey("ambient.istio.io/redirection"),
+									"Pod %s should have ambient redirection annotation", pod.Name)
+							}
+						}).WithTimeout(3*time.Minute).WithPolling(5*time.Second).Should(Succeed(),
+							"All workload pods should have the ambient.istio.io/redirection annotation set by istio-cni")
+						Success("CNI redirection configured for all workload pods")
 					})
 
 					It("verifies L4 connectivity in ambient mode", func(ctx SpecContext) {
@@ -473,7 +493,7 @@ spec:
 						Eventually(func() error {
 							// Test connectivity to httpbin service (should go through ztunnel)
 							targetURL := fmt.Sprintf("httpbin.%s.svc.cluster.local:8000/get", workloadNamespace)
-							return common.CheckHTTPConnectivity(k, workloadNamespace, clientPod, "sleep", targetURL, 5, "200")
+							return common.CheckHTTPConnectivity(k, workloadNamespace, clientPod, "sleep", targetURL, "200", 5)
 						}).Should(Succeed())
 						Success("L4 connectivity verified in ambient mode via ztunnel")
 					})
@@ -557,7 +577,7 @@ spec:
 
 						// VirtualService should continue to work (routes traffic through waypoint now)
 						Eventually(func() error {
-							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/get", 5, "200")
+							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/get", "200", 5)
 						}).Should(Succeed())
 						Success("VirtualService routing verified via waypoint")
 					})
@@ -570,12 +590,12 @@ spec:
 
 						// Test allowed path
 						Eventually(func() error {
-							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/get", 5, "200")
+							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/get", "200", 5)
 						}).Should(Succeed())
 
 						// Test denied path (L7 policy enforcement)
 						Eventually(func() error {
-							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/deny", 5, "403")
+							return common.CheckHTTPConnectivity(k, workloadNamespace, sleepPod, "sleep", "httpbin:8000/deny", "403", 5)
 						}).Should(Succeed())
 
 						Success("L7 AuthorizationPolicy successfully enforced via waypoint")
