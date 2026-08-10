@@ -6,6 +6,19 @@
 
 # Sail Operator
 
+> **This is the Red Hat midstream fork of [istio-ecosystem/sail-operator](https://github.com/istio-ecosystem/sail-operator),
+> maintained for [OpenShift Service Mesh (OSSM)](https://www.redhat.com/en/technologies/cloud-computing/openshift/what-is-openshift-service-mesh).**
+>
+> - Upstream repository: https://github.com/istio-ecosystem/sail-operator
+> - Midstream repository: https://github.com/openshift-service-mesh/sail-operator
+>
+> For details on how this fork relates to upstream, branch mapping, OCP version support,
+> and sync process, see [docs/upstream.md](docs/upstream.md).
+> For OSSM-specific contribution requirements, see [CONTRIBUTING.md](CONTRIBUTING.md).
+> For AI agent guidance, see [AGENTS.md](AGENTS.md).
+
+---
+
 The Sail Operator manages the lifecycle of your [Istio](https://istio.io) control plane. It provides custom resources for you to deploy and manage your control plane components.
 
 ## Contributor Call
