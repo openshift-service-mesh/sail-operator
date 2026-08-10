@@ -94,11 +94,9 @@ reference the upstream issue or PR in the commit message, not in a code comment.
 ## CI Configuration
 
 Prow CI job definitions for the sail-operator midstream are located in the
-[openshift/release](https://github.com/openshift/release) repository under:
+[openshift/release](https://github.com/openshift/release) repository:
 
-```
-ci-operator/config/openshift-service-mesh/sail-operator/
-```
+- [ci-operator/config/openshift-service-mesh/sail-operator/](https://github.com/openshift/release/tree/main/ci-operator/config/openshift-service-mesh/sail-operator)
 
 Each file encodes the branch and OCP version it targets:
 
