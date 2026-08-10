@@ -24,15 +24,17 @@ Each midstream release branch corresponds to an upstream release branch, targets
 OpenShift Container Platform (OCP) versions, and tracks a particular Istio release through
 the [istio midstream fork](https://github.com/openshift-service-mesh/istio).
 
-| Midstream Branch | Upstream Branch | OCP Versions | Istio Version Tracked |
-|------------------|-----------------|--------------|-----------------------|
-| `main`           | `main`          | 4.22, 4.23   | upstream master       |
-| `release-3.0`    | `release-3.0`   | 4.22, 4.23   | release-1.24          |
-| `release-3.1`    | `release-3.1`   | 4.22, 4.23   | release-1.26          |
-| `release-3.2`    | `release-3.2`   | 4.22, 4.23   | release-1.27          |
-| `release-3.3`    | `release-3.3`   | 4.22, 4.23   | release-1.28          |
-| `release-3.4`    | `release-3.4`   | 4.22, 4.23   | release-1.30          |
-| `release-3.5`    | `release-3.5`   | TBD          | release-1.31          |
+| Midstream Branch | Upstream Branch | OCP Versions                        | Istio Version Tracked |
+|------------------|-----------------|-------------------------------------|-----------------------|
+| `main`           | `main`          | TBD                                 | upstream master       |
+| `release-3.0`    | `release-3.0`   | 4.14, 4.15, 4.16, 4.17, 4.18, 4.19, 4.20 | release-1.24    |
+| `release-3.1`    | `release-3.1`   | 4.16, 4.17, 4.18, 4.19, 4.20       | release-1.26          |
+| `release-3.2`    | `release-3.2`   | 4.18, 4.19, 4.20, 4.21, 4.22       | release-1.27          |
+| `release-3.3`    | `release-3.3`   | 4.18, 4.19, 4.20, 4.21, 4.22       | release-1.28          |
+| `release-3.4`    | `release-3.4`   | 4.20, 4.21, 4.22                    | release-1.30          |
+| `release-3.5`    | `release-3.5`   | TBD                                 | release-1.31          |
+
+OCP version support is sourced from the [Red Hat OpenShift Operators support policy](https://access.redhat.com/support/policy/updates/openshift_operators#platform-agnostic).
 
 The "Istio Version Tracked" column indicates which branch of the
 [openshift-service-mesh/istio](https://github.com/openshift-service-mesh/istio)
