@@ -247,11 +247,17 @@ spec:
 					})
 
 					It("has the ztunnel proxy sockets configured in the pod network namespace", func(ctx SpecContext) {
-						checkZtunnelPort(sleepPod.Items[0].Name, common.SleepNamespace)
+						// Ztunnel configures the HBONE port (15008) in the pod network namespace
+						// asynchronously after the pod becomes Ready. Retry to avoid flakes on
+						// slow clusters (e.g. OCP ARM) where the socket may not be visible yet.
+						Eventually(func(g Gomega) {
+							checkZtunnelPort(g, sleepPod.Items[0].Name, common.SleepNamespace)
+						}).WithTimeout(2*time.Minute).WithPolling(5*time.Second).Should(Succeed(),
+							"ztunnel should configure port 15008 in the pod network namespace")
 					})
 
 					It("can access the httpbin service from the sleep pod", func(ctx SpecContext) {
-						common.CheckPodConnectivity(sleepPod.Items[0].Name, common.SleepNamespace, common.HttpbinNamespace, k)
+						checkPodConnectivity(sleepPod.Items[0].Name, common.SleepNamespace, common.HttpbinNamespace)
 					})
 				})
 
@@ -335,9 +341,16 @@ func getEnvVars(container corev1.Container) []corev1.EnvVar {
 	return container.Env
 }
 
-func checkZtunnelPort(podName, srcNamespace string) {
-	response, err := k.WithNamespace(srcNamespace).Exec(podName, srcNamespace, "netstat -tlpn")
-	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("error validating the proxy sockets in the %q pod", podName))
+func checkPodConnectivity(podName, srcNamespace, destNamespace string) {
+	command := fmt.Sprintf(`curl -o /dev/null -s -w "%%{http_code}\n" httpbin.%s.svc.cluster.local:8000/get`, destNamespace)
+	response, err := k.WithNamespace(srcNamespace).Exec(podName, srcNamespace, command)
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("error connecting to the %q pod", podName))
+	Expect(response).To(ContainSubstring("200"), fmt.Sprintf("Unexpected response from %s pod", podName))
+}
+
+func checkZtunnelPort(g Gomega, podName, srcNamespace string) {
+	response, err := k.WithNamespace(srcNamespace).Exec(podName, "sleep", "netstat -tlpn")
+	g.Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("error validating the proxy sockets in the %q pod", podName))
 	// Verify that the HBONE mTLS tunnel port (15008) is listed in the output.
-	Expect(response).To(ContainSubstring("15008"), fmt.Sprintf("Unexpected response from %s pod", podName))
+	g.Expect(response).To(ContainSubstring("15008"), fmt.Sprintf("Unexpected response from %s pod", podName))
 }
