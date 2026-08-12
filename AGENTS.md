@@ -204,6 +204,10 @@ The operator deploys Istio using Helm charts and follows Istio's configuration p
 
 For detailed technical knowledge about specific areas of the Sail Operator, refer to these domain-specific documents:
 
+### Upstream and Midstream
+
+- **[Upstream Relationship](docs/upstream.md)** - How this repository relates to the upstream community project, branch mapping, contribution workflow, and sync process
+
 ### API and Resource Management
 
 - **[API Types and CRDs](.agents/knowledge/domain-knowledge-api-types.md)** - Detailed knowledge about Custom Resource Definitions, API types, validation rules, and resource relationships

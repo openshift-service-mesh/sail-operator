@@ -1,5 +1,9 @@
 # Contribution guidelines to the Sail Operator project
 
+> **This is the Red Hat midstream fork of [istio-ecosystem/sail-operator](https://github.com/istio-ecosystem/sail-operator).**
+> See [docs/upstream.md](docs/upstream.md) for the full upstream contribution workflow,
+> branch mapping, sync process, and guidance on whether a change belongs here or upstream.
+
 So you want to make contributions to the Sail Operator project, please take a look at the following guidelines to help you get started.
 
 ## Table of Contents
