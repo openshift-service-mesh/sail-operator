@@ -337,7 +337,10 @@ spec:
 
 				// Any logging or diagnostics should also be inside this block
 				time.Sleep(60 * time.Second)
-				common.CheckPodConnectivity(sleepPod.Items[0].Name, common.SleepNamespace, common.HttpbinNamespace, k)
+				command := fmt.Sprintf(`curl -o /dev/null -s -w "%%{http_code}\n" httpbin.%s.svc.cluster.local:8000/get`, common.HttpbinNamespace)
+				response, err := k.WithNamespace(common.SleepNamespace).Exec(sleepPod.Items[0].Name, common.SleepNamespace, command)
+				Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("error connecting to the %q pod", sleepPod.Items[0].Name))
+				Expect(response).To(ContainSubstring("200"), fmt.Sprintf("Unexpected response from %s pod", sleepPod.Items[0].Name))
 			})
 		})
 
