@@ -31,7 +31,7 @@ csv:
     - v1.29.1
     - v1.29.0
     - master
-    - v1.31.0-alpha.036c5eac
+    - v1.32.0-alpha.8dc789c5
 
     [See this page](https://github.com/istio-ecosystem/sail-operator/blob/main/bundle/README.md) for instructions on how to use it.
   support: Community based
