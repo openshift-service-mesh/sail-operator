@@ -842,6 +842,7 @@ spec:
                         port: 8081
                       initialDelaySeconds: 5
                       periodSeconds: 10
+                    terminationMessagePolicy: FallbackToLogsOnError
                     resources:
                       limits:
                         cpu: 500m
