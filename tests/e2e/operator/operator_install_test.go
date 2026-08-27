@@ -43,6 +43,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	crtls "github.com/openshift/controller-runtime-common/pkg/tls"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -574,9 +575,54 @@ func ensureTLSAdherence(ctx context.Context, cl client.Client, policy configv1.T
 		return
 	}
 
+	totalRestarts := func(pod corev1.Pod) int32 {
+		var n int32
+		for _, cs := range pod.Status.ContainerStatuses {
+			n += cs.RestartCount
+		}
+		return n
+	}
+	podReady := func(pod corev1.Pod) bool {
+		for _, cond := range pod.Status.Conditions {
+			if cond.Type == corev1.PodReady {
+				return cond.Status == corev1.ConditionTrue
+			}
+		}
+		return false
+	}
+
+	oldRestarts := make(map[string]int32)
+	podList := &corev1.PodList{}
+	Expect(cl.List(ctx, podList, client.InNamespace(namespace),
+		client.MatchingLabels{"control-plane": deploymentName})).To(Succeed(),
+		"Failed to list operator pods before TLSAdherence change")
+	for _, pod := range podList.Items {
+		oldRestarts[string(pod.UID)] = totalRestarts(pod)
+	}
+
 	Step(fmt.Sprintf("Updating APIServer TLSAdherence to %s", policy))
 	apiServer.Spec.TLSAdherence = policy
 	Expect(cl.Update(ctx, apiServer)).To(Succeed(), "Failed to update APIServer TLSAdherence")
+
+	Step("Waiting for operator to restart and be ready after TLSAdherence change")
+	Eventually(func(g Gomega) {
+		pods := &corev1.PodList{}
+		g.Expect(cl.List(ctx, pods, client.InNamespace(namespace),
+			client.MatchingLabels{"control-plane": deploymentName})).To(Succeed())
+
+		restarted := false
+		for _, pod := range pods.Items {
+			if pod.DeletionTimestamp != nil || pod.Status.Phase != corev1.PodRunning || !podReady(pod) {
+				continue
+			}
+			if prev, seen := oldRestarts[string(pod.UID)]; !seen || totalRestarts(pod) > prev {
+				restarted = true
+				break
+			}
+		}
+		g.Expect(restarted).To(BeTrue(), "Operator did not restart (in place or via a new pod) after TLSAdherence change to %s", policy)
+	}).WithTimeout(5*time.Minute).WithPolling(5*time.Second).Should(Succeed(),
+		"Operator should restart and be ready after TLSAdherence change")
 }
 
 func applyCustomTLSProfile(ctx context.Context, cl client.Client, ciphers []string) {

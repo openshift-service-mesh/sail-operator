@@ -39,10 +39,10 @@ func init() {
 			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:cb6adbadc22ca80888f06094c82a402a43526d8a3081e47e6332bcf5355729db",
 		},
 		"v1.27.9": {
-			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:ec18f6e4f40610d872c9b0c9b6fa1b5701107609d86da8dc0e4488dea2b7273f",
-			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:ff4c42d8f13bebf89b2294dd9c5abaf5bbd751ced8b89cb882f89c070e17aef2",
-			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:d31cdf38fdc469d55602b35ab12d25a20d1bd09f983f8a24af100e87825035dd",
-			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:3c8a4ca43654cd3172bd18bc5b7442c14ace9849a6778d91851530bf6e605d02",
+			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:c5c6256e72cbe22222727f90d2ac8aa77198daf0543e1870701c1dcda78d583e",
+			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:a009354ad551eceb1fb400bc9d5b028ce6aa190e58250a0c8a5b92d91af6b1f8",
+			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:6c971034c79cf2152f096d0edd1cc02e709da8cc29a5cfff33f15683ff70f5e0",
+			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:43fbd994ed13313bbb7a0865de0c92ee4bffda91e22796b497b5258705a8e991",
 		},
 		"v1.28.4": {
 			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:978f840ceda7eb00c6f15740bcd60e241bee732cd215e9de464ce431b0156ffa",
@@ -68,11 +68,23 @@ func init() {
 			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:f5036871f4f1badcba63053bb4e92dfeac7e7d2b4638254671a5ac5a88c95068",
 			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:dfe3db9c8ca90597d54a21afb090ecfa00353efb110efefcea53fc986ff3c425",
 		},
+		"v1.28.10": {
+			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:5e1a587977a48afae3440352654d50ab26683e6760fd09407f5c44535d1c5a87",
+			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:c2de9e764bd8703d0b15f2c688ad8d6bb4c56238e2fdc50a9a279fd9607c79de",
+			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:ecb818cb05241ea2c7847e6e628129cc16d63c87ea2edd153d0fc7b63c5044d2",
+			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:6d1b92b15562d5a242ef11a574599cf0bcec9c6928fb43d8cfe955ae146aef51",
+		},
 		"v1.30.1": {
 			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:38b1561e4c2d9da341ae4fe809de6a3decabdc861583e52e4a6b85f608682a7f",
 			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:d770608385272197ccf83efa9d1b7b52a01828aa644d875794f025b9d45af381",
 			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:e27a86751f51b3836c9638b719e14e3f4444ff360e6c3add6be24ee4a1cd436b",
 			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:194fe2d15251e53544eae4fa5124ec2de2a8bf70646115bb2f9c30b615ff5df5",
+		},
+		"v1.30.3": {
+			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:6a4f5a2ffa5fc9aa687bb812c9b427dc61fc109b846cdf7d70eef28c5fe08faa",
+			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:e8842597aaa261b91be69ffc6501848958de95b714bb7782544d8a923eee619a",
+			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:80656e6f4d680953d568791338083cb2bef32c443f5f74f227d4e0738be27b4b",
+			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:cfd72e7c8400aa984c0872c63edf8dce83391bc579360ef48d98958a5e45faa7",
 		},
 	}
 }
