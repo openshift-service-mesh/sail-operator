@@ -13,11 +13,11 @@ The `controller-runtime` library automatically builds and exports a standardized
 ## OSSM Operator Custom Metrics List
 
 *Limitations*:
-- The metrics with the `ossm_version` label only record OSSM 3.x versions to keep cardinality low.
+- The metrics with the `app.kubernetes.io/version` label only record OSSM 3.x versions to keep cardinality low.
 
 ### ossm_3_istiod_total
 
-Total number of Istio control planes at each Istio version. The label `ossm_version` helps filter the number at each OSSM 3.x version.
+Total number of Istio control planes at each Istio version. The label `app.kubernetes.io/version` helps filter the number at each OSSM 3.x version.
 
 *Cardinality*: It equals the total number of OSSM 3.x releases.
 
@@ -38,7 +38,7 @@ Total number of namespaces enrolled in Istio sidecar mode.
 
 ### ossm_3_ztunnel_total
 
-Total number of ZTunnel Proxies managed by an Istio control plane in Ambient mode. The label `ossm_version` helps filtering the number at each OSSM 3.x version.
+Total number of ZTunnel Proxies managed by an Istio control plane in Ambient mode. The label `app.kubernetes.io/version` helps filtering the number at each OSSM 3.x version.
 
 *Limitation*:
 - This metric is counted from the `ZTunnel` custom resource creation using the OSSM operator. A fine-grained filter of counting an Istio control plane's `pilot_xds` connections will be revisited in a later phase.
