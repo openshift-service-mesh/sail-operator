@@ -43,12 +43,13 @@ rotation, and management of secure, verifiable identities for workloads.
 * <<federation,Multi-Primary on different networks with Spire Federation>>
 ** <<prerequisites,Prerequisites>>
 ** <<fed-install-ztwim-operator, Install ZTWIM Operator>>
-** <<fed-install-ossm-operator, Install OSSM Operator>>
-** <<fed-install-ossm-cni, Install Istio CNI>>
-** <<fed-install-istiod, Install Istio CNI>>
-** <<fed-install-gateway, Install Istio Gateway>>
+** <<fed-verify-ztwim-operator, Verify SPIRE federation without Istio>>
+** <<fed-install-ossm-operator, Install OSSM Operator and Istio CNI>>
+** <<fed-install-gateway, Install Istio East-West Gateway>>
 ** <<fed-create-remote-secrets, Create Istio remote secrets>>
 ** <<fed-verify-installation, Verify federated cross cluster access>>
+** <<fed-verify-installation-ingress, Verify federated access with Ingress Gateway>>
+** <<fed-verify-installation-gwapi, Verify federated access with K8s Gateway API>>
 
 
 
@@ -768,78 +769,123 @@ to the httpbin service using SPIFFE mTLS connection.
 
 [[federation]]
 === Multi-Primary on different networks with Spire Federation
-In this tutorial we'll be deploying Istio multi-primary on different networks with Spire Federation.
+In this tutorial we'll be deploying https://docs.redhat.com/en/documentation/red_hat_openshift_service_mesh/3.4/html/installing/ossm-multi-cluster-topologies#ossm-installing-multi-primary-multi-network-mesh_ossm-multi-cluster-topologies[Istio multi-primary on different networks] with Spire Federation.
 Follow this guide to install the Istio control plane on both `cluster-a` and `cluster-b`, making each a primary cluster.
 Cluster `cluster-a` is on the `network-a` network, while `cluster-b` is on the `network-b` network.
 Cluster `cluster-a` trust domain is set to `cluster-a` while trust domain of cluster `cluster-b` is set to `cluster-b`.
 This means there is no direct connectivity between pods across cluster
 boundaries and each cluster has it own trust
-domain. No pre-configured trust is configured between the two clusters.
+domain.
+
+_⚠️ Do not create any multi-cluster certificates; no pre-configured trust should exist between the two clusters.
+SPIRE federation will handle all certificate and identity management itself._
 
 _⚠️ Ensure your Istio version is at least 1.29.2 before attempting
 a multicluster federated configuration._
 
-The trust domain name must be set to the same value for both Spire and Istio installations within the same cluster.
-In our example, let's assum `Cluster A` will have Spire and Istio trust domain name set to `cluster-a`
-while `Cluster B` trust domain name will be set to `cluster-b`. 
+_⚠️ Installing OSSM with SPIRE federation requires careful configuration.
+Although OSSM and SPIRE are standalone services, they share several configuration settings.
+For example, the trust domain must be exactly the same for both.
+To keep this tutorial consistent and easy to follow, refer to the xref:prerequisites[prerequisites]
+section for the required environment variables and their corresponding values._
 
-To run this example, you will need to set all this env var to make easier to go over each step
 
+=== Prerequisites[[prerequisites]]
+1. Two OpenShift clusters with cluster admin access running version 4.20 or higher.
 
+2. Define following environment variables
 [source,bash]
 ----
+# ZTWIM namespace
 export ZTWIM_NS=zero-trust-workload-identity-manager
+# OSSM namespace
 export OSSM_NS=istio-system
+# Istio CNI namespace
 export OSSM_CNI=istio-cni
-export CLUSTER_A_KUBECONFIG=$(pwd)/cluster-a.kubeconfig
-export CLUSTER_B_KUBECONFIG=$(pwd)/cluster-b.kubeconfig
+# Path the cluster-a kubeconfig
+export CLUSTER_A_KUBECONFIG=/path/to/cluster-a/kubeconfig
+# Path the cluster-b kubeconfig
+export CLUSTER_B_KUBECONFIG=/path/to/cluster-b/kubeconfig
+# cluster-a base domain
 export CLUSTER_A_BASE_DOMAIN=$(oc get ingresses.config/cluster -o jsonpath={.spec.domain} --kubeconfig "${CLUSTER_A_KUBECONFIG}")
+# cluster-b base domain
 export CLUSTER_B_BASE_DOMAIN=$(oc get ingresses.config/cluster -o jsonpath={.spec.domain} --kubeconfig "${CLUSTER_B_KUBECONFIG}")
+# cluster-a jwt issuer
+export JWT_ISSUER_CLUSTER_A="https://oidc-discovery.$CLUSTER_A_BASE_DOMAIN"
+# cluster-b jwt issuer
+export JWT_ISSUER_CLUSTER_B="https://oidc-discovery.$CLUSTER_B_BASE_DOMAIN"
+# cluster-a trust domain
+export CLUSTER_A_TRUST_DOMAIN=cluster-a
+# cluster-b trust domain
+export CLUSTER_B_TRUST_DOMAIN=cluster-b
+# cluster-a name
 export CLUSTER_A=cluster-a
+# cluster-a name
 export CLUSTER_B=cluster-b
+# network-a name
 export NETWORK_A=network-a
+# network-b name
 export NETWORK_B=network-b
+# cluster-a federation endpoint
 export FEDERATION_ENDPOINT_CLUSTER_A="https://federation.$CLUSTER_A_BASE_DOMAIN"
+# cluster-b federation endpoint
 export FEDERATION_ENDPOINT_CLUSTER_B="https://federation.$CLUSTER_B_BASE_DOMAIN"
+# cluster-a validation url
 export VALIDATOR_DOMAIN_CLUSTER_A="validator.$CLUSTER_A_BASE_DOMAIN"
 ----
 
 ==== [[fed-install-ztwim-operator]]Install ZTWIM Operator on both clusters
-* Install ZTWIM Operator on both clusters
-as mentioned in the
-https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-install[official ZTWIM documentation]
+* Install ZTWIM Operator on both clusters as mentioned in the
+https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-install[official ZTWIM documentation]
 
 * Install Spire Server with federation on both clusters as mentioned in
-https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-spire-federation[ZTWIM official docs]
+https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-spire-federation_zero-trust-manager-oidc-federation[ZTWIM official docs]
 
-Once Spire is up and running on the clusters and federation works as expected
-apply two patches to the ZTWIM configuration
+** _⚠️ `trustDomain` - Make sure to set spire `trustDomain` to the value we've defined previously
+in `CLUSTER_A_TRUST_DOMAIN` and `CLUSTER_B_TRUST_DOMAIN` environment variables._
+** _⚠️When creating the ClusterFederatedTrustDomain `CR`,
+ensure the bundleEndpointURL is set to the respective value
+(FEDERATION_ENDPOINT_CLUSTER_A or FEDERATION_ENDPOINT_CLUSTER_B) defined in the prerequisite steps._
 
-_Note, before applying manual patches to ZTWIM configuration, enable `create-only` https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-reconciliation[mode]_
+* Deploy the Zero Trust Workload Identity Manager operands:
+** https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-spire-agent-config_zero-trust-manager-configuration[SPIRE Agent]
+** https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-spire-csidriver-config_zero-trust-manager-configuration[SPIFFE CSI driver]
+** https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-oidc-config_zero-trust-manager-configuration[SPIRE OIDC discovery provider]
 
-Once `create-only` mode is on, apply the patches
+*** _⚠️ When installing SPIRE OIDC discovery provider
+make sure to set spire `jwtIssuer` to the value we've defined previously
+in `JWT_ISSUER_CLUSTER_A` and `JWT_ISSUER_CLUSTER_B` environment variables._
 
-Define required environment variables
+
+Verify all ZTWIM operands has been deployed and healthy.
+
 [source,bash]
 ----
-# Patch to Cluster A kubeconfig
-export CLUSTER_A_KUBECONFIG="path/to/cluster-a/kubeconfig"
-# Patch to Cluster B kubeconfig
-export CLUSTER_B_KUBECONFIG="path/to/cluster-b/kubeconfig"
-# Default ZTWIM namespace
-export ZTWIM_NS="zero-trust-workload-identity-manager"
-# Cluster A trust domain
-export CLUSTER_A="cluster-a"
-# Cluster A network name
-export NETWORK_A="network-a"
-# Cluster B trust domain
-export CLUSTER_B="cluster-b"
-# Cluster B network name
-export NETWORK_B="network-b"
+# check OIDC Discovery Provider
+oc -n zero-trust-workload-identity-manager \
+    wait --for=condition=Available --timeout=60s \
+      deployment/spire-spiffe-oidc-discovery-provider \
+      deployment/zero-trust-workload-identity-manager-controller-manager && \
+# check Spire Server
+  oc -n zero-trust-workload-identity-manager \
+    rollout status statefulset/spire-server --timeout=60s && \
+# check Spire Agent
+  oc -n zero-trust-workload-identity-manager \
+    rollout status daemonset/spire-agent --timeout=60s && \
+# check Spire CSI driver
+  oc -n zero-trust-workload-identity-manager \
+    rollout status daemonset/spire-spiffe-csi-driver --timeout=60s && \
+  echo "All SPIRE components are healthy"
 ----
 
-Allow Istio Proxy (Envoy)
-to fetch all the https://istio.io/latest/docs/ops/integrations/spire/#spiffe-federation[federated bundles directly from SPIRE]_
+_If everything successfully deployed, you should see `All SPIRE components are healthy` output_
+
+Allow Istio Proxy (Envoy) to fetch all the https://istio.io/latest/docs/ops/integrations/spire/#spiffe-federation[federated bundles directly from SPIRE]
+by patching the `Spire Agent` configuration.
+
+* Turn on `create-only` https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/security_and_compliance/zero-trust-workload-identity-manager#zero-trust-manager-reconciliation[mode]
+
+* Patch `Spire Agent` ConfigMap to configure defaults TLS certificate resources names
 [source,bash]
 ----
 # Patch spire-agent configmap to add SDS configuration
@@ -865,7 +911,7 @@ for kubeconfig in "${CLUSTER_A_KUBECONFIG}" "${CLUSTER_B_KUBECONFIG}"; do
 done
 ----
 
-Enable federation for default SpireServer `ClusterSpiffeID` entries
+* Enable federation for default SpireServer `ClusterSpiffeID` entries
 [source,bash]
 ----
 # Patch ClusterSPIFFEID on CLUSTER A to federate with CLUSTER B
@@ -881,18 +927,235 @@ kubectl patch clusterspiffeid zero-trust-workload-identity-manager-spire-default
   -p "{\"spec\":{\"federatesWith\":[\"${CLUSTER_A}\"],\"autoPopulateDNSNames\":true}}"
 ----
 
+==== [[fed-verify-ztwim-operator]]Verify SPIRE federation without Istio
 
-==== [[fed-install-ossm-operator]]Install OSSM Operator
-Follow this <<sail-operator,guide>> and install Sail Operator only without any operands
+_⚠️ Before deploying a multi-cluster Istio federation, verify that the standalone
+SPIRE federation works as expected between the two clusters._
 
-==== [[fed-install-ossm-cni]]Install Istio CNI
-Follow this <<create-istio-cni,guide>> and install Istio CNI
+To verify the SPIRE federation, we will use a simple tool called `spiffe-mtls-validator`.
+The verification process works as follows:
 
-Discover bundle endpoint url for both clusters
+. Deploy a Server in Cluster A, which receives its X.509 SVID from the SPIRE instance in Cluster A.
++
 [source,bash]
 ----
-export CLUSTER_A_BUNDLE_ENDPOINT_URL=$(oc get ClusterFederatedTrustDomain cluster-a --kubeconfig=${CLUSTER_B_KUBECONFIG} -o jsonpath={.spec.bundleEndpointURL})
-export CLUSTER_B_BUNDLE_ENDPOINT_URL=$(oc get ClusterFederatedTrustDomain cluster-b --kubeconfig=${CLUSTER_A_KUBECONFIG} -o jsonpath={.spec.bundleEndpointURL})
+# define namespace
+export NAMESPACE=verify-spiffe-federation
+# create namespace
+kubectl create namespace $NAMESPACE --kubeconfig="${CLUSTER_A_KUBECONFIG}"
+# allow privileged SCC because we going to mount spife-agent.sock directly into the pod, this is done for verification needs only
+oc adm policy add-scc-to-user privileged system:serviceaccount:$NAMESPACE:spiffe-mtls-validator --kubeconfig="${CLUSTER_A_KUBECONFIG}"
+# Deploy Server
+cat <<EOF | kubectl apply --kubeconfig="${CLUSTER_A_KUBECONFIG}" -f -
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spiffe-mtls-validator
+  namespace: $NAMESPACE
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spiffe-mtls-validator
+  namespace: $NAMESPACE
+  labels:
+    app: spiffe-mtls-validator
+spec:
+  selector:
+    matchLabels:
+      app: spiffe-mtls-validator
+  template:
+    metadata:
+      labels:
+        app: spiffe-mtls-validator
+        spiffe.io/spire-managed-identity: "true"
+    spec:
+      serviceAccountName: spiffe-mtls-validator
+      containers:
+        - name: app
+          image: docker.io/dimssss/spiffe-mtls-validator
+          command: ["/app/server", "-socket-path=unix:///run/secrets/workload-spiffe-uds/spire-agent.sock","-allowed-domain-prefix=foo-bar"]
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          volumeMounts:
+            - name: spiffe-workload-api
+              mountPath: /run/secrets/workload-spiffe-uds
+              readOnly: true
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: /run/secrets/workload-spiffe-uds
+      volumes:
+        - name: spiffe-workload-api
+          csi:
+            driver: "csi.spiffe.io"
+            readOnly: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spiffe-mtls-validator
+  namespace: $NAMESPACE
+  labels:
+    app: spiffe-mtls-validator
+spec:
+  ports:
+    - port: 8443
+      name: http
+  selector:
+    app: spiffe-mtls-validator
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: spiffe-mtls-validator
+  namespace: $NAMESPACE
+spec:
+  host: $VALIDATOR_DOMAIN_CLUSTER_A
+  port:
+    targetPort: http
+  tls:
+    termination: passthrough
+  to:
+    kind: Service
+    name: spiffe-mtls-validator
+    weight: 100
+---
+apiVersion: spire.spiffe.io/v1alpha1
+kind: ClusterSPIFFEID
+metadata:
+  name: spiffe-mtls-validator-server
+spec:
+  className: zero-trust-workload-identity-manager-spire
+  fallback: true
+  federatesWith:
+    - $CLUSTER_B
+  hint: default
+  podSelector:
+    matchLabels:
+      app: "spiffe-mtls-validator"
+  spiffeIDTemplate: spiffe://{{ .TrustDomain }}/ns/{{ .PodMeta.Namespace }}/sa/{{.PodSpec.ServiceAccountName }}
+EOF
+----
+
+. Deploy a Client in Cluster B, which receives its X.509 SVID from the SPIRE instance in Cluster B.
++
+[source,bash]
+----
+# define namespace
+export NAMESPACE=verify-spiffe-federation
+# create namespace
+kubectl create namespace $NAMESPACE --kubeconfig="${CLUSTER_B_KUBECONFIG}"
+# allow privileged SCC because we going to mount spife-agent.sock directly into the pod, this is done for verification needs only
+oc adm policy add-scc-to-user privileged system:serviceaccount:$NAMESPACE:spiffe-mtls-client --kubeconfig="${CLUSTER_B_KUBECONFIG}"
+# Deploy Client
+cat <<EOF | kubectl apply --kubeconfig="${CLUSTER_B_KUBECONFIG}" -f -
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spiffe-mtls-client
+  namespace: $NAMESPACE
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spiffe-mtls-client
+  namespace: $NAMESPACE
+  labels:
+    app: spiffe-mtls-client
+spec:
+  selector:
+    matchLabels:
+      app: spiffe-mtls-client
+  template:
+    metadata:
+      labels:
+        app: spiffe-mtls-client
+        spiffe.io/spire-managed-identity: "true"
+    spec:
+      serviceAccountName: spiffe-mtls-client
+      containers:
+        - name: app
+          image: docker.io/dimssss/spiffe-mtls-validator
+          command: ["/app/client", "-socket-path=unix:///run/secrets/workload-spiffe-uds/spire-agent.sock","-srv-addr=https://$VALIDATOR_DOMAIN_CLUSTER_A"]
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          volumeMounts:
+            - name: spiffe-workload-api
+              mountPath: /run/secrets/workload-spiffe-uds
+              readOnly: true
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: /run/secrets/workload-spiffe-uds
+      volumes:
+        - name: spiffe-workload-api
+          csi:
+            driver: "csi.spiffe.io"
+            readOnly: true
+---
+apiVersion: spire.spiffe.io/v1alpha1
+kind: ClusterSPIFFEID
+metadata:
+  name: spiffe-mtls-client
+spec:
+  className: zero-trust-workload-identity-manager-spire
+  fallback: true
+  federatesWith:
+    - $CLUSTER_A
+  hint: default
+  podSelector:
+    matchLabels:
+      app: "spiffe-mtls-client"
+  spiffeIDTemplate: spiffe://{{ .TrustDomain }}/ns/{{ .PodMeta.Namespace }}/sa/{{.PodSpec.ServiceAccountName }}
+EOF
+----
+
+. Initiate an mTLS request from the Client in Cluster B to the Server in Cluster A.
++
+[source,bash]
+----
+# Wait for server pod on Cluster A
+kubectl wait --for=condition=Ready pod -l app=spiffe-mtls-validator -n $NAMESPACE --kubeconfig="${CLUSTER_A_KUBECONFIG}" --timeout=120s
+# Wait for client pod on Cluster B
+kubectl wait --for=condition=Ready pod -l app=spiffe-mtls-client -n $NAMESPACE --kubeconfig="${CLUSTER_B_KUBECONFIG}" --timeout=120s
+# Check the logs, if ok expect to see something like "[body: success] [status: 200 OK]"
+kubectl logs -l app=spiffe-mtls-client \
+  -n $NAMESPACE --kubeconfig="${CLUSTER_B_KUBECONFIG}" --tail=20 \
+  | grep -q "\[body: success\] \[status: 200 OK\]" \
+  && echo "PASS: Client successfully connected to server via SPIFFE mTLS" \
+  || echo "FAIL: Expected '[body: success] [status: 200 OK]' not found in client logs"
+----
+
+A successful request confirms that the federation between the two clusters is configured correctly.
+
+
+==== [[fed-install-ossm-operator]]Install OSSM Operator and Istio CNI
+* Follow this https://docs.redhat.com/en/documentation/red_hat_openshift_service_mesh/3.4/html/installing/ossm-installing-service-mesh#ossm-installing-operator_ossm-installing-openshift-service-mesh[guide] and install OSSM Operator only without any operands
+
+* Follow this https://docs.redhat.com/en/documentation/red_hat_openshift_service_mesh/3.4/html/installing/ossm-installing-service-mesh#ossm-creating-istio-cni-project_ossm-installing-openshift-service-mesh[guide] and install Istio CNI
+
+_⚠️ Do not deploy the Istio `CR` yet. We will create it later to ensure the
+Istio instance is properly configured for our ZTWIM federation setup._
+
+Discover bundle endpoint url for both clusters
+
+_⚠️ Retrieve the `bundleEndpointURL` from each cluster.
+Note that these configurations are cross-referenced: Cluster A's bundleEndpointURL is defined in Cluster B so
+that Cluster B can access its federated trust domain.
+The reverse is also true, with Cluster B's endpoint defined in Cluster A._
+
+[source,bash]
+----
+# ClusterFederatedTrustDomain for cluster A defined in cluster B, thus we are using CLUSTER_B_KUBECONFIG
+export FEDERATION_NAME_CLUSTER_A=$(oc get ClusterFederatedTrustDomain --kubeconfig=${CLUSTER_B_KUBECONFIG} -o jsonpath='{.items[0].metadata.name}')
+# ClusterFederatedTrustDomain for cluster B defined in cluster A, thus we are using CLUSTER_A_KUBECONFIG
+export FEDERATION_NAME_CLUSTER_B=$(oc get ClusterFederatedTrustDomain --kubeconfig=${CLUSTER_A_KUBECONFIG} -o jsonpath='{.items[0].metadata.name}')
+# Get Cluster A bundleEndpointURL
+export CLUSTER_A_BUNDLE_ENDPOINT_URL=$(oc get ClusterFederatedTrustDomain ${FEDERATION_NAME_CLUSTER_A} --kubeconfig=${CLUSTER_B_KUBECONFIG} -o jsonpath={.spec.bundleEndpointURL})
+# Get Cluster B bundleEndpointURL
+export CLUSTER_B_BUNDLE_ENDPOINT_URL=$(oc get ClusterFederatedTrustDomain ${FEDERATION_NAME_CLUSTER_B} --kubeconfig=${CLUSTER_A_KUBECONFIG} -o jsonpath={.spec.bundleEndpointURL})
 ----
 
 Create `Istio` CR In `cluster-a`
@@ -900,6 +1163,9 @@ Create `Istio` CR In `cluster-a`
 
 [source,bash]
 ----
+# Create istio-system namespace
+oc create namespace istio-system --kubeconfig="${CLUSTER_A_KUBECONFIG}"
+# Install Istio CR
 cat <<EOF | oc apply --kubeconfig="${CLUSTER_A_KUBECONFIG}" -f -
 apiVersion: sailoperator.io/v1
 kind: Istio
@@ -965,6 +1231,9 @@ oc wait --for=condition=Available deployment/istiod --kubeconfig="${CLUSTER_A_KU
 Create `Istio` CR In `cluster-b`
 [source,bash]
 ----
+# Create istio-system namespace
+oc create namespace istio-system --kubeconfig="${CLUSTER_B_KUBECONFIG}"
+# Install Istio CR
 cat <<EOF | oc apply --kubeconfig="${CLUSTER_B_KUBECONFIG}" -f -
 apiVersion: sailoperator.io/v1
 kind: Istio
@@ -1022,11 +1291,11 @@ spec:
                   readOnly: true
 EOF
 # Wait till it successfully installed
-until oc get deployment istiod --kubeconfig="${CLUSTER_A_KUBECONFIG}" -n "istio-system" &> /dev/null; do sleep 3; done
-oc wait --for=condition=Available deployment/istiod --kubeconfig="${CLUSTER_A_KUBECONFIG}" -n "istio-system" --timeout=300s
+until oc get deployment istiod --kubeconfig="${CLUSTER_B_KUBECONFIG}" -n "istio-system" &> /dev/null; do sleep 3; done
+oc wait --for=condition=Available deployment/istiod --kubeconfig="${CLUSTER_B_KUBECONFIG}" -n "istio-system" --timeout=300s
 ----
 
-==== [[fed-install-gateway]]Install Istio Gateway
+==== [[fed-install-gateway]]Install Istio East-West Gateway
 
 [source,bash]
 ----
@@ -1057,13 +1326,13 @@ helm upgrade --install istio-eastwestgateway istio/gateway \
 istioctl create-remote-secret \
   --kubeconfig="${CLUSTER_A_KUBECONFIG}" \
   --name="${CLUSTER_A}" \
-  --istioNamespace=istio-system | \
+  --namespace istio-system | \
   kubectl apply --kubeconfig="${CLUSTER_B_KUBECONFIG}" -f -
 
 istioctl create-remote-secret \
   --kubeconfig="${CLUSTER_B_KUBECONFIG}" \
   --name="${CLUSTER_B}" \
-  --istioNamespace=istio-system | \
+  --namespace istio-system | \
   kubectl apply --kubeconfig="${CLUSTER_A_KUBECONFIG}" -f -
 ----
 
@@ -1160,9 +1429,67 @@ kubectl rollout status deploy/sleep --kubeconfig "${CLUSTER_A_KUBECONFIG}" -n ${
 kubectl rollout status deploy/helloworld-v1 --kubeconfig "${CLUSTER_B_KUBECONFIG}" -n ${SAMPLE_NS} --timeout=300s
 ----
 
-Once the `sleep` pod is up and running in `cluster-a` and `HelloWorld`
-pod is up and running in `cluster-b` try to make a `curl`
-call between two services
+Get the workload SPIFFE ID for both `sleep` and `HelloWorld` apps
+[source,bash]
+----
+# fetch SPIFFE ID for sleep service
+SLEEP_SERVICE_URI=$(istioctl proxy-config secret deploy/sleep \
+ --kubeconfig cluster-a.kubeconfig \
+ -n sample -o json | \
+ jq -r '.dynamicActiveSecrets[] | select(.name == "default") | .secret.tlsCertificate.certificateChain.inlineBytes' | \
+ base64 --decode | \
+ openssl x509 -text -noout | \
+ grep URI:)
+
+# fetch SPIFFE ID for helloworld service
+HELLO_WORLD_SERVICE_URI=$(istioctl proxy-config secret deploy/helloworld-v1 \
+ --kubeconfig cluster-b.kubeconfig \
+ -n sample -o json | \
+ jq -r '.dynamicActiveSecrets[] | select(.name == "default") | .secret.tlsCertificate.certificateChain.inlineBytes' | \
+ base64 --decode | \
+ openssl x509 -text -noout | \
+ grep URI:)
+
+echo -e "${SLEEP_SERVICE_URI}\n${HELLO_WORLD_SERVICE_URI}" | sed 's/, /,/g' | column -t -s ','
+----
+
+You should see different trust domains for each workload, the output should be similar to this
+[source,bash]
+----
+# for sleep service, the trust domain in our example is cluster-a
+DNS:sleep       DNS:sleep.sample       DNS:sleep.sample.svc       DNS:sleep.sample.svc.cluster.local       URI:spiffe://cluster-a/ns/sample/sa/sleep
+# for helloworld service the trust domain in our example is cluster-b
+DNS:helloworld  DNS:helloworld.sample  DNS:helloworld.sample.svc  DNS:helloworld.sample.svc.cluster.local  URI:spiffe://cluster-b/ns/sample/sa/default
+----
+
+Create `PeerAuthentication` with `mode: STRICT` to enforce istio mTLS authentication
+[source,bash]
+----
+# create peer authentication policy in cluster A
+cat <<EOF | oc apply --kubeconfig=$CLUSTER_A_KUBECONFIG -f -
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: ${SAMPLE_NS}
+spec:
+  mtls:
+    mode: STRICT
+EOF
+# create peer authentication policy in cluster B
+cat <<EOF | oc apply --kubeconfig=$CLUSTER_B_KUBECONFIG -f -
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: ${SAMPLE_NS}
+spec:
+  mtls:
+    mode: STRICT
+EOF
+----
+
+Try to make a `curl` call between two services
 
 [source,bash]
 ----
@@ -1179,7 +1506,179 @@ Hello version: v1, instance: helloworld-v1-5859666d7-pcb8v
 ----
 
 This confirms that services running on different clusters and managed
-by separate service meshes can communicate securely.
-This connectivity is enabled by a correctly
-configured SPIRE Federation and the successful
-integration of the two Istio trust domains.
+by separate service meshes can communicate securely between each other.
+
+=== [[fed-verify-installation-ingress]] Verify federation with Ingress Gateway
+Let's verify access from an external client through an ingress gateway and a federated cluster.
+
+* Install the Ingress Gateway on Cluster A only
++
+[source,bash]
+----
+# install the istio gateway helm chart
+helm install istio-gateway -n "${OSSM_NS}" \
+  istio/gateway --set-json \
+  'podAnnotations={"inject.istio.io/templates":"gateway,spireGw"}' \
+   --kubeconfig=$CLUSTER_A_KUBECONFIG
+
+until oc get deployment istio-gateway -n "${OSSM_NS}" &> /dev/null; do sleep 3; done
+oc wait --for=condition=Available deployment/istio-gateway -n "${OSSM_NS}" --timeout=300s
+----
+
+* Create Istio Gateway CR
++
+[source,bash]
+----
+# create Gateway CR
+cat <<EOF | oc apply --kubeconfig=$CLUSTER_A_KUBECONFIG -f -
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: helloworld-gateway
+  namespace: ${SAMPLE_NS}
+spec:
+  selector:
+    istio: gateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+EOF
+----
+
+* Create Virtual Service CR
++
+[source,bash]
+----
+cat <<EOF | oc apply --kubeconfig=$CLUSTER_A_KUBECONFIG -f -
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: helloworld
+  namespace: ${SAMPLE_NS}
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - helloworld-gateway
+  http:
+    - route:
+      - destination:
+          host: helloworld.${SAMPLE_NS}.svc.cluster.local
+          port:
+            number: 5000
+EOF
+----
+
+* Get the Ingress IP and make `curl` call
++
+[source,bash]
+----
+INGRESS_IP=$(oc get svc istio-gateway -nistio-system --kubeconfig=$CLUSTER_A_KUBECONFIG -ojsonpath='{.status.loadBalancer.ingress[0].ip}')
+curl http://$INGRESS_IP/hello
+----
+
+This confirms that Istio Ingress Gateway received a valid SPIFFE ID and able to properly
+communicate with east-west gateway and other in-mesh components over mTLS connection.
+
+=== [[fed-verify-installation-gwapi]] Verify federation with K8s Gateway API
+As an alternative to the Istio Ingress Gateway, you can expose the federated
+`HelloWorld` service through the Kubernetes Gateway API. In this case the gateway
+Deployment is generated by Istio from the `Gateway` resource, so we use a
+`ConfigMap` (referenced via `infrastructure.parametersRef`) to mount the SPIRE
+Agent socket into the generated gateway pod.
+
+* Create the gateway `ConfigMap`, `Gateway` and `HTTPRoute` on Cluster A
++
+[source,bash]
+----
+# ConfigMap that mounts the SPIRE Agent socket into the generated gateway pod
+cat <<EOF | oc apply --kubeconfig=$CLUSTER_A_KUBECONFIG -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helloworld-gw-options
+  namespace: istio-system
+data:
+  deployment: |
+    spec:
+      template:
+        spec:
+          volumes:
+          - name: workload-socket
+            emptyDir: null
+            csi:
+              driver: csi.spiffe.io
+              readOnly: true
+EOF
+
+# Gateway and HTTPRoute
+cat <<EOF | kubectl apply --kubeconfig "${CLUSTER_A_KUBECONFIG}" -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: helloworld-gateway
+  namespace: istio-system
+spec:
+  gatewayClassName: istio
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: helloworld-gw-options
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: helloworld-route
+  namespace: ${SAMPLE_NS}
+spec:
+  parentRefs:
+  - name: helloworld-gateway
+    namespace: istio-system
+  hostnames:
+  - "helloworld"
+  rules:
+  - matches:
+    - path:
+        type: Exact
+        value: /hello
+    backendRefs:
+    - name: helloworld
+      port: 5000
+EOF
+# Wait for the generated gateway deployment to become available
+oc wait --for=condition=Available deployment/helloworld-gateway-istio \
+  -n istio-system --kubeconfig=$CLUSTER_A_KUBECONFIG --timeout=300s
+----
+
+* Get the Gateway IP and make a `curl` call
++
+[source,bash]
+----
+# Istio names the generated Service after the Gateway with an "-istio" suffix
+INGRESS_IP=$(oc get svc helloworld-gateway-istio -n istio-system \
+  --kubeconfig=$CLUSTER_A_KUBECONFIG \
+  -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+curl -H "Host: helloworld" http://$INGRESS_IP/hello
+----
+
+Expected output:
+[source,bash]
+----
+Hello version: v1, instance: helloworld-v1-5859666d7-pcb8v
+----
+
+This confirms that a Kubernetes Gateway API gateway on Cluster A received a valid
+SPIFFE ID and can route external traffic to the federated `HelloWorld` service on
+Cluster B over an mTLS connection.
