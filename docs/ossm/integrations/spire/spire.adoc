@@ -1438,8 +1438,8 @@ SLEEP_SERVICE_URI=$(istioctl proxy-config secret deploy/sleep \
  -n sample -o json | \
  jq -r '.dynamicActiveSecrets[] | select(.name == "default") | .secret.tlsCertificate.certificateChain.inlineBytes' | \
  base64 --decode | \
- openssl x509 -text -noout | \
- grep URI:)
+ openssl x509 -noout -ext subjectAltName | \
+ grep -oE 'URI:spiffe://[^,[:space:]]+')
 
 # fetch SPIFFE ID for helloworld service
 HELLO_WORLD_SERVICE_URI=$(istioctl proxy-config secret deploy/helloworld-v1 \
@@ -1447,19 +1447,19 @@ HELLO_WORLD_SERVICE_URI=$(istioctl proxy-config secret deploy/helloworld-v1 \
  -n sample -o json | \
  jq -r '.dynamicActiveSecrets[] | select(.name == "default") | .secret.tlsCertificate.certificateChain.inlineBytes' | \
  base64 --decode | \
- openssl x509 -text -noout | \
- grep URI:)
+ openssl x509 -noout -ext subjectAltName | \
+ grep -oE 'URI:spiffe://[^,[:space:]]+')
 
-echo -e "${SLEEP_SERVICE_URI}\n${HELLO_WORLD_SERVICE_URI}" | sed 's/, /,/g' | column -t -s ','
+printf '%s\n' "${SLEEP_SERVICE_URI}" "${HELLO_WORLD_SERVICE_URI}"
 ----
 
 You should see different trust domains for each workload, the output should be similar to this
 [source,bash]
 ----
-# for sleep service, the trust domain in our example is cluster-a
-DNS:sleep       DNS:sleep.sample       DNS:sleep.sample.svc       DNS:sleep.sample.svc.cluster.local       URI:spiffe://cluster-a/ns/sample/sa/sleep
-# for helloworld service the trust domain in our example is cluster-b
-DNS:helloworld  DNS:helloworld.sample  DNS:helloworld.sample.svc  DNS:helloworld.sample.svc.cluster.local  URI:spiffe://cluster-b/ns/sample/sa/default
+# sleep service
+URI:spiffe://<cluster-a-trust-domain>/ns/<namespace>/sa/<service-account>
+# helloworld service
+URI:spiffe://<cluster-b-trust-domain>/ns/<namespace>/sa/<service-account>
 ----
 
 Create `PeerAuthentication` with `mode: STRICT` to enforce istio mTLS authentication
@@ -1496,13 +1496,13 @@ Try to make a `curl` call between two services
 oc exec deploy/sleep \
   -n ${SAMPLE_NS} \
   --kubeconfig=$CLUSTER_A_KUBECONFIG \
-  -- curl -sS helloworld.sample:5000/hello
+  -- curl -sS -o /dev/null -w "%{http_code}\n" helloworld.sample:5000/hello
 ----
 
 Expected output:
 [source,bash]
 ----
-Hello version: v1, instance: helloworld-v1-5859666d7-pcb8v
+200
 ----
 
 This confirms that services running on different clusters and managed
@@ -1578,7 +1578,7 @@ EOF
 [source,bash]
 ----
 INGRESS_IP=$(oc get svc istio-gateway -nistio-system --kubeconfig=$CLUSTER_A_KUBECONFIG -ojsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl http://$INGRESS_IP/hello
+curl -sS -o /dev/null -w "%{http_code}\n" http://$INGRESS_IP/hello
 ----
 
 This confirms that Istio Ingress Gateway received a valid SPIFFE ID and able to properly
@@ -1670,13 +1670,13 @@ oc wait --for=condition=Available deployment/helloworld-gateway-istio \
 INGRESS_IP=$(oc get svc helloworld-gateway-istio -n istio-system \
   --kubeconfig=$CLUSTER_A_KUBECONFIG \
   -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl -H "Host: helloworld" http://$INGRESS_IP/hello
+curl -sS -o /dev/null -w "%{http_code}\n" -H "Host: helloworld" http://$INGRESS_IP/hello
 ----
 
 Expected output:
 [source,bash]
 ----
-Hello version: v1, instance: helloworld-v1-5859666d7-pcb8v
+200
 ----
 
 This confirms that a Kubernetes Gateway API gateway on Cluster A received a valid
