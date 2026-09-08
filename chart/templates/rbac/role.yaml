@@ -329,6 +329,7 @@ rules:
   resources:
   - servicemonitors
   - podmonitors
+  - prometheusrules
   verbs:
   - create
   - delete

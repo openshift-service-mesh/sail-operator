@@ -41,8 +41,9 @@ import (
 )
 
 const (
-	ruleName  = "ossm-operator-usage-rules"
-	namespace = "openshift-operators"
+	ruleName    = "ossm-operator-usage-rules"
+	monitorName = "sail-operator-controller-manager-metrics-monitor"
+	namespace   = "openshift-operators"
 )
 
 // Reconciler reconciles operator analytics metrics.
@@ -75,25 +76,45 @@ func NewReconciler(cfg config.ReconcilerConfig, client client.Client, scheme *ru
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	// Check if prometheus rule already exists, if not create a new one
-	foundRule := &monitoringv1.PrometheusRule{}
-	err := r.Get(ctx, types.NamespacedName{Name: ruleName, Namespace: namespace}, foundRule)
-	if err != nil && apierrors.IsNotFound(err) {
-		// Define a new prometheus rule
-		prometheusRule := analytics.NewPrometheusRule(namespace)
-		if err := r.Create(ctx, prometheusRule); err != nil {
-			log.Error(err, "Failed to create prometheus rule")
-			return ctrl.Result{}, nil
+	// Check if a ServiceMonitor already exists, if not create a new one
+	foundMonitor := &monitoringv1.ServiceMonitor{}
+	if err := r.Get(ctx, types.NamespacedName{Name: monitorName, Namespace: namespace}, foundMonitor); err != nil {
+		if apierrors.IsNotFound(err) {
+			serviceMonitor := analytics.NewServiceMonitor(namespace)
+			if err := r.Create(ctx, serviceMonitor); err != nil {
+				log.Error(err, "Failed to create ServiceMonitor")
+				return ctrl.Result{}, nil
+			}
+		}
+	} else {
+		// Check if ServiceMonitor spec was changed, if so set as desired
+		desiredMonitorSpec := analytics.NewServiceMonitorSpec()
+		if !reflect.DeepEqual(foundMonitor.Spec.DeepCopy(), desiredMonitorSpec) {
+			desiredMonitorSpec.DeepCopyInto(&foundMonitor.Spec)
+			if r.Update(ctx, foundMonitor); err != nil {
+				log.Error(err, "Failed to update ServiceMonitor")
+				return ctrl.Result{}, nil
+			}
 		}
 	}
 
-	if err == nil {
-		// Check if prometheus rule spec was changed, if so set as desired
+	// Check if a PrometheusRule already exists, if not create a new one
+	foundRule := &monitoringv1.PrometheusRule{}
+	if err := r.Get(ctx, types.NamespacedName{Name: ruleName, Namespace: namespace}, foundRule); err != nil {
+		if apierrors.IsNotFound(err) {
+			prometheusRule := analytics.NewPrometheusRule(namespace)
+			if err := r.Create(ctx, prometheusRule); err != nil {
+				log.Error(err, "Failed to create PrometheusRule")
+				return ctrl.Result{}, nil
+			}
+		}
+	} else {
+		// Check if PrometheusRule spec was changed, if so set as desired
 		desiredRuleSpec := analytics.NewPrometheusRuleSpec()
 		if !reflect.DeepEqual(foundRule.Spec.DeepCopy(), desiredRuleSpec) {
 			desiredRuleSpec.DeepCopyInto(&foundRule.Spec)
 			if r.Update(ctx, foundRule); err != nil {
-				log.Error(err, "Failed to update prometheus rule")
+				log.Error(err, "Failed to update PrometheusRule")
 				return ctrl.Result{}, nil
 			}
 		}

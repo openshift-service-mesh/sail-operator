@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/component: sail-operator
+    app.kubernetes.io/created-by: servicemeshoperator3
+    app.kubernetes.io/managed-by: helm
+    app.kubernetes.io/name: sail-operator
+    app.kubernetes.io/part-of: servicemeshoperator3
+    control-plane: servicemesh-operator3
+  name: sail-operator-controller-manager-metrics-monitor
+spec:
+  endpoints:
+  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    path: /metrics
+    port: https
+    scheme: https
+    tlsConfig:
+      insecureSkipVerify: true
+      serverName: servicemesh-operator3-metrics-service.openshift-operators
+  selector:
+    matchLabels:
+      control-plane: servicemesh-operator3

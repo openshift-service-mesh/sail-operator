@@ -246,7 +246,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if os.Getenv("ENABLE_ANALYTICS") != "false" {
+	if os.Getenv("ENABLE_ANALYTICS") != "" {
 		err = analytics.NewReconciler(reconcilerCfg, mgr.GetClient(), mgr.GetScheme()).
 			SetupWithManager(mgr)
 		if err != nil {
