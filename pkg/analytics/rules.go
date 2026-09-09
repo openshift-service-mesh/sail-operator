@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	ruleName         = "ossm-operator-usage-rules"
+	RuleName         = "ossm-operator-usage-rules"
 	istiodRuleGroup  = "ossm.istiod.rules"
 	sidecarRuleGroup = "ossm.sidecar.rules"
 	ztunnelRuleGroup = "ossm.ztunnel.rules"
@@ -37,7 +37,7 @@ func NewPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
 			Kind:       "PrometheusRule",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ruleName,
+			Name:      RuleName,
 			Namespace: namespace,
 		},
 		Spec: *NewPrometheusRuleSpec(),
