@@ -63,8 +63,8 @@ func NewReconciler(cfg config.ReconcilerConfig, client client.Client, scheme *ru
 // +kubebuilder:rbac:groups=sailoperator.io,resources=istiorevisions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=sailoperator.io,resources=istiorevisiontags,verbs=get;list;watch
 // +kubebuilder:rbac:groups=sailoperator.io,resources=ztunnels,verbs=get;list;watch
-// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;create;delete
-// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheusrules,verbs=get;list;create;delete
+// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;create;update;delete
+// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheusrules,verbs=get;list;create;update;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

@@ -45,7 +45,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: OpenShift Optional, Integration & Delivery, Networking, Security
     containerImage: quay.io/sail-dev/sail-operator:3.0-latest
-    createdAt: "2026-08-28T06:11:36Z"
+    createdAt: "2026-09-10T18:27:20Z"
     description: The OpenShift Service Mesh Operator enables you to install, configure, and manage an instance of Red Hat OpenShift Service Mesh. OpenShift Service Mesh is based on the open source Istio project.
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "true"
@@ -59,7 +59,6 @@ metadata:
     features.operators.openshift.io/token-auth-gcp: "false"
     operators.openshift.io/valid-subscription: '["OpenShift Container Platform", "OpenShift Platform Plus"]'
     operators.operatorframework.io/builder: operator-sdk-v1.42.3
-    operators.operatorframework.io/cluster-monitoring: "true"
     operators.operatorframework.io/internal-objects: '["trafficextensions.extensions.istio.io","wasmplugins.extensions.istio.io","destinationrules.networking.istio.io","envoyfilters.networking.istio.io","gateways.networking.istio.io","proxyconfigs.networking.istio.io","serviceentries.networking.istio.io","sidecars.networking.istio.io","virtualservices.networking.istio.io","workloadentries.networking.istio.io","workloadgroups.networking.istio.io","authorizationpolicies.security.istio.io","peerauthentications.security.istio.io","requestauthentications.security.istio.io","telemetries.telemetry.istio.io"]'
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/istio-ecosystem/sail-operator
@@ -555,17 +554,6 @@ spec:
                 - update
                 - watch
             - apiGroups:
-                - monitoring.coreos.com
-              resources:
-                - servicemonitors
-                - podmonitors
-                - prometheusrules
-              verbs:
-                - create
-                - delete
-                - get
-                - list
-            - apiGroups:
                 - networking.istio.io
               resources:
                 - envoyfilters
@@ -790,6 +778,17 @@ spec:
                 - get
                 - patch
                 - update
+            - apiGroups:
+                - monitoring.coreos.com
+              resources:
+                - servicemonitors
+                - podmonitors
+                - prometheusrules
+              verbs:
+                - create
+                - delete
+                - get
+                - list
           serviceAccountName: servicemesh-operator3
       deployments:
         - label:
