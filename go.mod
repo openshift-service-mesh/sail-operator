@@ -1,6 +1,6 @@
 module github.com/istio-ecosystem/sail-operator
 
-go 1.26.0
+go 1.27.0
 
 // Client-go does not handle different versions of mergo due to some breaking changes - use the matching version
 // This replacement is aligned with istio/istio's go.mod
@@ -27,13 +27,14 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.5.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v4 v4.2.0
-	istio.io/client-go v1.31.0-alpha.1.0.20260824143355-0aa53649fd67
-	istio.io/istio v0.0.0-20260826045515-aed8285f99f5
+	istio.io/client-go v1.31.0-alpha.1.0.20260827144400-25b5d989d542
+	istio.io/istio v0.0.0-20260831153655-102b69cd5a7a
 	k8s.io/api v0.36.4
 	k8s.io/apiextensions-apiserver v0.36.4
 	k8s.io/apimachinery v0.36.4
 	k8s.io/cli-runtime v0.36.0
 	k8s.io/client-go v0.36.4
+	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/yaml v1.6.0
 )
@@ -171,14 +172,13 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	istio.io/api v1.31.0-alpha.1.0.20260824142755-83e8d3723b2f // indirect
+	istio.io/api v1.31.0-alpha.1.0.20260827143759-ff3bec58c3ca // indirect
 	k8s.io/apiserver v0.36.4 // indirect
 	k8s.io/component-base v0.36.4 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260821135717-be32def86098 // indirect
 	k8s.io/kubectl v0.36.0 // indirect
 	k8s.io/streaming v0.36.4 // indirect
-	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3 // indirect
 	oras.land/oras-go/v2 v2.6.0 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.34.0 // indirect
 	sigs.k8s.io/controller-tools v0.14.0 // indirect
