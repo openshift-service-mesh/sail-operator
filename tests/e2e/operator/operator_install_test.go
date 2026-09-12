@@ -43,6 +43,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -213,8 +214,8 @@ spec:
 	// These tests verify the operator's TLS behavior when the APIServer TLS settings change.
 	// The first test runs on all OpenShift clusters; the second requires OpenShift >= 4.22
 	// because the TLSAdherence field was introduced in 4.22.
-	// NOTE: Running this test may have side effects such as setting feature gates on OpenShift.
 	Describe("TLS profile change", Label("tls-profile"), func() {
+		Log("NOTE: Running this test may have IRREVERSIBLE side effects such as setting feature gates on OpenShift.")
 		var ocpMinorVersion int
 		var ocpMajorVersion int
 
@@ -231,6 +232,21 @@ spec:
 			Expect(infraErr).NotTo(HaveOccurred(), "Failed to get Infrastructure resource")
 			if infra.Status.ControlPlaneTopology == configv1.ExternalTopologyMode {
 				Skip("Skipping TLS profile tests on hosted cluster: APIServer resource is read-only on hosted clusters")
+			}
+
+			// The TLS profile tests must update the cluster-scoped APIServer resource. Rather than
+			// enumerate cluster flavors, probe writability directly: perform a no-op server-side
+			// dry-run update and skip if admission rejects it. This covers managed clusters (e.g.
+			// ROSA/OSD, whose Red Hat SRE webhooks forbid the write) and any other case where the
+			// resource is not manageable, without persisting any change.
+			Step("Checking whether the APIServer resource is writable")
+			apiServerProbe := &configv1.APIServer{}
+			Expect(cl.Get(ctx, apiServerKey, apiServerProbe)).To(Succeed(), "Failed to get APIServer")
+			if probeErr := cl.Update(ctx, apiServerProbe, client.DryRunAll); probeErr != nil {
+				if apierrors.IsForbidden(probeErr) {
+					Skip("Skipping TLS profile tests: the APIServer resource is not writable on this cluster: " + probeErr.Error())
+				}
+				Expect(probeErr).NotTo(HaveOccurred(), "Unexpected error while probing APIServer writability")
 			}
 
 			Step("Determining OpenShift version")
