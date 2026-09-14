@@ -58,7 +58,7 @@ func NewPrometheusRuleSpec() *monitoringv1.PrometheusRuleSpec {
 // createOperatorTotalRecordingRule create a recording rule for all OSSM 3.x versions
 func createOperatorTotalRecordingRule(metricName string) monitoringv1.Rule {
 	return monitoringv1.Rule{
-		Record: fmt.Sprintf("app.kubernetes.io/version:%s:sum", metricName),
+		Record: metricName,
 		Expr:   intstr.FromString(fmt.Sprintf("sum(%s) by (app.kubernetes.io/version)", metricName)),
 	}
 }

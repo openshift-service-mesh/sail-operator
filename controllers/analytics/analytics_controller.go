@@ -23,12 +23,11 @@ import (
 	"github.com/istio-ecosystem/sail-operator/pkg/analytics"
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	"github.com/istio-ecosystem/sail-operator/pkg/constants"
-	"github.com/istio-ecosystem/sail-operator/pkg/enqueuelogger"
-	"github.com/istio-ecosystem/sail-operator/pkg/revision"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,6 +42,11 @@ import (
 )
 
 const namespace = "openshift-operators"
+
+// MetricRecordingHandler wraps a standard handler to record metrics on incoming events
+type MetricRecordingHandler struct {
+	Next handler.EventHandler
+}
 
 // Reconciler reconciles operator analytics metrics.
 type Reconciler struct {
@@ -59,6 +63,94 @@ func NewReconciler(cfg config.ReconcilerConfig, client client.Client, scheme *ru
 	}
 }
 
+func (m *MetricRecordingHandler) Create(ctx context.Context, e event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	m.recordMetric("create", e.Object)
+	m.Next.Create(ctx, e, q)
+}
+
+func (m *MetricRecordingHandler) Update(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	m.recordMetric("update", e.ObjectNew)
+	m.Next.Update(ctx, e, q)
+}
+
+func (m *MetricRecordingHandler) Delete(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	m.recordMetric("delete", e.Object)
+	m.Next.Delete(ctx, e, q)
+}
+
+func (m *MetricRecordingHandler) Generic(ctx context.Context, e event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+	m.recordMetric("generic", e.Object)
+	m.Next.Generic(ctx, e, q)
+}
+
+func (m *MetricRecordingHandler) recordMetric(eventType string, obj client.Object) {
+	if obj == nil {
+		return
+	}
+
+	switch eventType {
+	case "create":
+		switch resource := obj.(type) {
+		case *v1.Istio:
+			analytics.IstioVersionTotal.WithLabelValues(resource.Spec.Version).Inc()
+		case *v1.IstioRevision:
+			analytics.IstioVersionTotal.WithLabelValues(resource.Spec.Version).Inc()
+		case *v1.ZTunnel:
+			analytics.ZTunnelVersionTotal.WithLabelValues(resource.Spec.Version).Inc()
+		case *corev1.Namespace:
+			if sidecarNamespaceFilter(obj) {
+				analytics.SidecarNamespaceTotal.Inc()
+			}
+			if ambientNamespaceFilter(obj) {
+				analytics.AmbientNamespaceTotal.Inc()
+			}
+		default:
+			return
+		}
+
+	case "update":
+		switch resource := obj.(type) {
+		case *v1.Istio:
+			analytics.IstioVersionTotal.WithLabelValues(resource.Spec.Version).Inc()
+		case *v1.IstioRevision:
+			analytics.IstioVersionTotal.WithLabelValues(resource.Spec.Version).Inc()
+		case *v1.ZTunnel:
+			analytics.ZTunnelVersionTotal.WithLabelValues(resource.Spec.Version).Inc()
+		case *corev1.Namespace:
+			if sidecarNamespaceFilter(obj) {
+				analytics.SidecarNamespaceTotal.Inc()
+			}
+			if ambientNamespaceFilter(obj) {
+				analytics.AmbientNamespaceTotal.Inc()
+			}
+		default:
+			return
+		}
+
+	case "delete":
+		switch resource := obj.(type) {
+		case *v1.Istio:
+			analytics.IstioVersionTotal.WithLabelValues(resource.Spec.Version).Dec()
+		case *v1.IstioRevision:
+			analytics.IstioVersionTotal.WithLabelValues(resource.Spec.Version).Dec()
+		case *v1.ZTunnel:
+			analytics.ZTunnelVersionTotal.WithLabelValues(resource.Spec.Version).Dec()
+		case *corev1.Namespace:
+			if sidecarNamespaceFilter(obj) {
+				analytics.SidecarNamespaceTotal.Dec()
+			}
+			if ambientNamespaceFilter(obj) {
+				analytics.AmbientNamespaceTotal.Dec()
+			}
+		default:
+			return
+		}
+
+	default:
+		return
+	}
+}
+
 // +kubebuilder:rbac:groups=sailoperator.io,resources=istios,verbs=get;list;watch
 // +kubebuilder:rbac:groups=sailoperator.io,resources=istiorevisions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=sailoperator.io,resources=istiorevisiontags,verbs=get;list;watch
@@ -66,11 +158,7 @@ func NewReconciler(cfg config.ReconcilerConfig, client client.Client, scheme *ru
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;create;update;delete
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheusrules,verbs=get;list;create;update;delete
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
+// Reconcile implements the reconcile loop for ServiceMonitor and PrometheusRule resources
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
@@ -122,46 +210,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	// Fetch the Istio instance
-	istioList := &v1.IstioList{}
-	if err := r.List(ctx, istioList); err != nil {
-		if apierrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		log.Error(err, "Failed to list Istio resource")
-		return ctrl.Result{}, nil
-	}
-
-	for _, istio := range istioList.Items {
-		analytics.IstioVersionTotal.WithLabelValues(istio.Spec.Version).Inc()
-
-		// Check if a ServiceMonitor already exists in istiod control plane namespace, if not create a new one
-		foundMonitor := &monitoringv1.ServiceMonitor{}
-		if err := r.Get(ctx, types.NamespacedName{Name: analytics.IstiodMonitorName, Namespace: istio.Namespace}, foundMonitor); err != nil {
-			if apierrors.IsNotFound(err) {
-				serviceMonitor := analytics.NewIstiodServiceMonitor(namespace)
-				if err := r.Create(ctx, serviceMonitor); err != nil {
-					log.Error(err, "Failed to create istiod ServiceMonitor")
-					return ctrl.Result{}, nil
-				}
-			}
-		}
-	}
-
-	// Fetch the ZTunnel instance
-	ztunnelList := &v1.ZTunnelList{}
-	if err := r.List(ctx, ztunnelList); err != nil {
-		if apierrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		log.Error(err, "Failed to list ZTunnel resource")
-		return ctrl.Result{}, nil
-	}
-
-	for _, ztunnel := range ztunnelList.Items {
-		analytics.ZTunnelVersionTotal.WithLabelValues(ztunnel.Spec.Version).Inc()
-	}
-
 	return ctrl.Result{}, nil
 }
 
@@ -169,19 +217,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	logger := mgr.GetLogger().WithName("ctrlr").WithName("analytics")
 
-	// mainObjectHandler handles the IstioRevision watch events
-	mainObjectHandler := wrapEventHandler(logger, &handler.EnqueueRequestForObject{})
+	// baseHandler creates the base enqueue handler
+	baseHandler := &handler.EnqueueRequestForObject{}
 
-	// ownedResourceHandler handles resources that are owned by the IstioRevision CR
-	ownedResourceHandler := wrapEventHandler(logger,
-		handler.EnqueueRequestForOwner(r.Scheme, r.RESTMapper(), &v1.Istio{}, handler.OnlyControllerOwner()))
-
-	// nsHandler triggers reconciliation in two cases:
-	// - when a namespace that is configured with the label `istio-injection=enabled`
-	// - when a namespace that is configured with a label `istio.io/rev`
-	nsHandler := wrapEventHandler(logger, handler.EnqueueRequestsFromMapFunc(r.mapNamespaceToReconcileRequest))
-
-	ztunnelHandler := wrapEventHandler(logger, handler.EnqueueRequestsFromMapFunc(r.mapZTunnelToReconcileRequests))
+	// metricHandler wraps the baseHandler
+	metricHandler := &MetricRecordingHandler{
+		Next: baseHandler,
+	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		WithOptions(controller.Options{
@@ -194,84 +236,63 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 			MaxConcurrentReconciles: r.Config.MaxConcurrentReconciles,
 		}).
-		Watches(&v1.Istio{}, mainObjectHandler).
-		Watches(&v1.IstioRevision{}, ownedResourceHandler).
-		Watches(&v1.ZTunnel{}, ztunnelHandler).
-		Watches(&corev1.Namespace{},
-			nsHandler, builder.WithPredicates(sidecarInjectionNamespacePredicate())).
+		Watches(&v1.Istio{}, metricHandler).
+		Watches(&v1.IstioRevision{}, metricHandler).
+		Watches(&v1.ZTunnel{}, metricHandler).
+		Watches(&corev1.Namespace{}, metricHandler,
+			builder.WithPredicates(namespaceLabelPredicate())).
 		Owns(&monitoringv1.ServiceMonitor{}).
 		Owns(&monitoringv1.PrometheusRule{}).
 		Complete(r)
 }
 
-// mapNamespaceToReconcileRequest takes a Namespace event and returns reconcile requests when matching predicate
-func (r *Reconciler) mapNamespaceToReconcileRequest(ctx context.Context, obj client.Object) []reconcile.Request {
-	_, ok := obj.(*corev1.Namespace)
-	if !ok {
-		return nil
+// sidecarNamespaceFilter filters objects where the namespace has Istio sidecar injection label and value
+func sidecarNamespaceFilter(obj client.Object) bool {
+	if obj == nil {
+		return false
 	}
-
-	return []reconcile.Request{{}}
-}
-
-// sidecarInjectionNamespacePredicate returns a predicate that filters namespace events
-// to those where istio-injection or istio.io/rev labels are added or changed.
-func sidecarInjectionNamespacePredicate() predicate.Funcs {
-	injectionLabelState := func(obj client.Object) bool {
-		if obj == nil {
-			return false
-		}
-		labels := obj.GetLabels()
-		if labels == nil {
-			return false
-		}
-		if labels[constants.IstioInjectionLabel] == "" && labels[constants.IstioRevLabel] == "" {
-			return false
-		}
-		if labels[constants.IstioInjectionLabel] == "disabled" {
-			return false
-		}
+	labels := obj.GetLabels()
+	if labels == nil {
+		return false
+	}
+	if labels[constants.IstioInjectionLabel] == "" && labels[constants.IstioRevLabel] == "" {
+		return false
+	}
+	// istio-injection label takes precedence over istio.io/rev
+	if labels[constants.IstioInjectionLabel] == "disabled" {
+		return false
+	}
+	if labels[constants.IstioInjectionLabel] == "enabled" {
 		return true
 	}
-
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			return injectionLabelState(e.Object)
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			return injectionLabelState(e.ObjectOld) != injectionLabelState(e.ObjectNew)
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			return injectionLabelState(e.Object)
-		},
-		GenericFunc: func(e event.GenericEvent) bool {
-			return injectionLabelState(e.Object)
-		},
-	}
+	return true
 }
 
-// ambientNamespacePredicate returns a predicate that filters namespace events
-// to those where istio.io/dataplane-mode, istio.io/use-waypoint or istio.io/ingress-use-waypoint labels
-// are added or changed.
-func ambientNamespacePredicate() predicate.Funcs {
-	return predicate.Funcs{}
+// ambientNamespaceFilter filters objects where the namespace has Istio Ambient mode label and value:
+// istio.io/dataplane-mode, istio.io/use-waypoint or istio.io/ingress-use-waypoint
+func ambientNamespaceFilter(obj client.Object) bool {
+	if obj == nil {
+		return false
+	}
+	labels := obj.GetLabels()
+	if labels == nil {
+		return false
+	}
+	if labels["istio.io/dataplane-mode"] == "ambient" {
+		return true
+	}
+	if labels["istio.io/use-waypoint"] != "" && labels["istio.io/use-waypoint"] != "none" {
+		return true
+	}
+	if labels["istio.io/ingress-use-waypoint"] == "true" {
+		return true
+	}
+	return false
 }
 
-// mapZTunnelToReconcileRequests returns reconcile requests for all IstioRevisions that depend on ZTunnel
-func (r *Reconciler) mapZTunnelToReconcileRequests(ctx context.Context, _ client.Object) []reconcile.Request {
-	list := v1.IstioRevisionList{}
-	if err := r.Client.List(ctx, &list); err != nil {
-		return nil
-	}
-	var reqs []reconcile.Request
-	for _, rev := range list.Items {
-		if revision.DependsOnZTunnel(&rev, r.Config) {
-			reqs = append(reqs, reconcile.Request{NamespacedName: types.NamespacedName{Name: rev.Name}})
-		}
-	}
-	return reqs
-}
-
-func wrapEventHandler(logger logr.Logger, handler handler.EventHandler) handler.EventHandler {
-	return enqueuelogger.WrapIfNecessary("analytics", logger, handler)
+// namespaceLabelPredicate filters objects where the namespace has Istio sidecar injection or Ambient mode label and value
+func namespaceLabelPredicate() predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		return sidecarNamespaceFilter(obj) || ambientNamespaceFilter(obj)
+	})
 }

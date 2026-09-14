@@ -36,6 +36,7 @@ func NewOperatorServiceMonitor(namespace string) *monitoringv1.ServiceMonitor {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      OperatorMonitorName,
 			Namespace: namespace,
+			Annotations: map[string]string{"operator.prometheus.io/controller-id": "openshift-user-workload-monitoring/prometheus-operator"},
 		},
 		Spec: *NewOperatorServiceMonitorSpec(),
 	}
@@ -64,6 +65,7 @@ func NewIstiodServiceMonitor(namespace string) *monitoringv1.ServiceMonitor {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      IstiodMonitorName,
 			Namespace: namespace,
+			Annotations: map[string]string{"operator.prometheus.io/controller-id": "openshift-user-workload-monitoring/prometheus-operator"},
 		},
 		Spec: *NewIstiodServiceMonitorSpec(),
 	}
