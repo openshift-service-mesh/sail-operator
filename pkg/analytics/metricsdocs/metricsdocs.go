@@ -30,8 +30,10 @@ func main() {
 	})
 
 	tmpl, err := template.New("OSSM Operator Metrics").Parse("# OSSM Operator Metrics\n" +
-		"This document describes the custom telemetry metrics for the OSSM operator and CRD usage. It aims to provide a list of those metrics that are collected and exposed by the operator.\n\n" +
-		"The following section outlines the usage and limitations on metric counts and cardinality. The last section provides a development guide about how to add additional metrics for new functionalities.\n\n" +
+		"This document describes the custom telemetry metrics for the OSSM operator and CRD usage." +
+		"It aims to provide a list of those metrics that are collected and exposed by the operator.\n\n" +
+		"The following section outlines the usage and limitations on metric counts and cardinality." +
+		"The last section provides a development guide about how to add additional metrics for new functionalities.\n\n" +
 		"## OSSM Operator Custom Metrics List" +
 		"{{range .}}\n" +
 		"### {{.Name}}\n" +

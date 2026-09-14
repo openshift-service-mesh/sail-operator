@@ -22,7 +22,7 @@ import (
 	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 	"github.com/istio-ecosystem/sail-operator/pkg/analytics"
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
-	"github.com/istio-ecosystem/sail-operator/pkg/constants"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,8 +37,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 )
 
 const namespace = "openshift-operators"
@@ -255,14 +253,14 @@ func sidecarNamespaceFilter(obj client.Object) bool {
 	if labels == nil {
 		return false
 	}
-	if labels[constants.IstioInjectionLabel] == "" && labels[constants.IstioRevLabel] == "" {
+	if labels["istio-injection"] == "" && labels["istio.io/rev"] == "" {
 		return false
 	}
 	// istio-injection label takes precedence over istio.io/rev
-	if labels[constants.IstioInjectionLabel] == "disabled" {
+	if labels["istio-injection"] == "disabled" {
 		return false
 	}
-	if labels[constants.IstioInjectionLabel] == "enabled" {
+	if labels["istio-injection"] == "enabled" {
 		return true
 	}
 	return true

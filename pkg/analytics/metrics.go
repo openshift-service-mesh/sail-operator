@@ -60,9 +60,9 @@ var metricDescription = map[string]MetricDescription{
 		Type: "Gauge",
 	},
 
-	//TODO: Add Multi-cluster mesh metrics
+	// TODO: Add Multi-cluster mesh metrics
 
-	//TODO: Add External VM metrics
+	// TODO: Add External VM metrics
 }
 
 var (
@@ -80,7 +80,7 @@ var (
 			Name: metricDescription["SidecarProxyVersionTotal"].Name,
 			Help: metricDescription["SidecarProxyVersionTotal"].Help,
 		},
-		[]string{"app.kubernetes.io/version",},
+		[]string{"app.kubernetes.io/version"},
 	)
 	// SidecarNamespaceTotal will count how many namespaces were enabled in Istio sidecar mode.
 	SidecarNamespaceTotal = prometheus.NewGauge(
@@ -135,4 +135,3 @@ func ListMetrics() []MetricDescription {
 
 	return v
 }
-

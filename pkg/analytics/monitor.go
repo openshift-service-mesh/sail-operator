@@ -15,8 +15,6 @@
 package analytics
 
 import (
-	"time"
-
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -34,8 +32,8 @@ func NewOperatorServiceMonitor(namespace string) *monitoringv1.ServiceMonitor {
 			Kind:       "ServiceMonitor",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      OperatorMonitorName,
-			Namespace: namespace,
+			Name:        OperatorMonitorName,
+			Namespace:   namespace,
 			Annotations: map[string]string{"operator.prometheus.io/controller-id": "openshift-user-workload-monitoring/prometheus-operator"},
 		},
 		Spec: *NewOperatorServiceMonitorSpec(),
@@ -49,7 +47,6 @@ func NewOperatorServiceMonitorSpec() *monitoringv1.ServiceMonitorSpec {
 			BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
 			Path:            "/metrics",
 			Port:            "https",
-			Interval:        monitoringv1.Duration(15 * time.Second),
 		}},
 		Selector: metav1.LabelSelector{MatchLabels: map[string]string{"control-plane": "servicemesh-operator3"}},
 	}
@@ -63,8 +60,8 @@ func NewIstiodServiceMonitor(namespace string) *monitoringv1.ServiceMonitor {
 			Kind:       "ServiceMonitor",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      IstiodMonitorName,
-			Namespace: namespace,
+			Name:        IstiodMonitorName,
+			Namespace:   namespace,
 			Annotations: map[string]string{"operator.prometheus.io/controller-id": "openshift-user-workload-monitoring/prometheus-operator"},
 		},
 		Spec: *NewIstiodServiceMonitorSpec(),
@@ -75,9 +72,8 @@ func NewIstiodServiceMonitor(namespace string) *monitoringv1.ServiceMonitor {
 func NewIstiodServiceMonitorSpec() *monitoringv1.ServiceMonitorSpec {
 	return &monitoringv1.ServiceMonitorSpec{
 		Endpoints: []monitoringv1.Endpoint{{
-			Path:     "/metrics",
-			Port:     "http-monitoring",
-			Interval: monitoringv1.Duration(15 * time.Second),
+			Path: "/metrics",
+			Port: "http-monitoring",
 		}},
 		Selector: metav1.LabelSelector{MatchLabels: map[string]string{"istio": "pilot"}},
 	}
