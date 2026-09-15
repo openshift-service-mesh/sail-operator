@@ -786,6 +786,17 @@ spec:
                 - get
                 - patch
                 - update
+            - apiGroups:
+                - monitoring.coreos.com
+              resources:
+                - servicemonitors
+                - podmonitors
+                - prometheusrules
+              verbs:
+                - create
+                - delete
+                - get
+                - list
           serviceAccountName: servicemesh-operator3
       deployments:
         - label:
