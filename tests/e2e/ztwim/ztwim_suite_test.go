@@ -64,12 +64,6 @@ func TestZTWIM(t *testing.T) {
 		t.Skip("Skipping test: ZTWIM is only supported on OpenShift (OCP)")
 	}
 
-	// TODO: remove this validation once the ZTWIN operator supports ARM architecture
-	// Currently the spire-spiffe-csi-driver pod has an init container that fails on ARM architecture, which causes this test to fails.
-	if isARMArchitecture() {
-		t.Skip("Skipping test on ARM architecture")
-	}
-
 	RegisterFailHandler(Fail)
 	setup()
 	RunSpecs(t, "Zero Trust Workload Identity Manager Test Suite")
