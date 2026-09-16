@@ -17,6 +17,9 @@ package analytics
 import (
 	"context"
 
+	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
+	"github.com/istio-ecosystem/sail-operator/pkg/analytics"
+	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -30,10 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
-	"github.com/istio-ecosystem/sail-operator/pkg/analytics"
-	"github.com/istio-ecosystem/sail-operator/pkg/config"
 )
 
 // MockEventHandler records calls delegated by MetricRecordingHandler
