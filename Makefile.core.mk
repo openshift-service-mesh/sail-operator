@@ -856,3 +856,9 @@ COMMON_IMPORTS ?= mirror-licenses dump-licenses lint-all lint-licenses lint-scri
 .PHONY: $(COMMON_IMPORTS)
 $(COMMON_IMPORTS):
 	@$(MAKE) --no-print-directory -f common/Makefile.common.mk $@
+
+##@ Generate the metrics documentation
+.PHONY: generate-metricsdocs
+generate-metricsdocs:
+	mkdir -p $(shell pwd)/docs/ossm/ossm-monitoring
+	go run -ldflags="${LDFLAGS}" ./pkg/analytics/metricsdocs > docs/ossm/ossm-monitoring/metrics.md
