@@ -153,6 +153,7 @@ func (r *Reconciler) newIstiodReconciler() *sharedreconcile.IstiodReconciler {
 	return sharedreconcile.NewIstiodReconciler(sharedreconcile.Config{
 		ResourceFS:        r.Config.ResourceFS,
 		Platform:          r.Config.Platform,
+		OCPVersion:        r.Config.OCPVersion,
 		DefaultProfile:    r.Config.DefaultProfile,
 		OperatorNamespace: r.Config.OperatorNamespace,
 		ChartManager:      r.ChartManager,
@@ -191,6 +192,8 @@ func (r *Reconciler) validateNoTagConflict(ctx context.Context, rev *v1.IstioRev
 		if validation.ResourceTakesPrecedence(&tag.ObjectMeta, &rev.ObjectMeta) {
 			return reconciler.NewNameAlreadyExistsError("an IstioRevisionTag exists with this name", nil)
 		}
+	} else if !apierrors.IsNotFound(err) {
+		return err
 	}
 	return nil
 }
