@@ -29,6 +29,10 @@ UPDATE_BRANCH=${UPDATE_BRANCH:-"master"}
 PIN_MINOR=${PIN_MINOR:-false}
 # When true, skip Istio module updates (istio.io/istio and istio.io/client-go), do not add new Istio versions and only update tools
 TOOLS_ONLY=${TOOLS_ONLY:-false}
+# When true, mirror the operand images of any newly added Istio version before the manifests
+# that reference them are generated. Off by default because it requires push credentials for
+# the mirror; the update-deps workflow sets it to true.
+MIRROR_IMAGES=${MIRROR_IMAGES:-false}
 
 SCRIPTPATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ROOTDIR=$(dirname "${SCRIPTPATH}")
@@ -122,6 +126,15 @@ if [[ "${UPDATE_BRANCH}" == "master" ]]; then
   echo "Updated build-tools image in update-deps.yaml and update-eol-versions.yaml"
 else
   echo "Skipping build-tools image update (UPDATE_BRANCH is not master)"
+fi
+
+# Update the pinned Dockerfile base image digest (keeps registry.access.redhat.com/ubi10/ubi:latest pinned by digest)
+if command -v crane >/dev/null 2>&1; then
+  UBI_LATEST_DIGEST=$(crane digest registry.access.redhat.com/ubi10/ubi:latest)
+  "$SED_CMD" -i "s|registry.access.redhat.com/ubi10/ubi@sha256:[a-f0-9]*|registry.access.redhat.com/ubi10/ubi@${UBI_LATEST_DIGEST}|" "${ROOTDIR}/Dockerfile"
+  echo "Updated Dockerfile base image digest to ${UBI_LATEST_DIGEST}"
+else
+  echo "WARNING: crane is not installed. Skipping Dockerfile base image digest update."
 fi
 
 # Update go dependencies
@@ -244,7 +257,18 @@ fi
 
 # Regenerate files
 if [[ "${TOOLS_ONLY}" != "true" ]]; then
-  make update-istio gen
+  make update-istio
+
+  # Mirror the operand images between adding the new Istio version and generating the
+  # manifests that point at them. Istio stopped publishing to registry.istio.io as of
+  # 1.31 so the generated image references target the mirror.
+  if [[ "${MIRROR_IMAGES}" == "true" ]]; then
+    make mirror-istio-images
+  else
+    echo "Skipping image mirroring (MIRROR_IMAGES=false)"
+  fi
+
+  make gen
 else
   echo "Skipping 'make update-istio' (TOOLS_ONLY=true), running 'make gen' only"
   make gen
