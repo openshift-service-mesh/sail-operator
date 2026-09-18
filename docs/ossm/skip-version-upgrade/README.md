@@ -6,6 +6,8 @@ Normally, the operator and the mesh are upgraded one minor version at a time. Wi
 
 Skipping versions is **not** supported with the `InPlace` update strategy. With `InPlace` you must upgrade one minor version at a time and restart the workloads after each step.
 
+Skipping versions is supported only for sidecar mode. In ambient mode, upgrade one minor version at a time.
+
 This document describes the procedure using an `IstioRevisionTag` named `default`. The tag is a stable alias for the control plane revision, so the workload namespaces keep the same injection label for the whole upgrade and only the deployments have to be restarted.
 
 ## Table of Contents
@@ -199,6 +201,7 @@ The upgrade is complete.
 
 - Only one operator minor version can be skipped (`n-2` to `n`). To move further, repeat the whole procedure.
 - Skipping versions requires the `RevisionBased` update strategy. With `InPlace`, upgrade one minor version at a time.
+- Skipping versions is supported only for sidecar mode. Meshes using ambient mode must be upgraded one minor version at a time.
 - To reduce the risk of interruptions, avoid adding workloads to the mesh or removing them from it during the upgrade procedure.
 - Review the release notes of the versions you skip. Their behavioral changes, deprecations, and removals still apply to your configuration.
 - Increase `spec.updateStrategy.inactiveRevisionDeletionGracePeriodSeconds` if you want more time to validate the new control plane before the old revision is removed.
