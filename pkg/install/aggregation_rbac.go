@@ -88,7 +88,9 @@ func reconcileAggregationClusterRoles(ctx context.Context, cl client.Client, cm 
 		return nil
 	}
 
-	crds, err := cm.loadCRDsMatching(Options{IncludeAllCRDs: true}, aggregatableCRD)
+	// The library only installs Istio CRDs. Sail Operator CRDs are installed by
+	// the operator's OLM path and must not be included in library-managed RBAC.
+	crds, err := cm.loadCRDsMatching(Options{IncludeAllCRDs: true}, istioCRD)
 	if err != nil {
 		return fmt.Errorf("failed to load Istio CRDs: %w", err)
 	}
