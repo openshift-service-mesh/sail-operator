@@ -18,6 +18,9 @@ This document describes the procedure using an `IstioRevisionTag` named `default
   - [2. Update the Istio control plane](#2-update-the-istio-control-plane)
   - [3. Restart the workloads](#3-restart-the-workloads)
   - [4. Update IstioCNI](#4-update-istiocni)
+- [Rollback](#rollback)
+  - [The operator is not downgraded](#the-operator-is-not-downgraded)
+  - [Rollback procedure](#rollback-procedure)
 - [Notes and limitations](#notes-and-limitations)
 
 ## Prerequisites
@@ -163,6 +166,12 @@ Confirm that the proxies are connected to the new control plane. The `VERSION` c
 $ istioctl proxy-status
 ```
 
+**Note:** newer `istioctl` versions may require the revision to be named explicitly while more than one control plane is running. If the output is empty or lists only part of the proxies, repeat the command for each revision:
+
+```bash
+$ istioctl proxy-status --istioNamespace istio-system --revision default-v1-27-9
+```
+
 Once no proxy uses the old revision, the old `IstioRevision` is no longer in use and is deleted after the grace period defined by `spec.updateStrategy.inactiveRevisionDeletionGracePeriodSeconds` (30 seconds by default):
 
 ```bash
@@ -197,6 +206,124 @@ default   True    Healthy   v1.27.9   38m
 
 The upgrade is complete.
 
+## Rollback
+
+If the new version does not behave as expected, you can move the mesh back to the version you upgraded from. The rollback covers the operands only:
+
+- the control plane, by setting `spec.version` of the `Istio` resource back,
+- the data plane, by restarting the workloads so that the proxies are replaced with the older proxy version,
+- the CNI plugin, by setting `spec.version` of the `IstioCNI` resource back.
+
+The operator itself stays on the new version.
+
+### The operator is not downgraded
+
+OLM does not support downgrading an installed operator: the subscription cannot be moved to a channel that is older than the current one. For details, see the "Updating installed Operators" section of the OpenShift Container Platform documentation.
+
+The state you end up in after a rollback is therefore the new operator reconciling the operands of the older version: an older `Istio`, `IstioCNI`, and data plane kept running by a newer operator. This is a transitional state meant for the duration of the upgrade window, not a configuration to stay on. Fix whatever made you roll back and move the mesh to the latest version the installed operator offers as soon as possible.
+
+### Rollback procedure
+
+The rollback walks the upgrade backwards, so the steps are those of the upgrade in reverse order. The only step that changes its place is `IstioCNI`: during the upgrade it is updated after the workload restart, during the rollback it is moved first. As a result, the CNI plugin is never newer than the control plane at any point, in either direction.
+
+The example below rolls the mesh back from Istio `1.27.9` to `1.24.6`, the version used before the upgrade.
+
+#### 1. Roll back IstioCNI
+
+```bash
+$ oc patch istiocni default -n istio-cni --type='merge' -p '{"spec":{"version":"v1.24.6"}}'
+```
+
+Wait until the `DaemonSet` has rolled out and the resource is ready again:
+
+```bash
+$ oc get istiocni default
+```
+
+```console
+NAME      READY   STATUS    VERSION   AGE
+default   True    Healthy   v1.24.6   52m
+```
+
+#### 2. Roll back the Istio control plane
+
+```bash
+$ oc patch istio default --type='merge' -p '{"spec":{"version":"v1.24.6"}}'
+```
+
+The operator deploys the older control plane next to the current one. Revision names are derived from the `Istio` resource name and the version, so the revision name that was used before the upgrade is recreated.
+
+Confirm that the `Istio` resource reconciled and that the older revision is the active one:
+
+```bash
+$ oc get istio default
+```
+
+```console
+NAME      REVISIONS   READY   IN USE   ACTIVE REVISION   STATUS    VERSION   AGE
+default   2           2       2        default-v1-24-6   Healthy   v1.24.6   57m
+```
+
+Confirm that both revisions are healthy:
+
+```bash
+$ oc get istiorevisions
+```
+
+```console
+NAME              TYPE    READY   STATUS    IN USE   VERSION   AGE
+default-v1-24-6   Local   True    Healthy   True     v1.24.6   40s
+default-v1-27-9   Local   True    Healthy   True     v1.27.9   21m
+```
+
+#### 3. Wait for the IstioRevisionTag to follow
+
+The operator repoints the `default` tag at the older revision:
+
+```bash
+$ oc get istiorevisiontags
+```
+
+```console
+NAME      STATUS    IN USE   REVISION          AGE
+default   Healthy   True     default-v1-24-6   56m
+```
+
+#### 4. Restart the workloads
+
+This is the step that rolls the data plane back. Restarting the deployments replaces the proxies with the older proxy version and connects them to the older control plane:
+
+```bash
+$ oc rollout restart deployment -n bookinfo
+```
+
+Confirm that all proxies reconnected and that the `VERSION` column shows the older version:
+
+```bash
+$ istioctl proxy-status
+```
+
+As during the upgrade, newer `istioctl` versions may require the revision to be named explicitly while both control planes are still running:
+
+```bash
+$ istioctl proxy-status --istioNamespace istio-system --revision default-v1-24-6
+```
+
+#### 5. Wait until the newer revision is removed
+
+Once no proxy uses it, the revision you rolled back from is deleted after the grace period defined by `spec.updateStrategy.inactiveRevisionDeletionGracePeriodSeconds`:
+
+```bash
+$ oc get istiorevisions
+```
+
+```console
+NAME              TYPE    READY   STATUS    IN USE   VERSION   AGE
+default-v1-24-6   Local   True    Healthy   True     v1.24.6   7m
+```
+
+The rollback is complete. To move forward again, repeat the procedure from [2. Update the Istio control plane](#2-update-the-istio-control-plane); the operator subscription is already on the new channel.
+
 ## Notes and limitations
 
 - Only one operator minor version can be skipped (`n-2` to `n`). To move further, repeat the whole procedure.
@@ -205,5 +332,6 @@ The upgrade is complete.
 - To reduce the risk of interruptions, avoid adding workloads to the mesh or removing them from it during the upgrade procedure.
 - Review the release notes of the versions you skip. Their behavioral changes, deprecations, and removals still apply to your configuration.
 - Increase `spec.updateStrategy.inactiveRevisionDeletionGracePeriodSeconds` if you want more time to validate the new control plane before the old revision is removed.
+- A rollback moves the operands back only. The operator cannot be downgraded, see [Rollback](#rollback).
 
 For the general upgrade documentation, see [Versioning and upgrades](../versioning-and-upgrades/README.md).
