@@ -35,7 +35,8 @@ import (
 // The resourceFS parameter accepts any fs.FS implementation (embed.FS, os.DirFS, etc.).
 func ComputeValues(
 	userValues *v1.Values, namespace string, version string,
-	platform config.Platform, defaultProfile, userProfile string, resourceFS fs.FS,
+	platform config.Platform,
+	defaultProfile, userProfile string, resourceFS fs.FS,
 	activeRevisionName string, tlsConfig *config.TLSConfig,
 ) (*v1.Values, error) {
 	// apply image digests from configuration, if not already set by user
@@ -62,7 +63,9 @@ func ComputeValues(
 	istiovalues.ApplyTLSConfig(tlsConfig, version, values)
 
 	// apply FipsValues on top of merged values from profile
-	istiovalues.ApplyFipsValues(values)
+	if err := istiovalues.ApplyFipsValues(values, version); err != nil {
+		return nil, fmt.Errorf("failed to apply FIPS values: %w", err)
+	}
 
 	// override values that are not configurable by the user
 	istiovalues.ApplyOverrides(activeRevisionName, namespace, values)
