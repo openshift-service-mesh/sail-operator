@@ -66,7 +66,7 @@ spec:
           spec:
             default:
               namespace: ztunnel
-              version: v1.31.0-beta.1
+              version: v1.31.0
             description: ZTunnelSpec defines the desired state of ZTunnel
             properties:
               namespace:
@@ -104,6 +104,8 @@ spec:
                     properties:
                       defaultResources:
                         description: |-
+                          Default k8s resources settings for all Istio control plane components.
+
                           See https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container
 
                           Deprecated: Marked as deprecated in pkg/apis/values_types.proto.
@@ -201,6 +203,14 @@ spec:
                               The control plane has different scopes depending on component, but can configure default log level across all components
                               If empty, default scope and level will be used as configured in code
                             type: string
+                        type: object
+                      networkPolicy:
+                        description: Settings related to Kubernetes NetworkPolicy.
+                        properties:
+                          enabled:
+                            description: Controls whether default NetworkPolicy resources
+                              will be created.
+                            type: boolean
                         type: object
                       platform:
                         description: |-
@@ -3532,13 +3542,13 @@ spec:
                     type: object
                 type: object
               version:
-                default: v1.31.0-beta.1
+                default: v1.31.0
                 description: |-
                   Defines the version of Istio to install.
-                  Must be one of: v1.31-latest, v1.31.0-beta.1, v1.30-latest, v1.30.4, v1.30.3, v1.30.2, v1.30.1, v1.30.0, v1.29-latest, v1.29.7, v1.29.6, v1.29.5, v1.29.4, v1.29.3, v1.29.2, v1.29.1, v1.29.0, master, v1.32.0-alpha.102b69cd.
+                  Must be one of: v1.31-latest, v1.31.0, v1.30-latest, v1.30.4, v1.30.3, v1.30.2, v1.30.1, v1.30.0, v1.29-latest, v1.29.7, v1.29.6, v1.29.5, v1.29.4, v1.29.3, v1.29.2, v1.29.1, v1.29.0, master, v1.32.0-alpha.102b69cd.
                 enum:
                 - v1.31-latest
-                - v1.31.0-beta.1
+                - v1.31.0
                 - v1.30-latest
                 - v1.30.4
                 - v1.30.3
@@ -3715,7 +3725,7 @@ spec:
             default:
               namespace: ztunnel
               profile: ambient
-              version: v1.31.0-beta.1
+              version: v1.31.0
             description: ZTunnelSpec defines the desired state of ZTunnel
             properties:
               namespace:
@@ -3751,6 +3761,8 @@ spec:
                     properties:
                       defaultResources:
                         description: |-
+                          Default k8s resources settings for all Istio control plane components.
+
                           See https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container
 
                           Deprecated: Marked as deprecated in pkg/apis/values_types.proto.
@@ -3848,6 +3860,14 @@ spec:
                               The control plane has different scopes depending on component, but can configure default log level across all components
                               If empty, default scope and level will be used as configured in code
                             type: string
+                        type: object
+                      networkPolicy:
+                        description: Settings related to Kubernetes NetworkPolicy.
+                        properties:
+                          enabled:
+                            description: Controls whether default NetworkPolicy resources
+                              will be created.
+                            type: boolean
                         type: object
                       platform:
                         description: |-
@@ -7179,13 +7199,13 @@ spec:
                     type: object
                 type: object
               version:
-                default: v1.31.0-beta.1
+                default: v1.31.0
                 description: |-
                   Defines the version of Istio to install.
-                  Must be one of: v1.31-latest, v1.31.0-beta.1, v1.30-latest, v1.30.4, v1.30.3, v1.30.2, v1.30.1, v1.30.0, v1.29-latest, v1.29.7, v1.29.6, v1.29.5, v1.29.4, v1.29.3, v1.29.2, v1.29.1, v1.29.0, master, v1.32.0-alpha.102b69cd.
+                  Must be one of: v1.31-latest, v1.31.0, v1.30-latest, v1.30.4, v1.30.3, v1.30.2, v1.30.1, v1.30.0, v1.29-latest, v1.29.7, v1.29.6, v1.29.5, v1.29.4, v1.29.3, v1.29.2, v1.29.1, v1.29.0, master, v1.32.0-alpha.102b69cd.
                 enum:
                 - v1.31-latest
-                - v1.31.0-beta.1
+                - v1.31.0
                 - v1.30-latest
                 - v1.30.4
                 - v1.30.3

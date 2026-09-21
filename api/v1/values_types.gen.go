@@ -18,6 +18,7 @@ package v1
 
 import (
 	json "encoding/json"
+
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	k8sv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1593,6 +1594,8 @@ type CNIGlobalConfig struct { // Default k8s resources settings for all Istio co
 
 	// Specifies whether native nftables rules should be used instead of iptables rules for traffic redirection.
 	NativeNftables *bool `json:"nativeNftables,omitempty"`
+	// Settings related to Kubernetes NetworkPolicy.
+	NetworkPolicy *NetworkPolicyConfig `json:"networkPolicy,omitempty"`
 }
 
 // Resource describes the source of configuration
