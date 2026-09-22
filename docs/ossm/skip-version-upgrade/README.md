@@ -41,7 +41,7 @@ This document describes the procedure using an `IstioRevisionTag` named `default
       type: RevisionBased
   ```
 
-- An `IstioRevisionTag` named `default` whose `targetRef` references the `Istio` resource. Because the tag references the `Istio` resource rather than a single `IstioRevision`, the operator repoints the tag for you when the underlying revision changes, and you only need to restart your deployments to get the new proxies injected. A tag named `default` also enables the legacy `istio-injection=enabled` label in addition to `istio.io/rev=default`; the `istio-injection` label can only be used with revisions and revision tags named `default`. If you prefer to control the switch yourself, set `targetRef` to an `IstioRevision` instead and update the tag manually when you want the workloads to move.
+- An `IstioRevisionTag` named `default` whose `targetRef` references the `Istio` resource. Because the tag references the `Istio` resource rather than a single `IstioRevision`, the operator repoints the tag for you when the underlying revision changes, and you only need to restart your deployments to get the new proxies injected. A tag named `default` also enables the legacy `istio-injection=enabled` label in addition to `istio.io/rev=default`; the `istio-injection` label can only be used with revisions and revision tags named `default`. If you prefer to control the switch yourself, set `targetRef` to an `IstioRevision` instead and update the tag manually when you want the workloads to move. We are using a default tag to avoid a known issue with missing validating webhook - https://github.com/istio-ecosystem/sail-operator/issues/1889
 
   ```yaml
   apiVersion: sailoperator.io/v1
@@ -331,7 +331,10 @@ The rollback is complete. To move forward again, repeat the procedure from [2. U
 - Skipping versions is supported only for sidecar mode. Meshes using ambient mode must be upgraded one minor version at a time.
 - To reduce the risk of interruptions, avoid adding workloads to the mesh or removing them from it during the upgrade procedure.
 - Review the release notes of the versions you skip. Their behavioral changes, deprecations, and removals still apply to your configuration.
+- Review minimal required OCP version by the target Operator version
+- Review minimal required Gateway API CRDs version by target Istio version
 - Increase `spec.updateStrategy.inactiveRevisionDeletionGracePeriodSeconds` if you want more time to validate the new control plane before the old revision is removed.
 - A rollback moves the operands back only. The operator cannot be downgraded, see [Rollback](#rollback).
+- Known issue [istio/istio#61095](https://github.com/istio/istio/issues/61095): up to and including Istio 1.27, a gateway created with the Kubernetes Gateway API can stay on the old revision after the control plane is updated, because the new revision fails to reconcile it with a `PushContext not initialized` error and gives up. The gateway then serves no traffic. As a workaround, write to the `Gateway` resource, for example `oc annotate gateway <name> -n <namespace> --overwrite nudge="$(date +%s)"`, to make the new revision reconcile it again.
 
 For the general upgrade documentation, see [Versioning and upgrades](../versioning-and-upgrades/README.md).
