@@ -4,24 +4,20 @@
 
 Normally, the operator and the mesh are upgraded one minor version at a time. With the `RevisionBased` update strategy you can skip one operator minor version and upgrade directly from `n-2` to `n`, for example from OpenShift Service Mesh 3.0 to 3.2. This is possible because the old and the new control plane run side by side and the existing proxies stay attached to the old revision until you restart the workloads.
 
-Skipping versions is **not** supported with the `InPlace` update strategy. With `InPlace` you must upgrade one minor version at a time and restart the workloads after each step.
-
-Skipping versions is supported only for sidecar mode. In ambient mode, upgrade one minor version at a time.
-
 This document describes the procedure using an `IstioRevisionTag` named `default`. The tag is a stable alias for the control plane revision, so the workload namespaces keep the same injection label for the whole upgrade and only the deployments have to be restarted.
 
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
+- [Notes and limitations](#notes-and-limitations)
 - [Procedure](#procedure)
   - [1. Switch the operator subscription channel](#1-switch-the-operator-subscription-channel)
   - [2. Update the Istio control plane](#2-update-the-istio-control-plane)
   - [3. Restart the workloads](#3-restart-the-workloads)
   - [4. Update IstioCNI](#4-update-istiocni)
 - [Rollback](#rollback)
-  - [The operator is not downgraded](#the-operator-is-not-downgraded)
+  - [Operator downgrade limitations](#operator-downgrade-limitations)
   - [Rollback procedure](#rollback-procedure)
-- [Notes and limitations](#notes-and-limitations)
 
 ## Prerequisites
 
@@ -72,9 +68,24 @@ This document describes the procedure using an `IstioRevisionTag` named `default
   $ oc label namespace bookinfo istio-injection=enabled
   ```
 
-The examples below upgrade the operator from OpenShift Service Mesh 3.0 to 3.2 and the mesh from Istio `1.24.6`, the latest version available in 3.0, to Istio `1.27.9`, the latest version available in 3.2, using the `bookinfo` application in the `bookinfo` namespace. Substitute the versions that apply to your environment.
+## Notes and limitations
+
+Review the following limitations before you start:
+
+- Only one operator minor version can be skipped (`n-2` to `n`). To move further, repeat the whole procedure.
+- Skipping versions requires the `RevisionBased` update strategy. With `InPlace`, upgrade one minor version at a time and restart the workloads after each step.
+- Skipping versions is supported only for sidecar mode. Meshes using ambient mode must be upgraded one minor version at a time.
+- To reduce the risk of interruptions, avoid adding workloads to the mesh or removing them from it during the upgrade procedure.
+- Review the release notes of the versions you skip. Their behavioral changes, deprecations, and removals still apply to your configuration.
+- Review the minimum OpenShift Container Platform version required by the target operator version.
+- Review the minimum Gateway API CRD version required by the target Istio version.
+- Increase `spec.updateStrategy.inactiveRevisionDeletionGracePeriodSeconds` if you want more time to validate the new control plane before the old revision is removed.
+- A rollback moves the operands back only. The operator cannot be downgraded, see [Rollback](#rollback).
+- Known issue [istio/istio#61095](https://github.com/istio/istio/issues/61095): up to and including Istio 1.27, a gateway created with the Kubernetes Gateway API can stay on the old revision after the control plane is updated, because the new revision fails to reconcile it with a `PushContext not initialized` error and gives up. The gateway then serves no traffic. As a workaround, write to the `Gateway` resource, for example `oc annotate gateway <name> -n <namespace> --overwrite nudge="$(date +%s)"`, to make the new revision reconcile it again.
 
 ## Procedure
+
+The examples below upgrade the operator from OpenShift Service Mesh 3.0 to 3.2 and the mesh from Istio `1.24.6`, the latest version available in 3.0, to Istio `1.27.9`, the latest version available in 3.2, using the `bookinfo` application in the `bookinfo` namespace. Substitute the versions that apply to your environment.
 
 ### 1. Switch the operator subscription channel
 
@@ -113,13 +124,11 @@ Set `spec.version` of the `Istio` resource to the latest version available in th
 $ oc patch istio default --type='merge' -p '{"spec":{"version":"v1.27.9"}}'
 ```
 
-Alternatively, use the `v1.27-latest` alias instead of a specific patch version. The operator then keeps the control plane on the most recent `1.27` patch release available in the installed operator:
+**Note:** Alternatively, use the `v1.27-latest` alias instead of a specific patch version. The operator then keeps the control plane on the most recent `1.27` patch release available in the installed operator. With the `RevisionBased` strategy and an alias, every new patch release creates a new revision, so the workloads have to be restarted to move to it.
 
 ```bash
 $ oc patch istio default --type='merge' -p '{"spec":{"version":"v1.27-latest"}}'
 ```
-
-Note that with the `RevisionBased` strategy and an alias, every new patch release creates a new revision, so the workloads have to be restarted to move to it.
 
 The operator deploys a new control plane next to the existing one and moves the default `IstioRevisionTag` to the new revision automatically. Existing proxies stay connected to the old control plane until they are restarted.
 
@@ -216,7 +225,7 @@ If the new version does not behave as expected, you can move the mesh back to th
 
 The operator itself stays on the new version.
 
-### The operator is not downgraded
+### Operator downgrade limitations
 
 OLM does not support downgrading an installed operator: the subscription cannot be moved to a channel that is older than the current one. For details, see the "Updating installed Operators" section of the OpenShift Container Platform documentation.
 
@@ -323,18 +332,5 @@ default-v1-24-6   Local   True    Healthy   True     v1.24.6   7m
 ```
 
 The rollback is complete. To move forward again, repeat the procedure from [2. Update the Istio control plane](#2-update-the-istio-control-plane); the operator subscription is already on the new channel.
-
-## Notes and limitations
-
-- Only one operator minor version can be skipped (`n-2` to `n`). To move further, repeat the whole procedure.
-- Skipping versions requires the `RevisionBased` update strategy. With `InPlace`, upgrade one minor version at a time.
-- Skipping versions is supported only for sidecar mode. Meshes using ambient mode must be upgraded one minor version at a time.
-- To reduce the risk of interruptions, avoid adding workloads to the mesh or removing them from it during the upgrade procedure.
-- Review the release notes of the versions you skip. Their behavioral changes, deprecations, and removals still apply to your configuration.
-- Review minimal required OCP version by the target Operator version
-- Review minimal required Gateway API CRDs version by target Istio version
-- Increase `spec.updateStrategy.inactiveRevisionDeletionGracePeriodSeconds` if you want more time to validate the new control plane before the old revision is removed.
-- A rollback moves the operands back only. The operator cannot be downgraded, see [Rollback](#rollback).
-- Known issue [istio/istio#61095](https://github.com/istio/istio/issues/61095): up to and including Istio 1.27, a gateway created with the Kubernetes Gateway API can stay on the old revision after the control plane is updated, because the new revision fails to reconcile it with a `PushContext not initialized` error and gives up. The gateway then serves no traffic. As a workaround, write to the `Gateway` resource, for example `oc annotate gateway <name> -n <namespace> --overwrite nudge="$(date +%s)"`, to make the new revision reconcile it again.
 
 For the general upgrade documentation, see [Versioning and upgrades](../versioning-and-upgrades/README.md).
