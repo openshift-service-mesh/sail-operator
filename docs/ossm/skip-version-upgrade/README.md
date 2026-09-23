@@ -175,6 +175,16 @@ Confirm that the proxies are connected to the new control plane. The `VERSION` c
 $ istioctl proxy-status
 ```
 
+```console
+NAME                                       CLUSTER        CDS              LDS              EDS              RDS              ECDS        ISTIOD                                     VERSION
+details-v1-766844796b-2w7hv.bookinfo       Kubernetes     SYNCED (11s)     SYNCED (11s)     SYNCED (11s)     SYNCED (11s)     IGNORED     istiod-default-v1-27-9-5c8f7d6b49-qk4zt    1.27.9
+productpage-v1-54bb874995-9xnvd.bookinfo   Kubernetes     SYNCED (14s)     SYNCED (14s)     SYNCED (14s)     SYNCED (14s)     IGNORED     istiod-default-v1-27-9-5c8f7d6b49-qk4zt    1.27.9
+ratings-v1-5dc79b6bcd-7jr4c.bookinfo       Kubernetes     SYNCED (13s)     SYNCED (13s)     SYNCED (13s)     SYNCED (13s)     IGNORED     istiod-default-v1-27-9-5c8f7d6b49-qk4zt    1.27.9
+reviews-v1-598b896c9d-pk8mn.bookinfo       Kubernetes     SYNCED (12s)     SYNCED (12s)     SYNCED (12s)     SYNCED (12s)     IGNORED     istiod-default-v1-27-9-5c8f7d6b49-qk4zt    1.27.9
+reviews-v2-556d6457d-tz6sq.bookinfo        Kubernetes     SYNCED (12s)     SYNCED (12s)     SYNCED (12s)     SYNCED (12s)     IGNORED     istiod-default-v1-27-9-5c8f7d6b49-qk4zt    1.27.9
+reviews-v3-564544b4d6-lr8xh.bookinfo       Kubernetes     SYNCED (12s)     SYNCED (12s)     SYNCED (12s)     SYNCED (12s)     IGNORED     istiod-default-v1-27-9-5c8f7d6b49-qk4zt    1.27.9
+```
+
 **Note:** newer `istioctl` versions may require the revision to be named explicitly while more than one control plane is running. If the output is empty or lists only part of the proxies, repeat the command for each revision:
 
 ```bash
@@ -310,6 +320,16 @@ Confirm that all proxies reconnected and that the `VERSION` column shows the old
 
 ```bash
 $ istioctl proxy-status
+```
+
+```console
+NAME                                       CLUSTER        CDS              LDS              EDS              RDS              ECDS        ISTIOD                                     VERSION
+details-v1-7d4b8f6c55-h6bq2.bookinfo       Kubernetes     SYNCED (15s)     SYNCED (15s)     SYNCED (15s)     SYNCED (15s)     IGNORED     istiod-default-v1-24-6-6f7b58d4c8-w2ndp    1.24.6
+productpage-v1-6c9b48d7f4-sk3vj.bookinfo   Kubernetes     SYNCED (17s)     SYNCED (17s)     SYNCED (17s)     SYNCED (17s)     IGNORED     istiod-default-v1-24-6-6f7b58d4c8-w2ndp    1.24.6
+ratings-v1-84975bc778-mn5qc.bookinfo       Kubernetes     SYNCED (16s)     SYNCED (16s)     SYNCED (16s)     SYNCED (16s)     IGNORED     istiod-default-v1-24-6-6f7b58d4c8-w2ndp    1.24.6
+reviews-v1-5b5d6494f4-x9td7.bookinfo       Kubernetes     SYNCED (16s)     SYNCED (16s)     SYNCED (16s)     SYNCED (16s)     IGNORED     istiod-default-v1-24-6-6f7b58d4c8-w2ndp    1.24.6
+reviews-v2-5b667bcbf8-2hcfl.bookinfo       Kubernetes     SYNCED (16s)     SYNCED (16s)     SYNCED (16s)     SYNCED (16s)     IGNORED     istiod-default-v1-24-6-6f7b58d4c8-w2ndp    1.24.6
+reviews-v3-5b9bd44f4-vq7rk.bookinfo        Kubernetes     SYNCED (16s)     SYNCED (16s)     SYNCED (16s)     SYNCED (16s)     IGNORED     istiod-default-v1-24-6-6f7b58d4c8-w2ndp    1.24.6
 ```
 
 As during the upgrade, newer `istioctl` versions may require the revision to be named explicitly while both control planes are still running:
