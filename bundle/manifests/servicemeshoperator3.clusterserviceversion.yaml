@@ -74,6 +74,9 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+      - kind: TrafficExtension
+        name: trafficextensions.extensions.istio.io
+        version: v1alpha1
       - kind: WasmPlugin
         name: wasmplugins.extensions.istio.io
         version: v1alpha1
