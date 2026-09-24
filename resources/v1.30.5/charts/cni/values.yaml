@@ -156,7 +156,7 @@ _internal_defaults_do_not_set:
   global:
     # Default hub for Istio images.
     # Releases are published to docker hub under 'istio' project.
-    # Dev builds from prow are on registry.istio.io/release
+    # Dev builds from prow are on registry.istio.io/testing
     hub: registry.istio.io/release
 
     # Default tag for Istio images.
