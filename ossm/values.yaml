@@ -18,7 +18,7 @@ deployment:
     images.v1_24_5.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:54cada48e5c9824f255f82daa2ef5bea236919e521d3ea49885f2883ced2b7bc
     images.v1_24_5.ztunnel: registry.redhat.io/openshift-service-mesh-dev-preview-beta/istio-ztunnel-rhel9@sha256:7ea9b82e192402566e69063a4787351be9f1ef50719bfd1a8f5d5940362b3f70
     # 1.24.6 images will be replaced with Konflux built images and will be updated after next patch release
-    images.v1_24_6.cni: ${CNI_1_24}
+    images.v1_24_6.cni: ${ISTIO_CNI_1_24}
     images.v1_24_6.istiod: ${ISTIO_PILOT_1_24}
     images.v1_24_6.must-gather: ${OSSM_MUST_GATHER_3_0}
     images.v1_24_6.proxy: ${ISTIO_PROXY_1_24}
