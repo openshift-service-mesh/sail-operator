@@ -31,7 +31,7 @@ deployment:
     # 1.26.8 images will be replaced with Konflux built images and will be updated after next patch release
     images.v1_26_8.cni: ${CNI_1_26}
     images.v1_26_8.istiod: ${ISTIO_PILOT_1_26}
-    images.v1_26_8.must-gather: ${OSSM_MUST_GATHER_3_3}
+    images.v1_26_8.must-gather: ${OSSM_MUST_GATHER_3_1}
     images.v1_26_8.proxy: ${ISTIO_PROXY_1_26}
     images.v1_26_8.ztunnel: ${ISTIO_ZTUNNEL_1_26}
     # 1.27.3 images
@@ -55,7 +55,7 @@ deployment:
     # 1.27.9 images will be replaced with Konflux built images and will be updated after next patch release
     images.v1_27_9.cni: ${CNI_1_27}
     images.v1_27_9.istiod: ${ISTIO_PILOT_1_27}
-    images.v1_27_9.must-gather: ${OSSM_MUST_GATHER_3_3}
+    images.v1_27_9.must-gather: ${OSSM_MUST_GATHER_3_2}
     images.v1_27_9.proxy: ${ISTIO_PROXY_1_27}
     images.v1_27_9.ztunnel: ${ISTIO_ZTUNNEL_1_27}
     # 1.28.4 images after 3.3.0 GA
