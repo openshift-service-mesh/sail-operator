@@ -337,8 +337,10 @@ spec:
 
 				// Any logging or diagnostics should also be inside this block
 				time.Sleep(60 * time.Second)
-				common.ValidateHTTPConnectivity(k, common.SleepNamespace, sleepPod.Items[0].Name, common.SleepContainerName,
-					fmt.Sprintf("httpbin.%s.svc.cluster.local:8000/get", common.HttpbinNamespace), "200", 5)
+				Eventually(func() error {
+					return common.CheckHTTPConnectivity(k, common.SleepNamespace, sleepPod.Items[0].Name, common.SleepContainerName,
+						fmt.Sprintf("httpbin.%s.svc.cluster.local:8000/get", common.HttpbinNamespace), "200", 5)
+				}).Should(Succeed())
 			})
 		})
 
