@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Masterminds/semver/v3"
 	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
@@ -86,8 +87,15 @@ func (r *ZTunnelReconciler) ComputeValues(version string, userValues *v1.ZTunnel
 	// Apply image digests from configuration, if not already set by user
 	userValues = istiovalues.ApplyZTunnelImageDigests(resolvedVersion, userValues, config.Config)
 
+	// apply TLS config from platform
+	istiovalues.ApplyZTunnelTLSConfig(r.cfg.TLSConfig, resolvedVersion, userValues)
+
 	// apply fips values
-	istiovalues.ApplyZTunnelFipsValues(userValues, resolvedVersion)
+	parsedVersion, err := semver.NewVersion(resolvedVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse ZTunnel version %q: %w", version, err)
+	}
+	istiovalues.ApplyZTunnelFipsValues(userValues, parsedVersion)
 
 	var mergedHelmValues helm.Values
 	if len(baseValues) > 0 && baseValues[0] != nil {
