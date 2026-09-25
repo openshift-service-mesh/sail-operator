@@ -734,7 +734,7 @@ spec:
                   images.v1_24_5.ztunnel: registry.redhat.io/openshift-service-mesh-dev-preview-beta/istio-ztunnel-rhel9@sha256:7ea9b82e192402566e69063a4787351be9f1ef50719bfd1a8f5d5940362b3f70
                   images.v1_24_6.cni: ${CNI_1_24}
                   images.v1_24_6.istiod: ${ISTIO_PILOT_1_24}
-                  images.v1_24_6.must-gather: ${OSSM_MUST_GATHER_3_2}
+                  images.v1_24_6.must-gather: ${OSSM_MUST_GATHER_3_0}
                   images.v1_24_6.proxy: ${ISTIO_PROXY_1_24}
                   images.v1_24_6.ztunnel: ${ISTIO_ZTUNNEL_1_24}
                   images.v1_26_2.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:14c5a52faf20267baa43d9a72ee6416f56fbc41dd640adc2aba3c4043802a0e9
@@ -759,7 +759,7 @@ spec:
                   images.v1_26_6.ztunnel: registry.redhat.io/openshift-service-mesh-tech-preview/istio-ztunnel-rhel9@sha256:f39e2c28ef36fce9f808f3946cc4e4126047e142ad84cb18c222cecceae29730
                   images.v1_26_8.cni: ${CNI_1_26}
                   images.v1_26_8.istiod: ${ISTIO_PILOT_1_26}
-                  images.v1_26_8.must-gather: ${OSSM_MUST_GATHER_3_2}
+                  images.v1_26_8.must-gather: ${OSSM_MUST_GATHER_3_1}
                   images.v1_26_8.proxy: ${ISTIO_PROXY_1_26}
                   images.v1_26_8.ztunnel: ${ISTIO_ZTUNNEL_1_26}
                   images.v1_27_3.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:ddadd677161ad8c1077dd156821d6b4e32742ccbb210e9c14696fa66a58c0867
