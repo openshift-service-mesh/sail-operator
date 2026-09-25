@@ -87,6 +87,8 @@ Review the following limitations before you start:
 
 The examples below upgrade the operator from OpenShift Service Mesh 3.0 to 3.2 and the mesh from Istio `1.24.6`, the latest version available in 3.0, to Istio `1.27.9`, the latest version available in 3.2, using the `bookinfo` application in the `bookinfo` namespace. Substitute the versions that apply to your environment.
 
+**Note:** Steps in this procedure applies also to multicluster deployments.
+
 ### 1. Switch the operator subscription channel
 
 Change the channel of the operator subscription from the current version to the target version, for example from `stable-3.0` to `stable-3.2`:
