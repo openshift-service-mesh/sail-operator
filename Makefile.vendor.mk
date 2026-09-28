@@ -1,13 +1,12 @@
-VERSION = 3.0.0
+VERSION = 3.5.0
 OPERATOR_NAME = servicemeshoperator3
-HUB = quay.io/maistra-dev
-CHANNELS = "stable,stable-3.0"
+CHANNELS = "stable,stable-3.5"
 DEFAULT_CHANNEL=stable
 HELM_VALUES_FILE = ossm/values.yaml
 VERSIONS_YAML_FILE ?= versions.ossm.yaml
 USE_IMAGE_DIGESTS = false
 PATCH_HELM_VALUES = false
-IMAGE ?= $$\{OSSM_OPERATOR_3_2\}
+IMAGE ?= $$\{OSSM_OPERATOR_3_5\}
 
 .PHONY: build-fips
 build-fips: ## Build sail-operator binary for FIPS mode.
