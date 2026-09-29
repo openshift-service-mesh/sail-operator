@@ -28,9 +28,9 @@ const (
 type IstioRevisionSpec struct {
 	// +sail:version
 	// Defines the version of Istio to install.
-	// Must be one of: v1.31.0, v1.24.6, v1.24.5, v1.24.4, v1.24.3.
-	// +operator-sdk:csv:customresourcedefinitions:type=spec,order=1,displayName="Istio Version",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:General", "urn:alm:descriptor:com.tectonic.ui:select:v1.31.0", "urn:alm:descriptor:com.tectonic.ui:select:v1.24.6", "urn:alm:descriptor:com.tectonic.ui:select:v1.24.5", "urn:alm:descriptor:com.tectonic.ui:select:v1.24.4", "urn:alm:descriptor:com.tectonic.ui:select:v1.24.3"}
-	// +kubebuilder:validation:Enum=v1.31.0;v1.24.6;v1.24.5;v1.24.4;v1.24.3
+	// Must be one of: v1.31.0, v1.30.5, v1.30.4, v1.30.3, v1.30.1, v1.28.10, v1.28.8, v1.28.6, v1.28.5, v1.28.4.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,order=1,displayName="Istio Version",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:General", "urn:alm:descriptor:com.tectonic.ui:select:v1.31.0", "urn:alm:descriptor:com.tectonic.ui:select:v1.30.5", "urn:alm:descriptor:com.tectonic.ui:select:v1.30.4", "urn:alm:descriptor:com.tectonic.ui:select:v1.30.3", "urn:alm:descriptor:com.tectonic.ui:select:v1.30.1", "urn:alm:descriptor:com.tectonic.ui:select:v1.28.10", "urn:alm:descriptor:com.tectonic.ui:select:v1.28.8", "urn:alm:descriptor:com.tectonic.ui:select:v1.28.6", "urn:alm:descriptor:com.tectonic.ui:select:v1.28.5", "urn:alm:descriptor:com.tectonic.ui:select:v1.28.4"}
+	// +kubebuilder:validation:Enum=v1.31.0;v1.30.5;v1.30.4;v1.30.3;v1.30.1;v1.28.10;v1.28.8;v1.28.6;v1.28.5;v1.28.4;v1.27.9;v1.27.8;v1.27.5;v1.27.3;v1.26.8;v1.26.6;v1.26.4;v1.26.3;v1.26.2
 	Version string `json:"version"`
 
 	// Namespace to which the Istio components should be installed.
