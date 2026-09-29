@@ -215,7 +215,7 @@ var _ = Describe("ZTunnel FIPS", Label("ztunnel", "fips"), Ordered, func() {
 				Name: ztunnelName,
 			},
 			Spec: v1.ZTunnelSpec{
-				Version:   "v1.29.3",
+				Version:   "v1.28-latest",
 				Namespace: fipsZTunnelNamespace,
 			},
 		}
