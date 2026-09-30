@@ -18,3 +18,5 @@ This documentation is specific to the OpenShift Service Mesh product and may dif
 - [Quickstart: OSSM3 with Kiali, Tempo, Bookinfo](./quickstarts/ossm3-kiali-tempo-bookinfo/README.MD)
 - [Kiali - multi-cluster](./kiali-multi-cluster/README.md)
 - [Installing istioctl tool](./istioctl/README.md)
+- [Versioning and upgrades](./versioning-and-upgrades/README.md)
+  - [Skipping a version during an upgrade](./skip-version-upgrade/README.md)
