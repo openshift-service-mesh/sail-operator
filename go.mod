@@ -193,4 +193,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 )
 
-replace istio.io/istio => github.com/openshift-service-mesh/istio v0.0.0-20260923125242-b913c709dc23
+replace istio.io/istio => github.com/openshift-service-mesh/istio v0.0.0-20260925195955-9a1a9acab171
