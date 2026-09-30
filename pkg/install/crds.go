@@ -255,14 +255,6 @@ func istioCRD(crd *apiextensionsv1.CustomResourceDefinition) bool {
 	return strings.HasSuffix(crd.Spec.Group, ".istio.io")
 }
 
-func sailCRD(crd *apiextensionsv1.CustomResourceDefinition) bool {
-	return strings.HasSuffix(crd.Spec.Group, "sailoperator.io")
-}
-
-func aggregatableCRD(crd *apiextensionsv1.CustomResourceDefinition) bool {
-	return istioCRD(crd) || sailCRD(crd)
-}
-
 func matchesCRDFilter(crd *apiextensionsv1.CustomResourceDefinition, targetKinds map[string]bool) bool {
 	if len(targetKinds) == 0 {
 		return true
