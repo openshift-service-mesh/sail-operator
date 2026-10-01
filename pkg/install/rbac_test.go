@@ -66,6 +66,19 @@ func TestLibraryRBACRules_EndpointSliceIsReadOnly(t *testing.T) {
 	t.Fatal("endpointslices rule not found")
 }
 
+func TestLibraryRBACRules_ClusterRolesEscalate(t *testing.T) {
+	g := NewWithT(t)
+	found := false
+	for _, rule := range LibraryRBACRules() {
+		if slices.Contains(rule.APIGroups, "rbac.authorization.k8s.io") &&
+			slices.Contains(rule.Resources, "clusterroles") &&
+			slices.Contains(rule.Verbs, "escalate") {
+			found = true
+		}
+	}
+	g.Expect(found).To(BeTrue(), "escalate on clusterroles is required so the operator can create the aggregation ClusterRoles")
+}
+
 func TestLibraryRBACRules_CRDsNoDelete(t *testing.T) {
 	g := NewWithT(t)
 	for _, rule := range LibraryRBACRules() {

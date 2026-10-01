@@ -52,7 +52,7 @@ func TestReconcile(t *testing.T) {
 				Name: "default",
 			},
 			Spec: v1.IstioRevisionSpec{
-				Version:   "v1.28.10",
+				Version:   "v1.27-latest",
 				Namespace: "istio-system",
 				Values: &v1.Values{
 					Global: &v1.GlobalConfig{

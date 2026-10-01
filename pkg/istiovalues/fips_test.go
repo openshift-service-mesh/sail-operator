@@ -19,6 +19,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
 	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 )
@@ -65,18 +66,32 @@ func TestApplyFipsValues(t *testing.T) {
 	tests := []struct {
 		name         string
 		fipsEnabled  bool
+		version      *semver.Version
 		inputValues  *v1.Values
 		expectValues *v1.Values
 	}{
 		{
 			name:         "FIPS not enabled",
 			fipsEnabled:  false,
+			version:      semver.MustParse("1.30.0"),
 			inputValues:  &v1.Values{},
 			expectValues: &v1.Values{},
 		},
 		{
-			name:        "FIPS enabled",
+			name:        "FIPS enabled and version >= 1.30 uses fips-140-3-redhat",
 			fipsEnabled: true,
+			version:     semver.MustParse("1.30.0"),
+			inputValues: &v1.Values{},
+			expectValues: &v1.Values{
+				Pilot: &v1.PilotConfig{
+					Env: map[string]string{"COMPLIANCE_POLICY": "fips-140-3-redhat"},
+				},
+			},
+		},
+		{
+			name:        "FIPS enabled and version < 1.30 uses fips-140-2",
+			fipsEnabled: true,
+			version:     semver.MustParse("1.29.0"),
 			inputValues: &v1.Values{},
 			expectValues: &v1.Values{
 				Pilot: &v1.PilotConfig{
@@ -87,6 +102,7 @@ func TestApplyFipsValues(t *testing.T) {
 		{
 			name:        "FIPS enabled with existing env",
 			fipsEnabled: true,
+			version:     semver.MustParse("1.30.0"),
 			inputValues: &v1.Values{
 				Pilot: &v1.PilotConfig{
 					Env: map[string]string{"OTHER_VAR": "value"},
@@ -96,7 +112,7 @@ func TestApplyFipsValues(t *testing.T) {
 				Pilot: &v1.PilotConfig{
 					Env: map[string]string{
 						"OTHER_VAR":         "value",
-						"COMPLIANCE_POLICY": "fips-140-2",
+						"COMPLIANCE_POLICY": "fips-140-3-redhat",
 					},
 				},
 			},
@@ -104,6 +120,7 @@ func TestApplyFipsValues(t *testing.T) {
 		{
 			name:        "FIPS enabled but COMPLIANCE_POLICY already set",
 			fipsEnabled: true,
+			version:     semver.MustParse("1.30.0"),
 			inputValues: &v1.Values{
 				Pilot: &v1.PilotConfig{
 					Env: map[string]string{"COMPLIANCE_POLICY": "custom-policy"},
@@ -118,6 +135,7 @@ func TestApplyFipsValues(t *testing.T) {
 		{
 			name:         "nil values",
 			fipsEnabled:  false,
+			version:      semver.MustParse("1.30.0"),
 			inputValues:  nil,
 			expectValues: nil,
 		},
@@ -128,7 +146,7 @@ func TestApplyFipsValues(t *testing.T) {
 			originalFipsEnabled := FipsEnabled
 			t.Cleanup(func() { FipsEnabled = originalFipsEnabled })
 			FipsEnabled = tt.fipsEnabled
-			ApplyFipsValues(tt.inputValues)
+			ApplyFipsValues(tt.inputValues, tt.version)
 
 			if diff := cmp.Diff(tt.expectValues, tt.inputValues); diff != "" {
 				t.Errorf("COMPLIANCE_POLICY env wasn't applied properly; diff (-expected, +actual):\n%v", diff)
@@ -141,21 +159,32 @@ func TestApplyZTunnelFipsValues(t *testing.T) {
 	tests := []struct {
 		name         string
 		fipsEnabled  bool
-		version      string
+		version      *semver.Version
 		inputValues  *v1.ZTunnelValues
 		expectValues *v1.ZTunnelValues
 	}{
 		{
 			name:         "FIPS not enabled",
 			fipsEnabled:  false,
-			version:      "1.29.0",
+			version:      semver.MustParse("1.29.0"),
 			inputValues:  &v1.ZTunnelValues{},
 			expectValues: &v1.ZTunnelValues{},
 		},
 		{
 			name:        "FIPS enabled",
 			fipsEnabled: true,
-			version:     "1.29.0",
+			version:     semver.MustParse("1.29.0"),
+			inputValues: &v1.ZTunnelValues{},
+			expectValues: &v1.ZTunnelValues{
+				ZTunnel: &v1.ZTunnelConfig{
+					Env: map[string]string{"TLS12_ENABLED": "true"},
+				},
+			},
+		},
+		{
+			name:        "FIPS enabled - 1.29.1 - ensure semver comparison is correct",
+			fipsEnabled: true,
+			version:     semver.MustParse("1.29.1"),
 			inputValues: &v1.ZTunnelValues{},
 			expectValues: &v1.ZTunnelValues{
 				ZTunnel: &v1.ZTunnelConfig{
@@ -166,7 +195,7 @@ func TestApplyZTunnelFipsValues(t *testing.T) {
 		{
 			name:        "FIPS enabled with existing env",
 			fipsEnabled: true,
-			version:     "1.29.0",
+			version:     semver.MustParse("1.29.0"),
 			inputValues: &v1.ZTunnelValues{
 				ZTunnel: &v1.ZTunnelConfig{
 					Env: map[string]string{"OTHER_VAR": "value"},
@@ -184,7 +213,7 @@ func TestApplyZTunnelFipsValues(t *testing.T) {
 		{
 			name:        "FIPS enabled but TLS12_ENABLED already set",
 			fipsEnabled: true,
-			version:     "1.29.0",
+			version:     semver.MustParse("1.29.0"),
 			inputValues: &v1.ZTunnelValues{
 				ZTunnel: &v1.ZTunnelConfig{
 					Env: map[string]string{"TLS12_ENABLED": "false"},
@@ -199,25 +228,25 @@ func TestApplyZTunnelFipsValues(t *testing.T) {
 		{
 			name:         "nil values",
 			fipsEnabled:  false,
-			version:      "1.29.0",
+			version:      semver.MustParse("1.29.0"),
 			inputValues:  nil,
 			expectValues: nil,
 		},
 		{
-			name:        "version 1.30 still sets TLS12_ENABLED",
+			name:        "version 1.30 does not set TLS12_ENABLED",
 			fipsEnabled: true,
-			version:     "1.30.0",
+			version:     semver.MustParse("1.30.0"),
 			inputValues: &v1.ZTunnelValues{},
 			expectValues: &v1.ZTunnelValues{
 				ZTunnel: &v1.ZTunnelConfig{
-					Env: map[string]string{"TLS12_ENABLED": "true"},
+					Env: map[string]string{},
 				},
 			},
 		},
 		{
-			name:        "version > 1.30 removes TLS12_ENABLED",
+			name:        "version 1.30 preserves user-specified TLS12_ENABLED",
 			fipsEnabled: true,
-			version:     "1.31.0",
+			version:     semver.MustParse("1.30.0"),
 			inputValues: &v1.ZTunnelValues{
 				ZTunnel: &v1.ZTunnelConfig{
 					Env: map[string]string{
@@ -229,24 +258,54 @@ func TestApplyZTunnelFipsValues(t *testing.T) {
 			expectValues: &v1.ZTunnelValues{
 				ZTunnel: &v1.ZTunnelConfig{
 					Env: map[string]string{
-						"OTHER_VAR": "keep",
+						"TLS12_ENABLED": "true",
+						"OTHER_VAR":     "keep",
 					},
 				},
 			},
 		},
 		{
-			name:         "version > 1.30 does not set TLS12_ENABLED even with FIPS",
-			fipsEnabled:  true,
-			version:      "1.31.0",
-			inputValues:  &v1.ZTunnelValues{},
-			expectValues: &v1.ZTunnelValues{},
+			name:        "version > 1.30 preserves user-specified TLS12_ENABLED",
+			fipsEnabled: true,
+			version:     semver.MustParse("1.31.0"),
+			inputValues: &v1.ZTunnelValues{
+				ZTunnel: &v1.ZTunnelConfig{
+					Env: map[string]string{
+						"TLS12_ENABLED": "true",
+						"OTHER_VAR":     "keep",
+					},
+				},
+			},
+			expectValues: &v1.ZTunnelValues{
+				ZTunnel: &v1.ZTunnelConfig{
+					Env: map[string]string{
+						"TLS12_ENABLED": "true",
+						"OTHER_VAR":     "keep",
+					},
+				},
+			},
 		},
 		{
-			name:         "version 1.31-alpha does not set TLS12_ENABLED",
-			fipsEnabled:  true,
-			version:      "1.31.0-alpha.0",
-			inputValues:  &v1.ZTunnelValues{},
-			expectValues: &v1.ZTunnelValues{},
+			name:        "version > 1.30 does not set TLS12_ENABLED even with FIPS",
+			fipsEnabled: true,
+			version:     semver.MustParse("1.31.0"),
+			inputValues: &v1.ZTunnelValues{},
+			expectValues: &v1.ZTunnelValues{
+				ZTunnel: &v1.ZTunnelConfig{
+					Env: map[string]string{},
+				},
+			},
+		},
+		{
+			name:        "version 1.31-alpha does not set TLS12_ENABLED",
+			fipsEnabled: true,
+			version:     semver.MustParse("1.31.0-alpha.0"),
+			inputValues: &v1.ZTunnelValues{},
+			expectValues: &v1.ZTunnelValues{
+				ZTunnel: &v1.ZTunnelConfig{
+					Env: map[string]string{},
+				},
+			},
 		},
 	}
 

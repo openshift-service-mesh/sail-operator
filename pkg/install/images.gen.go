@@ -20,89 +20,47 @@ import "github.com/istio-ecosystem/sail-operator/pkg/config"
 
 func init() {
 	config.Config.ImageDigests = map[string]config.IstioImageConfig{
-		"v1.31.0": {
-			IstiodImage:  "quay.io/sail-dev/pilot:1.31.0",
-			ProxyImage:   "quay.io/sail-dev/proxyv2:1.31.0",
-			CNIImage:     "quay.io/sail-dev/install-cni:1.31.0",
-			ZTunnelImage: "quay.io/sail-dev/ztunnel:1.31.0",
+		"v1.28.4": {
+			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:978f840ceda7eb00c6f15740bcd60e241bee732cd215e9de464ce431b0156ffa",
+			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:ba78d718627a0662f61ec633fdd2867ba5c24be6bdbc6df672d46456fb399dba",
+			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:f8abbd0d6c7758cf2ccd49dba34921e3ac9b6e4cdbfed4e5fb38dc9a11d30a5d",
+			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:2d5a3154e7b6b8d7eadb851a86cc5b7ee556b923843e73ae56197e875c564b03",
 		},
-		"v1.30.4": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.30.4",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.30.4",
-			CNIImage:     "registry.istio.io/release/install-cni:1.30.4",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.30.4",
+		"v1.28.5": {
+			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:1866b2e055c40e28fdc627f66c2cddbc0fda8aae41f3ad9ae98b92b49cd2cd57",
+			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:63b4b95a3c106d30df9bffca17a0657d59cc5b27980fd56f82ec3ad97cb22f31",
+			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:d44c702db3fc41bed08b28044d5527300a5933eb62552f8f6b7fc977456dfd09",
+			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:0242201d020be7922c25a728b60816b220d461dd788a2c493425f105b12dc27d",
 		},
-		"v1.30.3": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.30.3",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.30.3",
-			CNIImage:     "registry.istio.io/release/install-cni:1.30.3",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.30.3",
+		"v1.28.6": {
+			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:4191e8f0fb1ce2b8125991793d09b9b1c404822a6ef2121e99aee8a007cd1011",
+			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:145c3cdaccfd5dd89cbeee2f7150653f1e157ef722c5573f74194027ed8460c9",
+			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:c3665461b78a9ea36175fd75fba29d704718c2a3ef28d59ba87923b53e25c86a",
+			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:12af9e7c781ebffafaf4b753fcfd8a77c3193813ba7b8a6e8b414153274f4fff",
 		},
-		"v1.30.2": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.30.2",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.30.2",
-			CNIImage:     "registry.istio.io/release/install-cni:1.30.2",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.30.2",
+		"v1.28.8": {
+			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:034b83f99536433ea79a119c73473be8962b3317c8c259ace1ffeb74bbc0cf06",
+			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:e1c587919c651e10658506ba86637c08e9e2984aae797ab78364dfc2c7e0e0cb",
+			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:f5036871f4f1badcba63053bb4e92dfeac7e7d2b4638254671a5ac5a88c95068",
+			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:dfe3db9c8ca90597d54a21afb090ecfa00353efb110efefcea53fc986ff3c425",
 		},
 		"v1.30.1": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.30.1",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.30.1",
-			CNIImage:     "registry.istio.io/release/install-cni:1.30.1",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.30.1",
+			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:38b1561e4c2d9da341ae4fe809de6a3decabdc861583e52e4a6b85f608682a7f",
+			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:d770608385272197ccf83efa9d1b7b52a01828aa644d875794f025b9d45af381",
+			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:e27a86751f51b3836c9638b719e14e3f4444ff360e6c3add6be24ee4a1cd436b",
+			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:194fe2d15251e53544eae4fa5124ec2de2a8bf70646115bb2f9c30b615ff5df5",
 		},
-		"v1.30.0": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.30.0",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.30.0",
-			CNIImage:     "registry.istio.io/release/install-cni:1.30.0",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.30.0",
+		"v1.30.3": {
+			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:6a4f5a2ffa5fc9aa687bb812c9b427dc61fc109b846cdf7d70eef28c5fe08faa",
+			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:e8842597aaa261b91be69ffc6501848958de95b714bb7782544d8a923eee619a",
+			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:80656e6f4d680953d568791338083cb2bef32c443f5f74f227d4e0738be27b4b",
+			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:cfd72e7c8400aa984c0872c63edf8dce83391bc579360ef48d98958a5e45faa7",
 		},
-		"v1.29.7": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.29.7",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.29.7",
-			CNIImage:     "registry.istio.io/release/install-cni:1.29.7",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.29.7",
-		},
-		"v1.29.6": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.29.6",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.29.6",
-			CNIImage:     "registry.istio.io/release/install-cni:1.29.6",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.29.6",
-		},
-		"v1.29.5": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.29.5",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.29.5",
-			CNIImage:     "registry.istio.io/release/install-cni:1.29.5",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.29.5",
-		},
-		"v1.29.4": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.29.4",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.29.4",
-			CNIImage:     "registry.istio.io/release/install-cni:1.29.4",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.29.4",
-		},
-		"v1.29.3": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.29.3",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.29.3",
-			CNIImage:     "registry.istio.io/release/install-cni:1.29.3",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.29.3",
-		},
-		"v1.29.2": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.29.2",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.29.2",
-			CNIImage:     "registry.istio.io/release/install-cni:1.29.2",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.29.2",
-		},
-		"v1.29.1": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.29.1",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.29.1",
-			CNIImage:     "registry.istio.io/release/install-cni:1.29.1",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.29.1",
-		},
-		"v1.29.0": {
-			IstiodImage:  "registry.istio.io/release/pilot:1.29.0",
-			ProxyImage:   "registry.istio.io/release/proxyv2:1.29.0",
-			CNIImage:     "registry.istio.io/release/install-cni:1.29.0",
-			ZTunnelImage: "registry.istio.io/release/ztunnel:1.29.0",
+		"v1.30.4": {
+			IstiodImage:  "registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:f97057b85ffe2c06774f82a3985738dd87ee4ed6bc003933923449296e2a0513",
+			ProxyImage:   "registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:de0ddfa8be68efb0a8015bc079490ceb1fc9c437ef548345755b09609281c38e",
+			CNIImage:     "registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:dc1d4cae4b5c9123b29ed22d6c1abacfed11a5ca9ab968adee71403c3b8a021c",
+			ZTunnelImage: "registry.redhat.io/openshift-service-mesh/istio-ztunnel-rhel9@sha256:e1d2d1c3153178e43796fe0dfce3f3b0816cd5c95cf1dcea1aa21f1f5cf8a966",
 		},
 	}
 }
