@@ -54,6 +54,9 @@ func TestReconcileAggregationClusterRoles_Creates(t *testing.T) {
 		assert.Equal(t, managedByValue, cr.Labels[managedByLabelKey])
 		assert.Equal(t, "true", cr.Labels[ar.label])
 		assert.NotEmpty(t, cr.Rules, "ClusterRole %s should have rules", name)
+		for _, rule := range cr.Rules {
+			assert.NotContains(t, rule.APIGroups, "sailoperator.io", "ClusterRole %s should only aggregate Istio CRDs", name)
+		}
 	}
 }
 
@@ -143,7 +146,7 @@ func TestRulesFromCRDNames(t *testing.T) {
 
 func TestRulesFromCRDNames_MatchesCRDFiles(t *testing.T) {
 	cm := newTestCRDManager()
-	crds, err := cm.loadCRDsMatching(Options{IncludeAllCRDs: true}, aggregatableCRD)
+	crds, err := cm.loadCRDsMatching(Options{IncludeAllCRDs: true}, istioCRD)
 	require.NoError(t, err)
 	require.NotEmpty(t, crds)
 
@@ -159,7 +162,6 @@ func TestRulesFromCRDNames_MatchesCRDFiles(t *testing.T) {
 		"security.istio.io":   false,
 		"telemetry.istio.io":  false,
 		"extensions.istio.io": false,
-		"sailoperator.io":     false,
 	}
 	for _, rule := range rules {
 		for _, group := range rule.APIGroups {
