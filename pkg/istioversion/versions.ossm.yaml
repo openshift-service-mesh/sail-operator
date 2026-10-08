@@ -12,18 +12,18 @@
 # as well as all the Istio CRDs (e.g. VirtualService).
 versions:
   - name: v1.31-latest
-    ref: v1.31.0
-  - name: v1.31.0
-    version: 1.31.0
+    ref: v1.31.1
+  - name: v1.31.1
+    version: 1.31.1
     repo: https://github.com/istio/istio
-    commit: 1.31.0
+    commit: 1.31.1
     # TODO: update the charts to the ones from openshift-service-mesh midstream when they are available.
     charts:
-      - https://blob.istio.io/istio-release/charts/base-1.31.0.tgz
-      - https://blob.istio.io/istio-release/charts/istiod-1.31.0.tgz
-      - https://blob.istio.io/istio-release/charts/gateway-1.31.0.tgz
-      - https://blob.istio.io/istio-release/charts/cni-1.31.0.tgz
-      - https://blob.istio.io/istio-release/charts/ztunnel-1.31.0.tgz
+      - https://blob.istio.io/istio-release/charts/base-1.31.1.tgz
+      - https://blob.istio.io/istio-release/charts/istiod-1.31.1.tgz
+      - https://blob.istio.io/istio-release/charts/gateway-1.31.1.tgz
+      - https://blob.istio.io/istio-release/charts/cni-1.31.1.tgz
+      - https://blob.istio.io/istio-release/charts/ztunnel-1.31.1.tgz
   - name: v1.30-latest
     ref: v1.30.5
   - name: v1.30.5
