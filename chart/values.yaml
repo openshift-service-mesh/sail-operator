@@ -38,7 +38,7 @@ csv:
     - v1.29.1
     - v1.29.0
     - master
-    - v1.32.0-alpha.0fa0f8f2
+    - v1.32.0-alpha.e4350fd4
 
     [See this page](https://github.com/istio-ecosystem/sail-operator/blob/main/bundle/README.md) for instructions on how to use it.
   support: Community based
@@ -70,6 +70,9 @@ image: quay.io/sail-dev/sail-operator:1.31-latest
 # We're commenting out the imagePullPolicy to use k8s defaults
 # imagePullPolicy: Always
 operator:
+  # When true, the operator waits for the PersesDashboard CRD and creates bundled Istio
+  # dashboards in the operator namespace. Disabled by default upstream; enable when Perses is installed.
+  enablePersesDashboards: false
   # env:
   # - name: GOMAXPROCS
   #   valueFrom:
@@ -90,3 +93,7 @@ operator:
       memory: 64Mi
 # setting this to true will add resources required to generate the bundle using operator-sdk
 bundleGeneration: false
+# setting metrics.helm.releaseName to match Prometheus serviceMonitorSelector
+metrics:
+  helm:
+    releaseName: prometheus

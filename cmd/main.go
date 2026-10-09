@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/istio-ecosystem/sail-operator/controllers/istio"
 	"github.com/istio-ecosystem/sail-operator/controllers/istiocni"
@@ -29,9 +30,11 @@ import (
 	"github.com/istio-ecosystem/sail-operator/controllers/monitoring"
 	"github.com/istio-ecosystem/sail-operator/controllers/webhook"
 	"github.com/istio-ecosystem/sail-operator/controllers/ztunnel"
+	"github.com/istio-ecosystem/sail-operator/pkg/analyze"
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	"github.com/istio-ecosystem/sail-operator/pkg/enqueuelogger"
 	"github.com/istio-ecosystem/sail-operator/pkg/helm"
+	"github.com/istio-ecosystem/sail-operator/pkg/perses"
 	"github.com/istio-ecosystem/sail-operator/pkg/scheme"
 	"github.com/istio-ecosystem/sail-operator/pkg/version"
 	"github.com/istio-ecosystem/sail-operator/resources"
@@ -70,6 +73,8 @@ func main() {
 	flag.BoolVar(&printVersion, "version", printVersion, "Prints version information and exits")
 	flag.BoolVar(&leaderElectionEnabled, "leader-elect", true,
 		"Enable leader election for this operator. Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&config.Config.EnablePersesDashboards, "enable-perses-dashboards", false,
+		"Wait for PersesDashboard CRD and install or upgrade bundled Istio dashboards in the operator namespace. Disabled by default.")
 
 	flag.BoolVar(&enqueuelogger.LogEnqueueEvents, "log-enqueue-events", false, "Whether to log events that cause an object to be enqueued for reconciliation")
 
@@ -179,7 +184,9 @@ func main() {
 	}
 
 	metricsServerOptions := metricsserver.Options{
-		BindAddress:    metricsAddr,
+		BindAddress: metricsAddr,
+		// Point to the mounted directory containing tls.crt and tls.key
+		CertDir:        "/var/run/secrets/serving-cert",
 		SecureServing:  true,
 		FilterProvider: filters.WithAuthenticationAndAuthorization,
 		TLSOpts:        metricsServerTLSOptions,
@@ -260,6 +267,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	if config.Config.EnablePersesDashboards {
+		err = perses.NewInstaller(reconcilerCfg.OperatorNamespace, chartManager, mgr.GetCache()).
+			SetupWithManager(mgr)
+		if err != nil {
+			setupLog.Error(err, "unable to create installer", "controller", "PersesDashboard")
+			os.Exit(1)
+		}
+	} else {
+		setupLog.Info("Perses dashboard installation disabled")
+	}
+
 	if reconcilerCfg.TLSConfig != nil && reconcilerCfg.TLSConfig.OpenShift != nil {
 		tlsWatcher := &openshifttls.SecurityProfileWatcher{
 			Client:                    mgr.GetClient(),
@@ -299,6 +317,27 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
+
+	// Record custom resources and Istio namespaces counts every 5 minutes
+	// those custom metrics are registered in the default metric server
+	uncachedClient, err := client.New(cfg, client.Options{
+		Scheme: mgr.GetScheme(),
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to create uncached client")
+		os.Exit(1)
+	}
+
+	setupLog.Info("starting custom resource metrics recorder")
+	recorder := analyze.NewMetricsRecorder(5*time.Minute, uncachedClient, reconcilerCfg)
+	if reconcilerCfg.Platform == config.PlatformOpenShift {
+		if err := recorder.EnsureNamespaceLabel(ctx); err != nil {
+			setupLog.Error(err, "problem adding cluster-monitoring label")
+		}
+	}
+
+	// Start the background recorder (non-blocking)
+	recorder.Start(ctx)
 
 	setupLog.Info("starting sail-operator manager")
 	if err := mgr.Start(ctx); err != nil {
