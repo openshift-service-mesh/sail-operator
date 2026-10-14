@@ -45,7 +45,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: OpenShift Optional, Integration & Delivery, Networking, Security
     containerImage: ${OSSM_OPERATOR_3_5}
-    createdAt: "2026-10-14T08:12:26Z"
+    createdAt: "2026-10-14T16:14:10Z"
     description: The OpenShift Service Mesh Operator enables you to install, configure, and manage an instance of Red Hat OpenShift Service Mesh. OpenShift Service Mesh is based on the open source Istio project.
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "true"
@@ -906,11 +906,18 @@ spec:
                       - mountPath: /etc/sail-operator
                         name: operator-config
                         readOnly: true
+                      - mountPath: /var/run/secrets/serving-cert
+                        name: serving-cert
                 securityContext:
                   runAsNonRoot: true
                 serviceAccountName: servicemesh-operator3
                 terminationGracePeriodSeconds: 10
                 volumes:
+                  - name: serving-cert
+                    secret:
+                      defaultMode: 420
+                      optional: true
+                      secretName: serving-cert
                   - downwardAPI:
                       defaultMode: 420
                       items:
