@@ -3,13 +3,13 @@ kind: ClusterRoleBinding
 metadata:
   creationTimestamp: null
   labels:
-    app.kubernetes.io/instance: sailoperator-prometheus-rolebinding
+    app.kubernetes.io/instance: servicemeshoperator3-prometheus-rolebinding
     app.kubernetes.io/name: clusterrolebinding
-  name: sailoperator-prometheus-rolebinding
+  name: servicemeshoperator3-prometheus-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: sailoperator-metrics-reader
+  name: servicemeshoperator3-metrics-reader
 subjects:
 - kind: ServiceAccount
   name: prometheus-k8s
