@@ -63,7 +63,7 @@ GIT_STATUS := $(shell git diff-index --quiet HEAD -- 2> /dev/null; if [ "$$?" = 
 endif
 
 # metric name prefix
-METRIC_PREFIX := $(shell yq eval '.name' chart/values.yaml)
+METRIC_PREFIX ?= servicemeshoperator3
 
 # Linker flags for the go builds
 GO_MODULE = github.com/istio-ecosystem/sail-operator
