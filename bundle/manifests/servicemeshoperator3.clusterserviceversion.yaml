@@ -16,7 +16,7 @@ metadata:
               "inactiveRevisionDeletionGracePeriodSeconds": 30,
               "type": "InPlace"
             },
-            "version": "v1.31.1"
+            "version": "v1.31.3"
           }
         },
         {
@@ -27,7 +27,7 @@ metadata:
           },
           "spec": {
             "namespace": "istio-cni",
-            "version": "v1.31.1"
+            "version": "v1.31.3"
           }
         },
         {
@@ -38,14 +38,14 @@ metadata:
           },
           "spec": {
             "namespace": "ztunnel",
-            "version": "v1.31.1"
+            "version": "v1.31.3"
           }
         }
       ]
     capabilities: Seamless Upgrades
     categories: OpenShift Optional, Integration & Delivery, Networking, Security
     containerImage: quay.io/sail-dev/sail-operator:3.0-latest
-    createdAt: "2026-10-15T06:10:00Z"
+    createdAt: "2026-10-23T06:14:26Z"
     description: The OpenShift Service Mesh Operator enables you to install, configure, and manage an instance of Red Hat OpenShift Service Mesh. OpenShift Service Mesh is based on the open source Istio project.
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "true"
@@ -183,33 +183,29 @@ spec:
         specDescriptors:
           - description: |-
               Defines the version of Istio to install.
-              Must be one of: v1.31-latest, v1.31.1, v1.31.0, v1.30-latest, v1.30.5, v1.30.4, v1.30.3, v1.30.2, v1.30.1, v1.30.0, v1.29-latest, v1.29.8, v1.29.7, v1.29.6, v1.29.5, v1.29.4, v1.29.3, v1.29.2, v1.29.1, v1.29.0, master, v1.33.0-alpha.4e2c1c57.
+              Must be one of: v1.31-latest, v1.31.3, v1.31.2, v1.31.1, v1.31.0, v1.30-latest, v1.30.7, v1.30.6, v1.30.5, v1.30.4, v1.30.3, v1.30.2, v1.30.1, v1.30.0, v1.29.10, v1.29.9, master, v1.33.0-alpha.31265bab.
             displayName: Istio Version
             path: version
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:General
               - urn:alm:descriptor:com.tectonic.ui:select:v1.31-latest
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.31.3
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.31.2
               - urn:alm:descriptor:com.tectonic.ui:select:v1.31.1
               - urn:alm:descriptor:com.tectonic.ui:select:v1.31.0
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30-latest
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.30.7
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.30.6
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.5
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.4
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.3
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.2
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.1
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.0
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29-latest
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.8
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.7
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.6
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.5
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.4
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.3
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.2
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.1
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.0
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.10
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.9
               - urn:alm:descriptor:com.tectonic.ui:select:master
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.33.0-alpha.4e2c1c57
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.33.0-alpha.31265bab
           - description: Namespace to which the Istio CNI component should be installed. Note that this field is immutable.
             displayName: Namespace
             path: namespace
@@ -247,29 +243,26 @@ spec:
         specDescriptors:
           - description: |-
               Defines the version of Istio to install.
-              Must be one of: v1.31.1, v1.31.0, v1.30.5, v1.30.4, v1.30.3, v1.30.2, v1.30.1, v1.30.0, v1.29.8, v1.29.7, v1.29.6, v1.29.5, v1.29.4, v1.29.3, v1.29.2, v1.29.1, v1.29.0, v1.33.0-alpha.4e2c1c57.
+              Must be one of: v1.31.3, v1.31.2, v1.31.1, v1.31.0, v1.30.7, v1.30.6, v1.30.5, v1.30.4, v1.30.3, v1.30.2, v1.30.1, v1.30.0, v1.29.10, v1.29.9, v1.33.0-alpha.31265bab.
             displayName: Istio Version
             path: version
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:General
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.31.3
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.31.2
               - urn:alm:descriptor:com.tectonic.ui:select:v1.31.1
               - urn:alm:descriptor:com.tectonic.ui:select:v1.31.0
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.30.7
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.30.6
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.5
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.4
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.3
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.2
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.1
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.0
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.8
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.7
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.6
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.5
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.4
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.3
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.2
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.1
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.0
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.33.0-alpha.4e2c1c57
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.10
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.9
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.33.0-alpha.31265bab
           - description: Namespace to which the Istio components should be installed.
             displayName: Namespace
             path: namespace
@@ -304,33 +297,29 @@ spec:
               - urn:alm:descriptor:com.tectonic.ui:select:RevisionBased
           - description: |-
               Defines the version of Istio to install.
-              Must be one of: v1.31-latest, v1.31.1, v1.31.0, v1.30-latest, v1.30.5, v1.30.4, v1.30.3, v1.30.2, v1.30.1, v1.30.0, v1.29-latest, v1.29.8, v1.29.7, v1.29.6, v1.29.5, v1.29.4, v1.29.3, v1.29.2, v1.29.1, v1.29.0, master, v1.33.0-alpha.4e2c1c57.
+              Must be one of: v1.31-latest, v1.31.3, v1.31.2, v1.31.1, v1.31.0, v1.30-latest, v1.30.7, v1.30.6, v1.30.5, v1.30.4, v1.30.3, v1.30.2, v1.30.1, v1.30.0, v1.29.10, v1.29.9, master, v1.33.0-alpha.31265bab.
             displayName: Istio Version
             path: version
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:General
               - urn:alm:descriptor:com.tectonic.ui:select:v1.31-latest
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.31.3
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.31.2
               - urn:alm:descriptor:com.tectonic.ui:select:v1.31.1
               - urn:alm:descriptor:com.tectonic.ui:select:v1.31.0
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30-latest
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.30.7
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.30.6
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.5
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.4
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.3
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.2
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.1
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.0
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29-latest
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.8
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.7
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.6
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.5
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.4
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.3
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.2
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.1
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.0
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.10
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.9
               - urn:alm:descriptor:com.tectonic.ui:select:master
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.33.0-alpha.4e2c1c57
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.33.0-alpha.31265bab
           - description: |-
               Defines how many seconds the operator should wait before removing a non-active revision after all
               the workloads have stopped using it. You may want to set this value on the order of minutes.
@@ -386,33 +375,29 @@ spec:
         specDescriptors:
           - description: |-
               Defines the version of Istio to install.
-              Must be one of: v1.31-latest, v1.31.1, v1.31.0, v1.30-latest, v1.30.5, v1.30.4, v1.30.3, v1.30.2, v1.30.1, v1.30.0, v1.29-latest, v1.29.8, v1.29.7, v1.29.6, v1.29.5, v1.29.4, v1.29.3, v1.29.2, v1.29.1, v1.29.0, master, v1.33.0-alpha.4e2c1c57.
+              Must be one of: v1.31-latest, v1.31.3, v1.31.2, v1.31.1, v1.31.0, v1.30-latest, v1.30.7, v1.30.6, v1.30.5, v1.30.4, v1.30.3, v1.30.2, v1.30.1, v1.30.0, v1.29.10, v1.29.9, master, v1.33.0-alpha.31265bab.
             displayName: Istio Version
             path: version
             x-descriptors:
               - urn:alm:descriptor:com.tectonic.ui:fieldGroup:General
               - urn:alm:descriptor:com.tectonic.ui:select:v1.31-latest
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.31.3
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.31.2
               - urn:alm:descriptor:com.tectonic.ui:select:v1.31.1
               - urn:alm:descriptor:com.tectonic.ui:select:v1.31.0
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30-latest
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.30.7
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.30.6
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.5
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.4
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.3
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.2
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.1
               - urn:alm:descriptor:com.tectonic.ui:select:v1.30.0
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29-latest
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.8
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.7
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.6
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.5
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.4
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.3
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.2
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.1
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.0
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.10
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.29.9
               - urn:alm:descriptor:com.tectonic.ui:select:master
-              - urn:alm:descriptor:com.tectonic.ui:select:v1.33.0-alpha.4e2c1c57
+              - urn:alm:descriptor:com.tectonic.ui:select:v1.33.0-alpha.31265bab
           - description: Namespace to which the Istio ztunnel component should be installed.
             displayName: Namespace
             path: namespace
