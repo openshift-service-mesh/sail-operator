@@ -82,6 +82,8 @@ Review the following limitations before you start:
 - Increase `spec.updateStrategy.inactiveRevisionDeletionGracePeriodSeconds` if you want more time to validate the new control plane before the old revision is removed.
 - A rollback moves the operands back only. The operator cannot be downgraded, see [Rollback](#rollback).
 - Known issue [istio/istio#61095](https://github.com/istio/istio/issues/61095): up to and including Istio 1.27, a gateway created with the Kubernetes Gateway API can stay on the old revision after the control plane is updated, because the new revision fails to reconcile it with a `PushContext not initialized` error and gives up. The gateway then serves no traffic. As a workaround, write to the `Gateway` resource, for example `oc annotate gateway <name> -n <namespace> --overwrite nudge="$(date +%s)"`, to make the new revision reconcile it again.
+- Known issue [istio/istio#59959](https://github.com/istio/istio/issues/59959): a control plane that stops owning a Kubernetes Gateway API gateway drops it from the configuration it emits. The `default` tag is repointed while the new revision is still starting, so the old control plane withdraws the listeners of the pods still connected to it and the gateway serves nothing until the new pods are up, about 50 seconds. Fixed by [istio/istio#60158](https://github.com/istio/istio/pull/60158) in version 3.4; an upgrade starting below 3.4 is affected whatever the target is.
+- Known issue [OSSM-16409](https://redhat.atlassian.net/browse/OSSM-16409): while both revisions run, both control planes write the status of Kubernetes Gateway API objects, and whenever the two compute a different status they overwrite each other in a loop. The writes stop when the old revision is removed.
 
 ## Procedure
 
