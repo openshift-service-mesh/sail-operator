@@ -1,67 +1,7 @@
 name: sailoperator
 deployment:
   name: sail-operator
-  annotations:
-    images.v1_31_3.ztunnel: quay.io/sail-dev/ztunnel:1.31.3
-    images.v1_31_3.istiod: quay.io/sail-dev/pilot:1.31.3
-    images.v1_31_3.proxy: quay.io/sail-dev/proxyv2:1.31.3
-    images.v1_31_3.cni: quay.io/sail-dev/install-cni:1.31.3
-    images.v1_31_2.ztunnel: quay.io/sail-dev/ztunnel:1.31.2
-    images.v1_31_2.istiod: quay.io/sail-dev/pilot:1.31.2
-    images.v1_31_2.proxy: quay.io/sail-dev/proxyv2:1.31.2
-    images.v1_31_2.cni: quay.io/sail-dev/install-cni:1.31.2
-    images.v1_31_1.ztunnel: quay.io/sail-dev/ztunnel:1.31.1
-    images.v1_31_1.istiod: quay.io/sail-dev/pilot:1.31.1
-    images.v1_31_1.proxy: quay.io/sail-dev/proxyv2:1.31.1
-    images.v1_31_1.cni: quay.io/sail-dev/install-cni:1.31.1
-    images.v1_31_0.ztunnel: quay.io/sail-dev/ztunnel:1.31.0
-    images.v1_31_0.istiod: quay.io/sail-dev/pilot:1.31.0
-    images.v1_31_0.proxy: quay.io/sail-dev/proxyv2:1.31.0
-    images.v1_31_0.cni: quay.io/sail-dev/install-cni:1.31.0
-    images.v1_30_7.ztunnel: registry.istio.io/release/ztunnel:1.30.7
-    images.v1_30_7.istiod: registry.istio.io/release/pilot:1.30.7
-    images.v1_30_7.proxy: registry.istio.io/release/proxyv2:1.30.7
-    images.v1_30_7.cni: registry.istio.io/release/install-cni:1.30.7
-    images.v1_30_6.ztunnel: registry.istio.io/release/ztunnel:1.30.6
-    images.v1_30_6.istiod: registry.istio.io/release/pilot:1.30.6
-    images.v1_30_6.proxy: registry.istio.io/release/proxyv2:1.30.6
-    images.v1_30_6.cni: registry.istio.io/release/install-cni:1.30.6
-    images.v1_30_5.ztunnel: registry.istio.io/release/ztunnel:1.30.5
-    images.v1_30_5.istiod: registry.istio.io/release/pilot:1.30.5
-    images.v1_30_5.proxy: registry.istio.io/release/proxyv2:1.30.5
-    images.v1_30_5.cni: registry.istio.io/release/install-cni:1.30.5
-    images.v1_30_4.ztunnel: registry.istio.io/release/ztunnel:1.30.4
-    images.v1_30_4.istiod: registry.istio.io/release/pilot:1.30.4
-    images.v1_30_4.proxy: registry.istio.io/release/proxyv2:1.30.4
-    images.v1_30_4.cni: registry.istio.io/release/install-cni:1.30.4
-    images.v1_30_3.ztunnel: registry.istio.io/release/ztunnel:1.30.3
-    images.v1_30_3.istiod: registry.istio.io/release/pilot:1.30.3
-    images.v1_30_3.proxy: registry.istio.io/release/proxyv2:1.30.3
-    images.v1_30_3.cni: registry.istio.io/release/install-cni:1.30.3
-    images.v1_30_2.ztunnel: registry.istio.io/release/ztunnel:1.30.2
-    images.v1_30_2.istiod: registry.istio.io/release/pilot:1.30.2
-    images.v1_30_2.proxy: registry.istio.io/release/proxyv2:1.30.2
-    images.v1_30_2.cni: registry.istio.io/release/install-cni:1.30.2
-    images.v1_30_1.ztunnel: registry.istio.io/release/ztunnel:1.30.1
-    images.v1_30_1.istiod: registry.istio.io/release/pilot:1.30.1
-    images.v1_30_1.proxy: registry.istio.io/release/proxyv2:1.30.1
-    images.v1_30_1.cni: registry.istio.io/release/install-cni:1.30.1
-    images.v1_30_0.ztunnel: registry.istio.io/release/ztunnel:1.30.0
-    images.v1_30_0.istiod: registry.istio.io/release/pilot:1.30.0
-    images.v1_30_0.proxy: registry.istio.io/release/proxyv2:1.30.0
-    images.v1_30_0.cni: registry.istio.io/release/install-cni:1.30.0
-    images.v1_29_10.ztunnel: registry.istio.io/release/ztunnel:1.29.10
-    images.v1_29_10.istiod: registry.istio.io/release/pilot:1.29.10
-    images.v1_29_10.proxy: registry.istio.io/release/proxyv2:1.29.10
-    images.v1_29_10.cni: registry.istio.io/release/install-cni:1.29.10
-    images.v1_29_9.ztunnel: registry.istio.io/release/ztunnel:1.29.9
-    images.v1_29_9.istiod: registry.istio.io/release/pilot:1.29.9
-    images.v1_29_9.proxy: registry.istio.io/release/proxyv2:1.29.9
-    images.v1_29_9.cni: registry.istio.io/release/install-cni:1.29.9
-    images.v1_33_0-alpha_31265bab.ztunnel: registry.istio.io/testing/ztunnel:1.33.0-alpha.31265baba4e1b84284fb0cc0dac495ec41a6ade0
-    images.v1_33_0-alpha_31265bab.istiod: registry.istio.io/testing/pilot:1.33.0-alpha.31265baba4e1b84284fb0cc0dac495ec41a6ade0
-    images.v1_33_0-alpha_31265bab.proxy: registry.istio.io/testing/proxyv2:1.33.0-alpha.31265baba4e1b84284fb0cc0dac495ec41a6ade0
-    images.v1_33_0-alpha_31265bab.cni: registry.istio.io/testing/install-cni:1.33.0-alpha.31265baba4e1b84284fb0cc0dac495ec41a6ade0
+  annotations: {}
 revisionHistoryLimit: 10
 service:
   port: 8443
