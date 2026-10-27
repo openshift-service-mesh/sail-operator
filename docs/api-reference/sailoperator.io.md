@@ -2027,7 +2027,7 @@ in matching namespaces to be available globally:
 
 ```yaml
 serviceScopeConfigs:
-  - namespacesSelector:
+  - namespaceSelector:
     matchExpressions:
   - key: istio.io/global
     operator: In
