@@ -34,7 +34,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: OpenShift Optional, Integration & Delivery, Networking, Security
     containerImage: ${OSSM_OPERATOR_3_1}
-    createdAt: "2026-10-22T16:17:56Z"
+    createdAt: "2026-10-29T21:25:44Z"
     description: The OpenShift Service Mesh Operator enables you to install, configure, and manage an instance of Red Hat OpenShift Service Mesh. OpenShift Service Mesh is based on the open source Istio project.
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "true"
@@ -695,11 +695,11 @@ spec:
                   images.v1_24_5.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:87b967785d7cc222f9df9cb49f0373a9819bf67910ce523dc3b8345849e881dd
                   images.v1_24_5.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:7fa655f5efb1175ff1e1c138371fc1233e5d4313c5feb07194428d0d1fdd33a3
                   images.v1_24_5.ztunnel: registry.redhat.io/openshift-service-mesh-dev-preview-beta/istio-ztunnel-rhel9@sha256:7ea9b82e192402566e69063a4787351be9f1ef50719bfd1a8f5d5940362b3f70
-                  images.v1_24_6.cni: ${ISTIO_CNI_1_24}
-                  images.v1_24_6.istiod: ${ISTIO_PILOT_1_24}
-                  images.v1_24_6.must-gather: ${OSSM_MUST_GATHER_3_0}
-                  images.v1_24_6.proxy: ${ISTIO_PROXY_1_24}
-                  images.v1_24_6.ztunnel: ${ISTIO_ZTUNNEL_1_24}
+                  images.v1_24_6.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:4bfcf20fe3ac5a82cc38a4e8dbfc5acdf7d90771e090c657fba759e391154d29
+                  images.v1_24_6.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:353843f6ca27812c1ed1b67491149a3da0f181daba4ce9db2d18e24bee24d970
+                  images.v1_24_6.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:9bad98475ebbf9da3e78ed3f259820052c2ce6d11c066b5f87287776d92dac07
+                  images.v1_24_6.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:86557ac44500dc0111ce614a76e064ac7b99527257c63aa50ae48d677f75b0a8
+                  images.v1_24_6.ztunnel: registry.redhat.io/openshift-service-mesh-dev-preview-beta/istio-ztunnel-rhel9@sha256:b8bf8dc6ee8ce8f409a51d5e6bcd0623b42fc49fab21c390a25bfacc0392a33a
                   images.v1_26_2.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:14c5a52faf20267baa43d9a72ee6416f56fbc41dd640adc2aba3c4043802a0e9
                   images.v1_26_2.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:028e10651db0d1ddb769a27c9483c6d41be6ac597f253afd9d599f395d9c82d8
                   images.v1_26_2.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:366266f10e658c4cea86bddf6ee847e1908ea4dd780cb5f7fb0e466bac8995f1
@@ -720,11 +720,11 @@ spec:
                   images.v1_26_6.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:8a21e30593e51f2fd2e51d9ab1d0ed2fc43eaa9b98173d7fb74f799d6b2f163d
                   images.v1_26_6.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:47100186c27934adeda3002bb04cac28980ca8854eee7d6e4f4b3f85562e9a8e
                   images.v1_26_6.ztunnel: registry.redhat.io/openshift-service-mesh-tech-preview/istio-ztunnel-rhel9@sha256:f39e2c28ef36fce9f808f3946cc4e4126047e142ad84cb18c222cecceae29730
-                  images.v1_26_8.cni: ${ISTIO_CNI_1_26}
-                  images.v1_26_8.istiod: ${ISTIO_PILOT_1_26}
-                  images.v1_26_8.must-gather: ${OSSM_MUST_GATHER_3_1}
-                  images.v1_26_8.proxy: ${ISTIO_PROXY_1_26}
-                  images.v1_26_8.ztunnel: ${ISTIO_ZTUNNEL_1_26}
+                  images.v1_26_8.cni: registry.redhat.io/openshift-service-mesh/istio-cni-rhel9@sha256:fcf0f8d62f210c4fe3003f1d630c70f84dfd34296015cd67e8c0c4dc1e13ec51
+                  images.v1_26_8.istiod: registry.redhat.io/openshift-service-mesh/istio-pilot-rhel9@sha256:9e6c4540706fa8c1ba27b7acf32bd1f1ee81e66949f6012f3b0b9405b3395940
+                  images.v1_26_8.must-gather: registry.redhat.io/openshift-service-mesh/istio-must-gather-rhel9@sha256:1ea45435d0892e650cdbc2a73d2a47ffa9a870174bb2bf64d5407af929859bd1
+                  images.v1_26_8.proxy: registry.redhat.io/openshift-service-mesh/istio-proxyv2-rhel9@sha256:c5eeafbee2c205e23654f44160a66ab971bf80204f65a1caeeb8c1b61377597c
+                  images.v1_26_8.ztunnel: registry.redhat.io/openshift-service-mesh-tech-preview/istio-ztunnel-rhel9@sha256:af8be57b4dcf489707ec1e90d056d788395cf48023c8485230282bae3d6d3a59
                   kubectl.kubernetes.io/default-container: sail-operator
                 labels:
                   app.kubernetes.io/created-by: servicemeshoperator3
