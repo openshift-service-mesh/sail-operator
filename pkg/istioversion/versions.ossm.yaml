@@ -12,7 +12,17 @@
 # as well as all the Istio CRDs (e.g. VirtualService).
 versions:
   - name: v1.31-latest
-    ref: v1.31.1
+    ref: v1.31.4
+  - name: v1.31.4
+    version: 1.31.4
+    repo: https://github.com/istio/istio
+    commit: 1.31.4
+    charts:
+      - https://blob.istio.io/istio-release/charts/base-1.31.4.tgz
+      - https://blob.istio.io/istio-release/charts/istiod-1.31.4.tgz
+      - https://blob.istio.io/istio-release/charts/gateway-1.31.4.tgz
+      - https://blob.istio.io/istio-release/charts/cni-1.31.4.tgz
+      - https://blob.istio.io/istio-release/charts/ztunnel-1.31.4.tgz
   - name: v1.31.1
     version: 1.31.1
     repo: https://github.com/istio/istio
@@ -24,7 +34,17 @@ versions:
       - https://github.com/openshift-service-mesh/istio-release/raw/0a949907f95dfdef30a117c54988c37c21e9c72b/1.31.1-redhat/helm/cni-1.31.1.tgz
       - https://github.com/openshift-service-mesh/istio-release/raw/0a949907f95dfdef30a117c54988c37c21e9c72b/1.31.1-redhat/helm/ztunnel-1.31.1.tgz
   - name: v1.30-latest
-    ref: v1.30.5
+    ref: v1.30.8
+  - name: v1.30.8
+    version: 1.30.8
+    repo: https://github.com/istio/istio
+    commit: 1.30.8
+    charts:
+      - https://blob.istio.io/istio-release/charts/base-1.30.8.tgz
+      - https://blob.istio.io/istio-release/charts/istiod-1.30.8.tgz
+      - https://blob.istio.io/istio-release/charts/gateway-1.30.8.tgz
+      - https://blob.istio.io/istio-release/charts/cni-1.30.8.tgz
+      - https://blob.istio.io/istio-release/charts/ztunnel-1.30.8.tgz
   - name: v1.30.5
     version: 1.30.5
     repo: https://github.com/istio/istio
