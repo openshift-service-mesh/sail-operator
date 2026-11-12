@@ -566,8 +566,10 @@ operator-chart: download-istio-charts # pull the charts first as they are requir
 	# when building the bundle, helm generated base CSV is passed to the operator-sdk. With USE_IMAGE_DIGESTS=true, operator-sdk replaces all pullspecs with tags by digests and adds spec.relatedImages field automatically
 ifeq ($(PATCH_HELM_VALUES), true)
 	@hack/patch-values.sh ${HELM_VALUES_FILE}
-endif
+# do not patch gen images go according to bundle anymore in this freezed branch, since it contains hotfix for CIO team which is not in bundle
+# still possible when PATCH_HELM_VALUES=true
 	@hack/gen-images-go.sh ${HELM_VALUES_FILE}
+endif
 
 .PHONY: update-istio
 update-istio: ## Update the Istio commit hash in the 'latest' entry in versions.yaml to the latest commit in the branch.
