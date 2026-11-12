@@ -16,12 +16,14 @@ package istiovalues
 
 import (
 	"crypto/tls"
+	"slices"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	v1 "github.com/istio-ecosystem/sail-operator/api/v1"
 	"github.com/istio-ecosystem/sail-operator/pkg/config"
 	configv1 "github.com/openshift/api/config/v1"
+	openshiftcrypto "github.com/openshift/library-go/pkg/crypto"
 
 	"istio.io/istio/pkg/log"
 )
@@ -34,7 +36,15 @@ var (
 // ApplyTLSConfig applies TLS configuration to the Istio values.
 // If TLS settings are already set, they are not overridden.
 func ApplyTLSConfig(tlsConfig *config.TLSConfig, istioVersion string, values *v1.Values) {
-	if tlsConfig == nil || values == nil || len(tlsConfig.CipherSuites) == 0 {
+	if values == nil {
+		return
+	}
+
+	// ECDH curves are handled independently of the cipher suites, so this runs before the
+	// early return below.
+	applyECDHCurves(tlsConfig, istioVersion, values)
+
+	if tlsConfig == nil || len(tlsConfig.CipherSuites) == 0 {
 		return
 	}
 
@@ -78,18 +88,7 @@ func ApplyTLSConfig(tlsConfig *config.TLSConfig, istioVersion string, values *v1
 		values.MeshConfig.MeshMTLS.CipherSuites = nil
 	}
 
-	// Configure the Ecdhcurves if they are available on Openshift configuration. Normalize before
-	// copying the names, given Openshift allows a different naming from NIST
 	if tlsConfig.OpenShift != nil {
-		if len(tlsConfig.OpenShift.TLSProfileSpec.Groups) > 0 {
-			ecdhCurves := copyECDHCurvesToConfig(tlsConfig.OpenShift.TLSProfileSpec.Groups)
-			if len(values.MeshConfig.TlsDefaults.EcdhCurves) == 0 {
-				values.MeshConfig.TlsDefaults.EcdhCurves = ecdhCurves
-			}
-			// TODO: MeshMTLS does not support setting ecdhCurves and this will break Gateway provisioning.
-			// we should take care of ecdhCurves for mesh as a second step
-		}
-
 		// Envoy does not support setting TLS ciphers for TLS 1.3 BUT the openssl
 		// backend does allow you to customize these. On openshift the envoy image has a custom openssl
 		// config file baked in that will populate the tls1.3 cipher suites through an env var.
@@ -195,6 +194,64 @@ func addExtraContainerArg(pilot *v1.PilotConfig, argName, argValue string) {
 		}
 	}
 	pilot.ExtraContainerArgs = append(pilot.ExtraContainerArgs, argNameWithEquals+argValue)
+}
+
+// defaultECDHCurves mirrors the Groups of the predefined OpenShift profiles: Old,
+// Intermediate and Modern all specify exactly these four (see TLSProfiles in
+// github.com/openshift/api/config/v1). The names are already normalized here.
+var defaultECDHCurves = []string{"X25519MLKEM768", "X25519", "P-256", "P-384"}
+
+// applyECDHCurves sets meshConfig.tlsDefaults.ecdhCurves from the OpenShift TLS profile when
+// the cluster profile is honored and provides groups, and otherwise falls back to
+// defaultECDHCurves on Istio 1.30+. A user-supplied value is never overridden.
+//
+// The curves must be set explicitly: when the field is empty Envoy falls back to its own
+// defaults, which don't offer X25519MLKEM768, and the curves in /etc/pki/tls/openssl.cnf are
+// ignored by Envoy. Offering X25519MLKEM768 by default is required by
+// https://redhat.atlassian.net/browse/OSSM-15468. This does not break FIPS, because
+// downstream Istio drops the curves when the fips-140-3-redhat compliance policy is in use.
+//
+// Note that only meshConfig.tlsDefaults is set: Istio rejects the whole mesh config when
+// meshConfig.meshMTLS.ecdhCurves is present ("mesh TLS does not support ECDH curves
+// configuration"), so mesh mTLS curves cannot be configured this way.
+func applyECDHCurves(tlsConfig *config.TLSConfig, istioVersion string, values *v1.Values) {
+	// Only applies on OpenShift, where the proxy image is known to support the hybrid group.
+	// Elsewhere tlsConfig is nil and Envoy's own defaults are left in place.
+	if tlsConfig == nil || tlsConfig.OpenShift == nil {
+		return
+	}
+
+	// The cluster TLS profile is consulted only when tlsAdherence requires it. Under
+	// NoOpinion and LegacyAdheringComponentsOnly the profile's groups are ignored, just as
+	// its ciphers are, and defaultECDHCurves applies instead.
+	var curves []string
+	if openshiftcrypto.ShouldHonorClusterTLSProfile(tlsConfig.OpenShift.TLSAdherencePolicy) {
+		// Normalize the names, since OpenShift uses different names than NIST.
+		curves = copyECDHCurvesToConfig(tlsConfig.OpenShift.TLSProfileSpec.Groups)
+	}
+	if len(curves) == 0 {
+		// Our defaults are only applied on Istio 1.30+; on older versions Envoy's own
+		// defaults are left in place when the profile supplies nothing.
+		v, err := semver.NewVersion(istioVersion)
+		if err != nil {
+			log.Warnf("failed to parse Istio version %q: %v", istioVersion, err)
+			return
+		}
+		if !v.GreaterThanEqual(istio1_30) {
+			return
+		}
+		curves = slices.Clone(defaultECDHCurves)
+	}
+
+	if values.MeshConfig == nil {
+		values.MeshConfig = &v1.MeshConfig{}
+	}
+	if values.MeshConfig.TlsDefaults == nil {
+		values.MeshConfig.TlsDefaults = &v1.MeshConfigTLSConfig{}
+	}
+	if len(values.MeshConfig.TlsDefaults.EcdhCurves) == 0 {
+		values.MeshConfig.TlsDefaults.EcdhCurves = curves
+	}
 }
 
 // copyECDHCurvesToConfig creates a new slice containing the normalized ECDHCurves to be
