@@ -12,7 +12,17 @@
 # as well as all the Istio CRDs (e.g. VirtualService).
 versions:
   - name: v1.30-latest
-    ref: v1.30.5
+    ref: v1.30.8
+  - name: v1.30.8
+    version: 1.30.8
+    repo: https://github.com/istio/istio
+    commit: 1.30.8
+    charts:
+      - https://blob.istio.io/istio-release/charts/base-1.30.8.tgz
+      - https://blob.istio.io/istio-release/charts/istiod-1.30.8.tgz
+      - https://blob.istio.io/istio-release/charts/gateway-1.30.8.tgz
+      - https://blob.istio.io/istio-release/charts/cni-1.30.8.tgz
+      - https://blob.istio.io/istio-release/charts/ztunnel-1.30.8.tgz
   - name: v1.30.5
     version: 1.30.5
     repo: https://github.com/istio/istio
