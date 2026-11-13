@@ -1,0 +1,113 @@
+name: Add RH Istio charts
+
+# Midstream (openshift-service-mesh/sail-operator) automation.
+# When upstream chart URLs land in versions.ossm.yaml (or on a daily sweep),
+# open RH chart + Konflux placeholder PRs for human review.
+#
+# Safety:
+# - Never adds auto-merge labels
+# - Skips versions that already have an open RH charts PR
+# - workflow_dispatch defaults to dry_run=true
+#
+# Requires hack/add-rh-istio-charts.sh on the branch that runs this workflow
+# (backport to release-3.* tips or run from main with a full OSSM checkout).
+
+on:
+  push:
+    branches:
+      - 'release-3.*'
+    paths:
+      - 'pkg/istioversion/versions.ossm.yaml'
+  schedule:
+    # Catch RH tarballs that publish after the upstream-charts PR merged.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Discover/plan only; do not push branches or open PRs"
+        type: boolean
+        required: false
+        default: true
+      branches:
+        description: "Optional comma-separated release-X.Y list (default: newest 5)"
+        type: string
+        required: false
+        default: ''
+
+permissions: {}
+
+concurrency:
+  group: add-rh-istio-charts
+  cancel-in-progress: false
+
+jobs:
+  add-rh-charts:
+    name: Discover and open RH chart PRs
+    runs-on: ubuntu-latest
+    # Only meaningful on the OSSM fork (has ossm/ + versions.ossm.yaml).
+    if: github.repository == 'openshift-service-mesh/sail-operator'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Same-repo PR creation. If branch protection blocks GITHUB_TOKEN pushes,
+          # switch this (and GH_TOKEN below) to a PAT stored as secrets.GIT_TOKEN.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Configure git identity
+        run: |
+          git config user.name "sail-operator-bot"
+          git config user.email "sail-operator-bot@users.noreply.github.com"
+
+      - name: Discover / create RH chart PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_AUTHOR_NAME: sail-operator-bot
+          GIT_AUTHOR_EMAIL: sail-operator-bot@users.noreply.github.com
+          DISCOVER_ACTIVE_COUNT: '5'
+          DISCOVER_BRANCHES: ${{ inputs.branches }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          test -x ./hack/add-rh-istio-charts.sh || chmod +x ./hack/add-rh-istio-charts.sh
+          test -f ./hack/add-rh-istio-charts.sh
+          test -f pkg/istioversion/versions.ossm.yaml
+          test -f ossm/values.yaml
+
+          DRY=false
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            # workflow_dispatch input is the string "true"/"false"
+            if [[ "${INPUT_DRY_RUN}" == "true" ]]; then
+              DRY=true
+            fi
+          fi
+
+          ARGS=(--discover --repo openshift-service-mesh/sail-operator)
+          if [[ -n "${DISCOVER_BRANCHES:-}" ]]; then
+            ARGS+=(--branches "${DISCOVER_BRANCHES}")
+          fi
+
+          if $DRY; then
+            echo "Running discover dry-run (no PRs will be opened)"
+            ./hack/add-rh-istio-charts.sh "${ARGS[@]}" --dry-run
+          else
+            echo "Creating human-review PRs for ready RH chart swaps (no auto-merge)"
+            export BUILD_WITH_CONTAINER=0
+            ./hack/add-rh-istio-charts.sh "${ARGS[@]}" --create-pr
+          fi
