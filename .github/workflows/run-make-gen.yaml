@@ -1,0 +1,94 @@
+name: run-make-gen
+
+# Regenerates sail-operator bundle/CSV artifacts after source-only PRs (version bump or
+# image-vars). Runs make gen and commits generated files back to the PR branch.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - 'release-3.*'
+    paths:
+      - 'ossm/values.yaml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: make-gen-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  make-gen:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        startsWith(github.event.pull_request.head.ref, 'bump-version-') ||
+        startsWith(github.event.pull_request.head.ref, 'image-vars-')
+      )
+    runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: auto
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # setup-go v7 sets GOTOOLCHAIN=local; helm v4 needs auto to upgrade Go when required
+      - name: Restore GOTOOLCHAIN auto
+        run: echo "GOTOOLCHAIN=auto" >> "$GITHUB_ENV"
+
+      - name: Install make gen tools
+        run: |
+          mkdir -p bin
+          go install istio.io/tools/cmd/license-lint@release-1.30
+        env:
+          GOBIN: ${{ github.workspace }}/bin
+
+      - name: Add bin to PATH
+        run: echo "${{ github.workspace }}/bin" >> "$GITHUB_PATH"
+
+      - name: Run make gen
+        run: BUILD_WITH_CONTAINER=0 make gen
+
+      - name: Commit and push generated files
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No changes from make gen"
+            exit 0
+          fi
+
+          git add -u
+          git commit -m "chore: run make gen [skip ci]"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Post summary comment
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const changed = '${{ steps.commit.outputs.changed }}' === 'true';
+            const body = changed
+              ? '✅ **run-make-gen** committed regenerated files from `make gen`.'
+              : '✅ **run-make-gen** finished — `make gen` produced no diff (already up to date).';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
