@@ -101,6 +101,9 @@ spec:
 {{- if .Values.global.imagePullPolicy }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
 {{- end }}
+{{- if .Values.terminationMessagePolicy }}
+          terminationMessagePolicy: {{ .Values.terminationMessagePolicy }}
+{{- end }}
           args:
           - "discovery"
           - --monitoringAddr=:15014
