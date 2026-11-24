@@ -6,6 +6,7 @@ This document details how to migrate from 2.6 to OpenShift Service Mesh 3.0.
 
 Before you begin to migrate your controlplane from OpenShift Service Mesh 2.6 to 3.0, ensure you have done the following:
 
+- Read through the [rollback limitations](./rollback-limitations.md) to understand that rolling back a migration is not supported or recommended.
 - Read through the key OSSM 2.6 vs 3.0 Differences [document](./../ossm2-vs-ossm3.md) 
   - Read through fields in the `ServiceMeshControlPlane` resource no longer found in the `istio` resource [here](./smcp-fields-migration/unsupported-fields-in-3.md)
 - Upgrade your 2.6 OpenShift Service Mesh Operator to the latest release. See warning below.
