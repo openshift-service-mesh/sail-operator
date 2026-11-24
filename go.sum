@@ -212,8 +212,8 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0 h1:VzM3TYHDgqPkettiP6I6q2jOeQFL4nrJM+UcAc4f6Fs=
 github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0/go.mod h1:nqCI7aelBJU61wiBeeZWJ6oi4bJy5nrjkM6lWIMA4j0=
-github.com/klauspost/compress v1.20.4 h1:dD0v/bvxtjCBqQu6sx1TNWkalEY5lNTIe+HY9w8TeNI=
-github.com/klauspost/compress v1.20.4/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
+github.com/klauspost/compress v1.20.5 h1:rJj5VjH4xQxbnLphg6eqUcDxRFCw1jpMdDY9qXlrwSs=
+github.com/klauspost/compress v1.20.5/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
@@ -274,8 +274,8 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=
 github.com/opencontainers/image-spec v1.1.1/go.mod h1:qpqAh3Dmcf36wStyyWU+kCeDgrGnAve2nCC8+7h8Q0M=
-github.com/openshift-service-mesh/istio v0.0.0-20261123072322-98213d468e34 h1:OXVfjXscUzPBvA4cf4Bdh5cbLR1k5E3AP+pIDw+9YRA=
-github.com/openshift-service-mesh/istio v0.0.0-20261123072322-98213d468e34/go.mod h1:Qg57EcuSnOdnG7qJq48KzXcyQw8OEoHTSI/egtwr8XU=
+github.com/openshift-service-mesh/istio v0.0.0-20261124074100-cf5830ab957b h1:tZTmd/8xTtHNXaqnVT0xQa9/B3eQ0Exd0d7SKrn+e8Y=
+github.com/openshift-service-mesh/istio v0.0.0-20261124074100-cf5830ab957b/go.mod h1:pQ6sXm71N+DYBs7ZWeyXdmCECdbCW9DqopXgaTzVKww=
 github.com/openshift/api v0.0.0-20260630164038-90cdc3bbde7f h1:XVbZm6+tos469QuLh1dpLrKVP2NwoKDrA++G6fwXVyE=
 github.com/openshift/api v0.0.0-20260630164038-90cdc3bbde7f/go.mod h1:7WJ3IPaK6nmWT8bDcaNooHqd0H5WepjVqV/10VlkMEM=
 github.com/openshift/controller-runtime-common v0.0.0-20260428152732-64ee174f5e2e h1:k89oIo2EjX0PRSdi1kesktCyWp50SC9WwKurvupvRGs=
