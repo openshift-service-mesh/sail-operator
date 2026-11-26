@@ -27,7 +27,7 @@ Charts are downloaded from Istio's GitHub releases:
 The operator merges values from multiple sources (highest to lowest priority):
 
 1. **User-provided values** - `spec.values` in custom resources
-2. **Vendor defaults** - `pkg/istiovalues/vendor_defaults.yaml`
+2. **Vendor defaults** - `pkg/istiovalues/vendor_defaults.yaml` (generated from `ossm/vendor_defaults.src.yaml`)
 3. **Operator defaults** - Built-in safe defaults
 4. **Chart defaults** - Default values from Helm charts
 

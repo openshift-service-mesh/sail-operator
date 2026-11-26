@@ -1,0 +1,47 @@
+# Source for pkg/istiovalues/vendor_defaults.yaml.
+#
+# Each top-level key is a semver constraint (see
+# https://github.com/Masterminds/semver#checking-version-constraints). Running
+# `make gen-vendor-defaults` expands every constraint over the installable
+# versions in pkg/istioversion and writes one entry per matching version, which
+# is the exact-version form the runtime looks up.
+#
+# Below each constraint, the first level is the resource type -- one of `istio`,
+# `istiocni` or `ztunnel` -- followed by the `spec.values` fields to default:
+#
+#   ">=1.26.0":
+#     istio:
+#       pilot:
+#         env:
+#           SOME_VAR: "true"
+#     istiocni:
+#       cni:
+#         cniConfDir: custom/cni/conf/dir
+#
+# These are defaults, not overrides: user input in the CR always wins.
+#
+# When constraints overlap, later entries in this file take precedence.
+#
+# A constraint that matches none of the versions this branch ships is reported
+# as a warning, not an error: a version-bounded workaround ageing out is the
+# expected end state, and the generated file is simply empty.
+
+# ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT lets users bind Gateway API resources to
+# existing gateway deployments. Upstream defaults it to true; OSSM disables it
+# on every supported Istio version.
+#
+# The lower bound is 1.26.0 because the flag was introduced there
+# (istio/istio#55053); setting it on anything older has no effect at all. There
+# is no upper bound, so new releases are covered as they are added to
+# versions.ossm.yaml -- that is the point of expressing this as a constraint.
+#
+# History: the override started as a mitigation for a template-injection vector
+# in the gateway deployment controller (istio/istio#58891), and was briefly
+# narrowed to exclude builds carrying the upstream fix, which landed in 1.27.6
+# and 1.28.4 -- see "Remove gateway API workaround from Istio 1.28.4+ and
+# 1.27.8+" (bba749abc). It now applies everywhere regardless of that fix.
+">=1.26.0":
+  istio:
+    pilot:
+      env:
+        ENABLE_GATEWAY_API_MANUAL_DEPLOYMENT: "false"

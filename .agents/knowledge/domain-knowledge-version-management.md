@@ -335,7 +335,7 @@ kubectl describe istio default | grep "Version:"
 ### Adding New Versions
 1. **Update versions.yaml** - Add new version entry with charts
 2. **Test compatibility** - Verify operator works with new version
-3. **Update defaults** - Modify vendor_defaults.yaml if needed
+3. **Update defaults** - Modify `ossm/vendor_defaults.src.yaml` if needed, then run `make gen-vendor-defaults`
 4. **Test upgrades** - Validate upgrade paths from previous versions
 
 ### Version Testing
