@@ -333,7 +333,11 @@ The name of the versions.yaml file can be overwritten using the VERSIONS_YAML_FI
 
 #### vendor_defaults.yaml
 
-By modifying `pkg/istiovalues/vendor_defaults.yaml`, vendors can change some defaults for the helm values. Note that these are defaults, not overrides, so user input will always take precendence.
+Vendors can change some defaults for the helm values. Note that these are defaults, not overrides, so user input will always take precendence.
+
+`pkg/istiovalues/vendor_defaults.yaml` is **generated** and must not be edited by hand. Edit `ossm/vendor_defaults.src.yaml` instead, then run `make gen-vendor-defaults` (or `make gen`) to regenerate it.
+
+The source file is keyed by [semver constraints](https://github.com/Masterminds/semver#checking-version-constraints) rather than by exact versions, so a single entry such as `">=1.26.0 <1.27.8"` covers every matching Istio version the branch ships. The generator expands those constraints into the per-version form the runtime looks up, which means a new patch release in `versions.yaml` can no longer be missed. A unit test fails if the generated file is out of date.
 
 ## Release process
 

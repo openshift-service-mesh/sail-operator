@@ -494,7 +494,7 @@ SKIP_BUILD=true SKIP_DEPLOY=true GINKGO_FLAGS="-v --label-filter=smoke && operat
 ```
 
 #### Running with specific configuration for the Istio and IstioCNI resource
-There might be situations where you want to run tests with a specific configuration for the Istio and IstioCNI resource to match some cluster specific needs. For this, you can modify the `pkg/istiovalues/vendor_default.yaml` file to default `spec.values` for the Istio and IstioCNI resources. For more information and an example go to the [file](../../pkg/istiovalues/vendor_defaults.yaml)
+There might be situations where you want to run tests with a specific configuration for the Istio and IstioCNI resource to match some cluster specific needs. For this, you can default `spec.values` for the Istio and IstioCNI resources by editing [`ossm/vendor_defaults.src.yaml`](../../ossm/vendor_defaults.src.yaml) and running `make gen-vendor-defaults`. Do not edit `pkg/istiovalues/vendor_defaults.yaml` directly; it is generated from that source file and your changes will be overwritten.
 
 #### Running the testing framework against specific Istio versions
 By default, the test framework will run the tests against all the latest patch minor version available for the operator. This is useful when you want to test the operator against all the latest patch minor versions available. The test framework will automatically detect the latest patch minor version available for the operator and run the tests against it by reading the versions located in the `pkg/istioversion/versions.yaml` file.

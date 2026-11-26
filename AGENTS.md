@@ -93,7 +93,8 @@ CONTAINER_CLI=podman DOCKER_GID=0 make deploy
 ## Key Configuration Files
 
 - `pkg/istioversion/versions.yaml` - Supported Istio versions (configurable via VERSIONS_YAML_FILE)
-- `pkg/istiovalues/vendor_defaults.yaml` - Vendor-specific Helm value defaults
+- `ossm/vendor_defaults.src.yaml` - Vendor-specific Helm value defaults, keyed by semver constraint
+- `pkg/istiovalues/vendor_defaults.yaml` - Generated from the above by `make gen-vendor-defaults`; do not edit
 - `go.mod` - Go dependencies and replacements
 
 ## Testing Patterns
@@ -125,7 +126,7 @@ The project supports downstream vendors with custom configurations:
 
 - Vendor-specific changes should be configuration-based, not code changes
 - Use `VERSIONS_YAML_FILE` environment variable for custom version files
-- Modify `vendor_defaults.yaml` for vendor-specific Helm defaults
+- Modify `ossm/vendor_defaults.src.yaml` for vendor-specific Helm defaults, then run `make gen-vendor-defaults`
 
 ## Versioning Policy
 
