@@ -27,7 +27,7 @@ const repoRoot = "../.."
 
 // TestGeneratedFileIsUpToDate is the guard against pkg/istiovalues/vendor_defaults.yaml
 // drifting away from the source file and the supported version list. It is the
-// reason a versions.ossm.yaml bump can no longer silently skip a version.
+// reason a versions.yaml bump can no longer silently skip a version.
 func TestGeneratedFileIsUpToDate(t *testing.T) {
 	versions, err := readVersions(filepath.Join(repoRoot, defaultVersionsPath))
 	if err != nil {

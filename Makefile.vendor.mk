@@ -8,7 +8,7 @@ PATCH_HELM_VALUES = false
 OCP = true
 
 # Regenerate the vendor defaults whenever anything else is generated, so that a
-# versions.ossm.yaml bump cannot leave pkg/istiovalues/vendor_defaults.yaml stale.
+# versions.yaml bump cannot leave pkg/istiovalues/vendor_defaults.yaml stale.
 gen-all-except-bundle: gen-vendor-defaults
 
 .PHONY: gen-vendor-defaults

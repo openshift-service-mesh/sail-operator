@@ -33,7 +33,7 @@
 # The lower bound is 1.26.0 because the flag was introduced there
 # (istio/istio#55053); setting it on anything older has no effect at all. There
 # is no upper bound, so new releases are covered as they are added to
-# versions.ossm.yaml -- that is the point of expressing this as a constraint.
+# versions.yaml -- that is the point of expressing this as a constraint.
 #
 # History: the override started as a mitigation for a template-injection vector
 # in the gateway deployment controller (istio/istio#58891), and was briefly

@@ -36,7 +36,7 @@ import (
 const (
 	defaultSrcPath      = "ossm/vendor_defaults.src.yaml"
 	defaultOutPath      = "pkg/istiovalues/vendor_defaults.yaml"
-	defaultVersionsPath = "pkg/istioversion/versions.ossm.yaml"
+	defaultVersionsPath = "pkg/istioversion/versions.yaml"
 
 	// header is deliberately free of file paths so that the output depends only
 	// on the source file and the version list, never on how the tool was invoked.
